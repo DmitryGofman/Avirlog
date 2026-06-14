@@ -1,3 +1,5 @@
+import { localApi } from "./localStore";
+
 const BASE = process.env.EXPO_PUBLIC_BACKEND_URL;
 
 let authToken: string | null = null;
@@ -12,6 +14,12 @@ interface ApiOptions {
 }
 
 export async function api<T = any>(path: string, options: ApiOptions = {}): Promise<T> {
+  // Guest / local mode: with no signed-in user, data routes are served from
+  // on-device storage. Auth routes always go to the backend (login needs it).
+  if (!authToken && !path.startsWith("/auth/")) {
+    return localApi<T>(path, options);
+  }
+
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (authToken) headers.Authorization = `Bearer ${authToken}`;
 
