@@ -82,6 +82,7 @@ class SettingsIn(BaseModel):
     reminder_enabled: bool = False
     reminder_interval_minutes: int = Field(default=60, ge=5, le=1440)
     theme: Literal["light", "dark"] = "light"
+    mood_journaling: bool = True
 
 
 # ---------- Helpers ----------
@@ -153,6 +154,7 @@ async def ensure_settings(user_id: str) -> dict:
         "reminder_enabled": False,
         "reminder_interval_minutes": 60,
         "theme": "light",
+        "mood_journaling": True,
         "created_at": iso_now(),
         "updated_at": iso_now(),
     }

@@ -1,5 +1,6 @@
+import { useFocusEffect } from "expo-router";
 import * as Haptics from "expo-haptics";
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -26,6 +27,15 @@ export default function QuickLogScreen() {
   const [activeLog, setActiveLog] = useState<BreathLog | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [moodJournaling, setMoodJournaling] = useState(true);
+
+  useFocusEffect(
+    useCallback(() => {
+      api<{ mood_journaling?: boolean }>("/settings")
+        .then((s) => setMoodJournaling(s.mood_journaling ?? true))
+        .catch(() => {});
+    }, []),
+  );
 
   const logState = async (state: NostrilState) => {
     if (creating) return;
@@ -43,8 +53,10 @@ export default function QuickLogScreen() {
           local_hour: new Date().getHours(),
         },
       });
-      setActiveLog(log);
-      setSheetOpen(true);
+      if (moodJournaling) {
+        setActiveLog(log);
+        setSheetOpen(true);
+      }
       showToast(`Logged · ${STATE_META[state].label}`);
     } catch (e: any) {
       showToast(e.message ?? "Could not save log", "error");
@@ -84,6 +96,8 @@ export default function QuickLogScreen() {
         {(Object.keys(STATE_META) as NostrilState[]).map((state) => {
           const meta = STATE_META[state];
           const busy = creating === state;
+          // "Both" (Sushumna) occurs far less often, so it gets a smaller button.
+          const isBoth = state === "both";
           return (
             <Pressable
               key={state}
@@ -92,6 +106,7 @@ export default function QuickLogScreen() {
               disabled={!!creating}
               style={({ pressed }) => [
                 styles.stateBtn,
+                { flex: isBoth ? 0.5 : 1 },
                 {
                   backgroundColor: colors[meta.colorKey],
                   opacity: busy ? 0.7 : pressed ? 0.92 : 1,
@@ -99,7 +114,14 @@ export default function QuickLogScreen() {
                 },
               ]}
             >
-              <Text style={[styles.stateLabel, { color: colors[meta.onColorKey] }]}>{meta.label}</Text>
+              <Text
+                style={[
+                  isBoth ? styles.stateLabelSmall : styles.stateLabel,
+                  { color: colors[meta.onColorKey] },
+                ]}
+              >
+                {meta.label}
+              </Text>
               <Text style={[styles.stateSub, { color: colors[meta.onColorKey], opacity: 0.75 }]}>
                 {meta.sub}
               </Text>
@@ -139,6 +161,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
   },
   stateLabel: { fontFamily: fonts.semibold, fontSize: 32, letterSpacing: -0.5 },
+  stateLabelSmall: { fontFamily: fonts.semibold, fontSize: 22, letterSpacing: -0.5 },
   stateSub: { fontFamily: fonts.medium, fontSize: 14, marginTop: spacing.xs },
   footerHint: {
     fontFamily: fonts.regular,
