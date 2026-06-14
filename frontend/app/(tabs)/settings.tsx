@@ -25,6 +25,7 @@ interface Settings {
   reminder_enabled: boolean;
   reminder_interval_minutes: number;
   theme: "light" | "dark";
+  mood_journaling: boolean;
 }
 
 const INTERVALS = [
@@ -48,7 +49,7 @@ export default function SettingsScreen() {
 
   useEffect(() => {
     api<Settings>("/settings")
-      .then(setSettings)
+      .then((s) => setSettings({ ...s, mood_journaling: s.mood_journaling ?? true }))
       .catch(() => showToast("Could not load settings", "error"));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -71,6 +72,11 @@ export default function SettingsScreen() {
   const toggleReminders = (enabled: boolean) => {
     if (!settings) return;
     persist({ ...settings, reminder_enabled: enabled });
+  };
+
+  const toggleMoodJournaling = (enabled: boolean) => {
+    if (!settings) return;
+    persist({ ...settings, mood_journaling: enabled });
   };
 
   const setInterval = (minutes: number) => {
@@ -194,6 +200,31 @@ export default function SettingsScreen() {
               />
             }
           />
+        </Section>
+
+        <Section title="Journaling">
+          <Row
+            icon="heart-outline"
+            label="Mood journaling"
+            testID="settings-mood-journaling-row"
+            right={
+              settings ? (
+                <Switch
+                  testID="settings-mood-journaling-switch"
+                  value={settings.mood_journaling}
+                  onValueChange={toggleMoodJournaling}
+                  trackColor={{ false: colors.border, true: colors.brand }}
+                  thumbColor="#FFFFFF"
+                />
+              ) : (
+                <ActivityIndicator size="small" color={colors.brand} />
+              )
+            }
+          />
+          <Text style={[styles.reminderHint, { color: colors.onSurfaceTertiary, paddingBottom: spacing.lg }]}>
+            When on, logging a nostril opens a sheet to add mood, energy, focus, tags and a note. When
+            off, AvirLog stays minimal — one tap logs which nostril is active.
+          </Text>
         </Section>
 
         <Section title="Reminders">

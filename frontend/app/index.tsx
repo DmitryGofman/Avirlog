@@ -2,9 +2,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { Redirect } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Animated,
+  Easing,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -36,6 +39,28 @@ export default function Landing() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  // Staggered entrance: the brand settles first, the form follows.
+  const heroIn = useRef(new Animated.Value(0)).current;
+  const formIn = useRef(new Animated.Value(0)).current;
+  const useNative = Platform.OS !== "web";
+
+  useEffect(() => {
+    Animated.stagger(140, [
+      Animated.timing(heroIn, {
+        toValue: 1,
+        duration: 620,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: useNative,
+      }),
+      Animated.timing(formIn, {
+        toValue: 1,
+        duration: 620,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: useNative,
+      }),
+    ]).start();
+  }, [heroIn, formIn, useNative]);
 
   if (loading) {
     return (
@@ -92,7 +117,17 @@ export default function Landing() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.hero}>
+        <Animated.View
+          style={[
+            styles.hero,
+            {
+              opacity: heroIn,
+              transform: [
+                { translateY: heroIn.interpolate({ inputRange: [0, 1], outputRange: [24, 0] }) },
+              ],
+            },
+          ]}
+        >
           <Text testID="landing-app-name" style={styles.appName}>
             AvirLog
           </Text>
@@ -105,9 +140,19 @@ export default function Landing() {
               </View>
             ))}
           </View>
-        </View>
+        </Animated.View>
 
-        <View style={styles.form}>
+        <Animated.View
+          style={[
+            styles.form,
+            {
+              opacity: formIn,
+              transform: [
+                { translateY: formIn.interpolate({ inputRange: [0, 1], outputRange: [24, 0] }) },
+              ],
+            },
+          ]}
+        >
           <View style={styles.modeRow}>
             <Pressable
               testID="auth-mode-signin"
@@ -182,7 +227,7 @@ export default function Landing() {
             <Ionicons name="logo-google" size={18} color="#F7F7F5" />
             <Text style={styles.googleText}>Continue with Google</Text>
           </Pressable>
-        </View>
+        </Animated.View>
       </KeyboardAwareScrollView>
     </View>
   );

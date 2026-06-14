@@ -20,7 +20,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [mode, setModeState] = useState<Mode>("light");
 
   useEffect(() => {
-    storage.getItem(THEME_KEY, "light").then((v) => {
+    storage.getItem<Mode>(THEME_KEY, "light").then((v) => {
       if (v === "dark") setModeState("dark");
     });
   }, []);
