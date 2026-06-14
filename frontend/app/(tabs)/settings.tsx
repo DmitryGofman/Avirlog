@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -39,6 +40,7 @@ export default function SettingsScreen() {
   const { user, signOut, deleteAccount } = useAuth();
   const { showToast } = useToast();
   const insets = useSafeAreaInsets();
+  const router = useRouter();
 
   const [settings, setSettings] = useState<Settings | null>(null);
   const [customOpen, setCustomOpen] = useState(false);
@@ -173,16 +175,31 @@ export default function SettingsScreen() {
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <Section title="Account">
-          <Row
-            icon="person-outline"
-            label={user?.email ?? ""}
-            testID="settings-email-row"
-            right={
-              <Text style={[styles.providerText, { color: colors.onSurfaceTertiary }]}>
-                {user?.auth_provider === "google" ? "Google" : "Email"}
+          {user ? (
+            <Row
+              icon="person-outline"
+              label={user.email}
+              testID="settings-email-row"
+              right={
+                <Text style={[styles.providerText, { color: colors.onSurfaceTertiary }]}>
+                  {user.auth_provider === "google" ? "Google" : "Email"}
+                </Text>
+              }
+            />
+          ) : (
+            <>
+              <Row
+                icon="cloud-upload-outline"
+                label="Sign in to sync"
+                testID="settings-signin-row"
+                onPress={() => router.push("/login")}
+                right={<Ionicons name="chevron-forward" size={16} color={colors.onSurfaceTertiary} />}
+              />
+              <Text style={[styles.reminderHint, { color: colors.onSurfaceTertiary, paddingBottom: spacing.lg }]}>
+                Your logs are saved on this device. Sign in to back them up and sync across devices.
               </Text>
-            }
-          />
+            </>
+          )}
         </Section>
 
         <Section title="Appearance">
@@ -323,23 +340,25 @@ export default function SettingsScreen() {
           />
         </Section>
 
-        <Section title="Session">
-          <Row
-            icon="log-out-outline"
-            label="Sign out"
-            testID="settings-signout-row"
-            onPress={() => signOut()}
-            right={<Ionicons name="chevron-forward" size={16} color={colors.onSurfaceTertiary} />}
-          />
-          <View style={[styles.divider, { backgroundColor: colors.divider }]} />
-          <Row
-            icon="trash-outline"
-            label="Delete account"
-            testID="settings-delete-account-row"
-            onPress={() => setDeleteOpen(true)}
-            danger
-          />
-        </Section>
+        {user && (
+          <Section title="Session">
+            <Row
+              icon="log-out-outline"
+              label="Sign out"
+              testID="settings-signout-row"
+              onPress={() => signOut()}
+              right={<Ionicons name="chevron-forward" size={16} color={colors.onSurfaceTertiary} />}
+            />
+            <View style={[styles.divider, { backgroundColor: colors.divider }]} />
+            <Row
+              icon="trash-outline"
+              label="Delete account"
+              testID="settings-delete-account-row"
+              onPress={() => setDeleteOpen(true)}
+              danger
+            />
+          </Section>
+        )}
       </ScrollView>
 
       <Sheet visible={customOpen} onClose={() => setCustomOpen(false)} title="Custom interval">

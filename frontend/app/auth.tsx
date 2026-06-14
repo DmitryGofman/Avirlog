@@ -23,7 +23,7 @@ export default function AuthRedirect() {
   }, [params.session_id]);
 
   if (user) return <Redirect href="/(tabs)/log" />;
-  if (done) return <Redirect href="/" />;
+  if (done) return <Redirect href="/(tabs)/log" />;
 
   return (
     <View style={styles.wrap}>

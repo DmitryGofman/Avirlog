@@ -8,7 +8,6 @@ name: Deploy web (static)
 on:
   push:
     branches:
-      - claude/deployment-readiness-ui-1b4uyr
       - main
   workflow_dispatch:
 

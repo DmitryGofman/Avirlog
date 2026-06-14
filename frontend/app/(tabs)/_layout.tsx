@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Redirect, Tabs } from "expo-router";
+import { Tabs } from "expo-router";
 import React from "react";
 import { ActivityIndicator, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -9,10 +9,12 @@ import { useTheme } from "@/src/context/ThemeContext";
 import { fonts } from "@/src/theme/theme";
 
 export default function TabsLayout() {
-  const { user, loading } = useAuth();
+  const { loading } = useAuth();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
 
+  // No login gate: guests use the app locally (data stored on-device).
+  // Signing in to sync is offered from Settings.
   if (loading) {
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.surface }}>
@@ -20,8 +22,6 @@ export default function TabsLayout() {
       </View>
     );
   }
-
-  if (!user) return <Redirect href="/" />;
 
   return (
     <Tabs
