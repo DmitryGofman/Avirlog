@@ -8,6 +8,7 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { useIconFonts } from "@/src/hooks/use-icon-fonts";
+import { useBreathNotifications } from "@/src/hooks/use-breath-notifications";
 import { AuthProvider } from "@/src/context/AuthContext";
 import { ThemeProvider, useTheme } from "@/src/context/ThemeContext";
 import { ToastProvider } from "@/src/components/Toast";
@@ -18,10 +19,17 @@ import { ToastProvider } from "@/src/components/Toast";
 // the family is registered — which throws on Android Expo Go.
 SplashScreen.preventAutoHideAsync();
 
+// Lives inside ToastProvider so reminder taps can surface a toast.
+function NotificationBridge() {
+  useBreathNotifications();
+  return null;
+}
+
 function ThemedApp() {
   const { mode, colors } = useTheme();
   return (
     <ToastProvider>
+      <NotificationBridge />
       <StatusBar style={mode === "dark" ? "light" : "dark"} />
       <Stack
         screenOptions={{

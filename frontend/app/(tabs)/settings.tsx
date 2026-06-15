@@ -20,6 +20,7 @@ import { useToast } from "@/src/components/Toast";
 import { useAuth } from "@/src/context/AuthContext";
 import { useTheme } from "@/src/context/ThemeContext";
 import { api } from "@/src/lib/api";
+import { cancelReminders, ensurePermission, scheduleReminders } from "@/src/lib/notifications";
 import { fonts, radius, spacing } from "@/src/theme/theme";
 
 interface Settings {
@@ -71,8 +72,19 @@ export default function SettingsScreen() {
     if (settings) persist({ ...settings, theme: nextMode });
   };
 
-  const toggleReminders = (enabled: boolean) => {
+  const toggleReminders = async (enabled: boolean) => {
     if (!settings) return;
+    if (enabled && Platform.OS !== "web") {
+      const ok = await ensurePermission();
+      if (!ok) {
+        showToast("Allow notifications in system settings to get reminders", "error");
+        return;
+      }
+      await scheduleReminders(settings.reminder_interval_minutes);
+      showToast(`Reminders every ${settings.reminder_interval_minutes} min`);
+    } else if (!enabled) {
+      await cancelReminders();
+    }
     persist({ ...settings, reminder_enabled: enabled });
   };
 
@@ -83,6 +95,9 @@ export default function SettingsScreen() {
 
   const setInterval = (minutes: number) => {
     if (!settings) return;
+    if (settings.reminder_enabled && Platform.OS !== "web") {
+      scheduleReminders(minutes).catch(() => {});
+    }
     persist({ ...settings, reminder_interval_minutes: minutes });
   };
 
@@ -317,8 +332,8 @@ export default function SettingsScreen() {
                 </Pressable>
               </View>
               <Text style={[styles.reminderHint, { color: colors.onSurfaceTertiary }]}>
-                “Check your breath. What state are you in?” — reminder preferences are saved to your
-                profile. Push delivery requires a native build.
+                A repeating reminder with Left / Right / Both buttons lets you log in one tap from the
+                notification. Delivered on the installed app (iOS/Android), not the web preview.
               </Text>
             </View>
           )}
