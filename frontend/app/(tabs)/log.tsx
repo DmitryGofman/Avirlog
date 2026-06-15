@@ -117,6 +117,36 @@ export default function QuickLogScreen() {
     }
   };
 
+  const renderState = (state: NostrilState, isBoth = false) => {
+    const meta = STATE_META[state];
+    const busy = creating === state;
+    return (
+      <Pressable
+        key={state}
+        testID={`quick-log-${state}-button`}
+        onPress={() => logState(state)}
+        disabled={!!creating}
+        style={({ pressed }) => [
+          isBoth ? styles.bothBtn : styles.stateBtn,
+          {
+            backgroundColor: colors[meta.colorKey],
+            opacity: busy ? 0.7 : pressed ? 0.92 : 1,
+            transform: [{ scale: pressed ? 0.97 : 1 }],
+          },
+        ]}
+      >
+        <Text
+          style={[isBoth ? styles.stateLabelSmall : styles.stateLabel, { color: colors[meta.onColorKey] }]}
+        >
+          {meta.label}
+        </Text>
+        <Text style={[styles.stateSub, { color: colors[meta.onColorKey], opacity: 0.75 }]}>
+          {meta.sub}
+        </Text>
+      </Pressable>
+    );
+  };
+
   return (
     <View
       testID="quick-log-screen"
@@ -141,42 +171,14 @@ export default function QuickLogScreen() {
         </Text>
       </Animated.View>
 
+      {/* Left + Right are the frequent states, side by side and tall.
+          Both (Sushumna) accrues less, so it sits below as a short bar. */}
       <Animated.View style={[styles.buttons, { opacity: enter, transform: [{ translateY: enterTranslate }] }]}>
-        {(Object.keys(STATE_META) as NostrilState[]).map((state) => {
-          const meta = STATE_META[state];
-          const busy = creating === state;
-          // "Both" (Sushumna) occurs far less often, so it gets a smaller button.
-          const isBoth = state === "both";
-          return (
-            <Pressable
-              key={state}
-              testID={`quick-log-${state}-button`}
-              onPress={() => logState(state)}
-              disabled={!!creating}
-              style={({ pressed }) => [
-                styles.stateBtn,
-                { flex: isBoth ? 0.5 : 1 },
-                {
-                  backgroundColor: colors[meta.colorKey],
-                  opacity: busy ? 0.7 : pressed ? 0.92 : 1,
-                  transform: [{ scale: pressed ? 0.97 : 1 }],
-                },
-              ]}
-            >
-              <Text
-                style={[
-                  isBoth ? styles.stateLabelSmall : styles.stateLabel,
-                  { color: colors[meta.onColorKey] },
-                ]}
-              >
-                {meta.label}
-              </Text>
-              <Text style={[styles.stateSub, { color: colors[meta.onColorKey], opacity: 0.75 }]}>
-                {meta.sub}
-              </Text>
-            </Pressable>
-          );
-        })}
+        <View style={styles.topRow}>
+          {renderState("left")}
+          {renderState("right")}
+        </View>
+        {renderState("both", true)}
       </Animated.View>
 
       <Text style={[styles.footerHint, { color: colors.onSurfaceTertiary }]}>
@@ -206,16 +208,24 @@ const styles = StyleSheet.create({
   title: { fontFamily: fonts.semibold, fontSize: 28, letterSpacing: -0.5 },
   subtitle: { fontFamily: fonts.regular, fontSize: 15, marginTop: spacing.xs },
   buttons: { flex: 1, gap: spacing.md, paddingBottom: spacing.sm },
+  topRow: { flex: 1, flexDirection: "row", gap: spacing.md },
   stateBtn: {
     flex: 1,
     borderRadius: radius.lg,
-    alignItems: "flex-start",
+    alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: spacing.xl,
+    paddingHorizontal: spacing.lg,
+  },
+  bothBtn: {
+    height: 84,
+    borderRadius: radius.lg,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: spacing.lg,
   },
   stateLabel: { fontFamily: fonts.semibold, fontSize: 32, letterSpacing: -0.5 },
-  stateLabelSmall: { fontFamily: fonts.semibold, fontSize: 22, letterSpacing: -0.5 },
-  stateSub: { fontFamily: fonts.medium, fontSize: 14, marginTop: spacing.xs },
+  stateLabelSmall: { fontFamily: fonts.semibold, fontSize: 21, letterSpacing: -0.5 },
+  stateSub: { fontFamily: fonts.medium, fontSize: 13, marginTop: spacing.xs, textAlign: "center" },
   footerHint: {
     fontFamily: fonts.regular,
     fontSize: 13,
