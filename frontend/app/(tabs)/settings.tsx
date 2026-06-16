@@ -20,6 +20,7 @@ import { useToast } from "@/src/components/Toast";
 import { useAuth } from "@/src/context/AuthContext";
 import { useTheme } from "@/src/context/ThemeContext";
 import { api } from "@/src/lib/api";
+import { ACCOUNTS_ENABLED } from "@/src/lib/config";
 import { cancelReminders, ensurePermission, scheduleReminders } from "@/src/lib/notifications";
 import { fonts, radius, spacing } from "@/src/theme/theme";
 
@@ -190,7 +191,14 @@ export default function SettingsScreen() {
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <Section title="Account">
-          {user ? (
+          {!ACCOUNTS_ENABLED ? (
+            <>
+              <Row icon="phone-portrait-outline" label="On this device" testID="settings-local-row" />
+              <Text style={[styles.reminderHint, { color: colors.onSurfaceTertiary, paddingBottom: spacing.lg }]}>
+                Your logs and settings are saved on this device.
+              </Text>
+            </>
+          ) : user ? (
             <Row
               icon="person-outline"
               label={user.email}
@@ -363,9 +371,17 @@ export default function SettingsScreen() {
               )
             }
           />
+          <View style={[styles.divider, { backgroundColor: colors.divider }]} />
+          <Row
+            icon="shield-checkmark-outline"
+            label="Privacy policy"
+            testID="settings-privacy-row"
+            onPress={() => router.push("/privacy")}
+            right={<Ionicons name="chevron-forward" size={16} color={colors.onSurfaceTertiary} />}
+          />
         </Section>
 
-        {user && (
+        {ACCOUNTS_ENABLED && user && (
           <Section title="Session">
             <Row
               icon="log-out-outline"
