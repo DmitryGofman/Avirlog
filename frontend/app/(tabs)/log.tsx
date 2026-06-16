@@ -1,4 +1,5 @@
-import { useFocusEffect } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect, useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Animated, Easing, Platform, Pressable, StyleSheet, Text, View } from "react-native";
@@ -9,6 +10,7 @@ import { Sheet } from "@/src/components/Sheet";
 import { useToast } from "@/src/components/Toast";
 import { useTheme } from "@/src/context/ThemeContext";
 import { api, todayStr } from "@/src/lib/api";
+import { pickMessage, SWARA } from "@/src/lib/swara";
 import { BreathLog, fonts, NostrilState, radius, spacing, STATE_META } from "@/src/theme/theme";
 
 const USE_NATIVE = Platform.OS !== "web";
@@ -25,11 +27,13 @@ export default function QuickLogScreen() {
   const { colors } = useTheme();
   const { showToast } = useToast();
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const [creating, setCreating] = useState<NostrilState | null>(null);
   const [activeLog, setActiveLog] = useState<BreathLog | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [moodJournaling, setMoodJournaling] = useState(true);
+  const [guidance, setGuidance] = useState<{ state: NostrilState; message: string } | null>(null);
 
   // Entrance + ambient "breathing" motion — calm, on-brand, never distracting.
   const enter = useRef(new Animated.Value(0)).current;
@@ -91,6 +95,7 @@ export default function QuickLogScreen() {
           local_hour: new Date().getHours(),
         },
       });
+      setGuidance({ state, message: pickMessage(state) });
       if (moodJournaling) {
         setActiveLog(log);
         setSheetOpen(true);
@@ -153,17 +158,27 @@ export default function QuickLogScreen() {
       style={[styles.root, { backgroundColor: colors.surface, paddingTop: insets.top + spacing.lg }]}
     >
       <Animated.View style={[styles.header, { opacity: enter, transform: [{ translateY: enterTranslate }] }]}>
-        <View style={styles.dateRow}>
-          <View style={styles.pulse}>
-            <Animated.View
-              style={[
-                styles.pulseRing,
-                { borderColor: colors.brand, opacity: ringOpacity, transform: [{ scale: ringScale }] },
-              ]}
-            />
-            <View style={[styles.pulseDot, { backgroundColor: colors.brand }]} />
+        <View style={styles.topLine}>
+          <View style={styles.dateRow}>
+            <View style={styles.pulse}>
+              <Animated.View
+                style={[
+                  styles.pulseRing,
+                  { borderColor: colors.brand, opacity: ringOpacity, transform: [{ scale: ringScale }] },
+                ]}
+              />
+              <View style={[styles.pulseDot, { backgroundColor: colors.brand }]} />
+            </View>
+            <Text style={[styles.date, { color: colors.onSurfaceTertiary }]}>{formatDateHeading()}</Text>
           </View>
-          <Text style={[styles.date, { color: colors.onSurfaceTertiary }]}>{formatDateHeading()}</Text>
+          <Pressable
+            testID="log-learn-button"
+            onPress={() => router.push("/learn")}
+            hitSlop={10}
+            style={[styles.infoBtn, { backgroundColor: colors.surfaceTertiary }]}
+          >
+            <Ionicons name="book-outline" size={17} color={colors.onSurfaceTertiary} />
+          </Pressable>
         </View>
         <Text style={[styles.title, { color: colors.onSurface }]}>What is dominant now?</Text>
         <Text style={[styles.subtitle, { color: colors.onSurfaceTertiary }]}>
@@ -181,11 +196,39 @@ export default function QuickLogScreen() {
         {renderState("both", true)}
       </Animated.View>
 
-      <Text style={[styles.footerHint, { color: colors.onSurfaceTertiary }]}>
-        Your state changes. Track it clearly.
-      </Text>
+      {guidance ? (
+        <Pressable
+          testID="log-guidance-card"
+          onPress={() => router.push("/learn")}
+          style={[styles.guidanceCard, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}
+        >
+          <View style={styles.guidanceHead}>
+            <View style={[styles.guidanceDot, { backgroundColor: colors[STATE_META[guidance.state].colorKey] }]} />
+            <Text style={[styles.guidanceState, { color: colors.onSurfaceTertiary }]}>
+              {STATE_META[guidance.state].label} · {SWARA[guidance.state].sanskrit}
+            </Text>
+            <Ionicons name="chevron-forward" size={14} color={colors.onSurfaceTertiary} />
+          </View>
+          <Text style={[styles.guidanceText, { color: colors.onSurface }]}>{guidance.message}</Text>
+        </Pressable>
+      ) : (
+        <Text style={[styles.footerHint, { color: colors.onSurfaceTertiary }]}>
+          Your state changes. Track it clearly.
+        </Text>
+      )}
 
-      <Sheet visible={sheetOpen} onClose={() => setSheetOpen(false)} title="Add context">
+      <Sheet
+        visible={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        title={
+          activeLog
+            ? `${STATE_META[activeLog.nostril_state].label} · ${SWARA[activeLog.nostril_state].sanskrit}`
+            : "Add context"
+        }
+      >
+        {activeLog && guidance && guidance.state === activeLog.nostril_state && (
+          <Text style={[styles.sheetGuidance, { color: colors.onSurfaceSecondary }]}>{guidance.message}</Text>
+        )}
         <LogForm
           key={activeLog?.id ?? "none"}
           saving={saving}
@@ -200,7 +243,14 @@ export default function QuickLogScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, paddingHorizontal: spacing.xl },
   header: { marginBottom: spacing.xl },
-  dateRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginBottom: spacing.sm },
+  topLine: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: spacing.sm,
+  },
+  infoBtn: { width: 34, height: 34, borderRadius: radius.pill, alignItems: "center", justifyContent: "center" },
+  dateRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   pulse: { width: 10, height: 10, alignItems: "center", justifyContent: "center" },
   pulseRing: { position: "absolute", width: 10, height: 10, borderRadius: 5, borderWidth: 1.5 },
   pulseDot: { width: 6, height: 6, borderRadius: 3 },
@@ -231,5 +281,29 @@ const styles = StyleSheet.create({
     fontSize: 13,
     textAlign: "center",
     paddingVertical: spacing.lg,
+  },
+  guidanceCard: {
+    borderRadius: radius.md,
+    borderWidth: 1,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    marginTop: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  guidanceHead: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginBottom: 6 },
+  guidanceDot: { width: 8, height: 8, borderRadius: 4 },
+  guidanceState: {
+    flex: 1,
+    fontFamily: fonts.medium,
+    fontSize: 12,
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+  },
+  guidanceText: { fontFamily: fonts.medium, fontSize: 15, lineHeight: 21 },
+  sheetGuidance: {
+    fontFamily: fonts.medium,
+    fontSize: 15,
+    lineHeight: 21,
+    marginBottom: spacing.lg,
   },
 });
