@@ -259,6 +259,16 @@ export default function SettingsScreen() {
           </Text>
         </Section>
 
+        <Section title="Learn">
+          <Row
+            icon="book-outline"
+            label="Swara Yoga guide"
+            testID="settings-learn-row"
+            onPress={() => router.push("/learn")}
+            right={<Ionicons name="chevron-forward" size={16} color={colors.onSurfaceTertiary} />}
+          />
+        </Section>
+
         <Section title="Reminders">
           <Row
             icon="notifications-outline"
