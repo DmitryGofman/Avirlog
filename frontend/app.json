@@ -16,7 +16,7 @@
       "package": "com.avirlog.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#000"
+        "backgroundColor": "#1C1C1C"
       },
       "edgeToEdgeEnabled": true
     },
@@ -31,9 +31,9 @@
         "expo-splash-screen",
         {
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
+          "imageWidth": 180,
           "resizeMode": "contain",
-          "backgroundColor": "#000"
+          "backgroundColor": "#1C1C1C"
         }
       ],
       "expo-font",
