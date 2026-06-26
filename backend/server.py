@@ -26,6 +26,14 @@ JWT_ALG = "HS256"
 TOKEN_DAYS = 7
 EMERGENT_SESSION_API = "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data"
 
+# Email/password is the production auth path. The Emergent-hosted Google
+# session flow is a sandbox dependency and stays OFF unless explicitly enabled.
+GOOGLE_AUTH_ENABLED = os.getenv("EMERGENT_GOOGLE_ENABLED", "false").lower() == "true"
+
+# CORS: comma-separated allowlist (default "*"). The app authenticates with a
+# Bearer token, not cookies, so credentials are not allowed (keeps "*" valid).
+CORS_ORIGINS = [o.strip() for o in os.getenv("CORS_ORIGINS", "*").split(",") if o.strip()]
+
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 app = FastAPI(title="AvirLog API")
@@ -197,6 +205,8 @@ async def login(body: LoginIn):
 
 @api_router.post("/auth/session")
 async def google_session(body: SessionIn):
+    if not GOOGLE_AUTH_ENABLED:
+        raise HTTPException(status_code=503, detail="Google sign-in is not configured")
     async with httpx.AsyncClient(timeout=15) as http:
         resp = await http.get(EMERGENT_SESSION_API, headers={"X-Session-ID": body.session_id})
     if resp.status_code != 200:
@@ -383,12 +393,18 @@ async def root():
     return {"message": "AvirLog API"}
 
 
+# Unauthenticated health check for the hosting platform.
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+
+
 app.include_router(api_router)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=["*"],
+    allow_credentials=False,
+    allow_origins=CORS_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -410,3 +426,9 @@ async def create_indexes():
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(app, host="0.0.0.0", port=int(os.getenv("PORT", "8000")))
