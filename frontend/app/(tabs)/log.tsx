@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Animated, Easing, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { IceFireEffect, IceFireEffectHandle } from "@/src/components/IceFireEffect";
 import { LogForm, LogFormPayload } from "@/src/components/LogForm";
 import { Sheet } from "@/src/components/Sheet";
 import { useToast } from "@/src/components/Toast";
@@ -38,6 +39,7 @@ export default function QuickLogScreen() {
   // Entrance + ambient "breathing" motion — calm, on-brand, never distracting.
   const enter = useRef(new Animated.Value(0)).current;
   const breathe = useRef(new Animated.Value(0)).current;
+  const fx = useRef<IceFireEffectHandle>(null);
 
   useEffect(() => {
     Animated.timing(enter, {
@@ -82,6 +84,7 @@ export default function QuickLogScreen() {
   const logState = async (state: NostrilState) => {
     if (creating) return;
     setCreating(state);
+    fx.current?.trigger(state);
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     }
@@ -98,7 +101,9 @@ export default function QuickLogScreen() {
       setGuidance({ state, message: pickMessage(state) });
       if (moodJournaling) {
         setActiveLog(log);
-        setSheetOpen(true);
+        // The sheet is a native Modal and would cover the ice/fire burst —
+        // let the effect read first, then slide the context sheet up.
+        setTimeout(() => setSheetOpen(true), 1200);
       }
       showToast(`Logged · ${STATE_META[state].label}`);
     } catch (e: any) {
@@ -236,6 +241,8 @@ export default function QuickLogScreen() {
           onSkip={() => setSheetOpen(false)}
         />
       </Sheet>
+
+      <IceFireEffect ref={fx} />
     </View>
   );
 }
