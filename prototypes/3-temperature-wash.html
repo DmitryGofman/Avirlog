@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AvirLog · Prototype 3 — Temperature Wash</title>
+<style>
+  /* The "everything becomes warm or cold for a few seconds" idea, done with
+     pure color-temperature grading — no particles. This is the variant that
+     translates 1:1 to React Native (animated gradient overlay + color
+     interpolation with reanimated), so it can ship inside the real app. */
+  :root {
+    --surface: #121212;
+    --card: #1E1E1E;
+    --text: #E6E6E6;
+    --text-dim: #A3A3A3;
+    --left: #526658;   --on-left: #E6F0E8;
+    --right: #8A4D3E;  --on-right: #FCE3DD;
+    --both: #3A3A3A;   --on-both: #E6E6E6;
+    --border: #2A2A2A;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    background: var(--surface); color: var(--text);
+    font-family: -apple-system, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+    display: flex; align-items: center; justify-content: center; overflow: hidden;
+  }
+
+  /* the whole world shifts temperature: one wrapper, one filter */
+  #world {
+    position: fixed; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    transition: filter 1.6s cubic-bezier(.22,1,.36,1);
+    background:
+      radial-gradient(90% 70% at 50% 30%, #161616, #101010);
+  }
+  body.cold #world { filter: hue-rotate(-14deg) saturate(.82) brightness(1.04) contrast(1.02); }
+  body.warm #world { filter: hue-rotate(10deg) sepia(.18) saturate(1.2) brightness(1.05); }
+
+  /* soft-light gradient washes over everything, buttons included */
+  .wash { position: fixed; inset: 0; pointer-events: none; opacity: 0; transition: opacity 1.4s cubic-bezier(.22,1,.36,1); mix-blend-mode: soft-light; }
+  #wash-cold { background: linear-gradient(180deg, rgba(120,175,235,.9), rgba(60,100,160,.55)); }
+  #wash-warm { background: linear-gradient(0deg, rgba(255,120,40,.9), rgba(255,180,90,.5)); }
+  body.cold #wash-cold, body.warm #wash-warm { opacity: .85; }
+
+  /* neutral breath for Both: the screen inhales once */
+  body.even #world { animation: inhale 2.6s cubic-bezier(.37,0,.63,1); }
+  @keyframes inhale {
+    0% { filter: brightness(1); } 40% { filter: brightness(1.14) saturate(1.06); } 100% { filter: brightness(1); }
+  }
+
+  .frame {
+    width: min(380px, 92vw);
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 28px; padding: 28px 22px 22px; position: relative;
+  }
+  .brand { font-size: 13px; letter-spacing: 2.5px; text-transform: uppercase; color: var(--text-dim); }
+  h1 { font-size: 24px; font-weight: 600; letter-spacing: -.4px; margin: 10px 0 2px; }
+  .sub { font-size: 13px; color: var(--text-dim); margin-bottom: 18px; }
+
+  /* thermometer strip */
+  .thermo {
+    height: 6px; border-radius: 3px; margin-bottom: 18px;
+    background: linear-gradient(90deg, #6FA8DC, #3A3A3A 50%, #E58E5A);
+    position: relative;
+  }
+  #dot {
+    position: absolute; top: 50%; left: 50%;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: #E6E6E6; border: 2px solid #121212;
+    transform: translate(-50%,-50%);
+    transition: left 1.5s cubic-bezier(.22,1,.36,1), background 1.5s ease;
+  }
+  body.cold #dot { left: 10%; background: #A8CFF5; }
+  body.warm #dot { left: 90%; background: #F5B48A; }
+
+  .row { display: flex; gap: 12px; }
+  button {
+    font: inherit; color: inherit; border: none; cursor: pointer; border-radius: 18px;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform .18s cubic-bezier(.34,1.56,.64,1), box-shadow .5s ease;
+  }
+  button:active { transform: scale(.95); }
+  .nostril { flex: 1; height: 148px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; }
+  .nostril .big { font-size: 20px; font-weight: 600; }
+  .nostril .small, .bothbar .small { font-size: 11px; opacity: .75; }
+  #btn-left  { background: var(--left);  color: var(--on-left); }
+  #btn-right { background: var(--right); color: var(--on-right); }
+  .bothbar {
+    width: 100%; height: 56px; margin-top: 12px;
+    background: var(--both); color: var(--on-both); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+  }
+  /* pressed button breathes once while its wash holds */
+  .pop { animation: pop 2.8s cubic-bezier(.37,0,.63,1); }
+  @keyframes pop {
+    0% { transform: scale(1); } 8% { transform: scale(1.04); }
+    20% { transform: scale(1.015); } 100% { transform: scale(1); }
+  }
+  body.cold #btn-left  { box-shadow: 0 0 30px 2px rgba(140,195,245,.4); }
+  body.warm #btn-right { box-shadow: 0 0 30px 2px rgba(245,150,80,.45); }
+
+  #status { text-align: center; font-size: 13px; color: var(--text-dim); margin-top: 16px; min-height: 18px; transition: color 1s ease; }
+  body.cold #status { color: #A8CFF5; }
+  body.warm #status { color: #F5B48A; }
+
+  .hint { text-align: center; font-size: 12px; color: var(--text-dim); margin-top: 8px; }
+  .hint kbd { background: #2A2A2A; border: 1px solid #3A3A3A; border-radius: 5px; padding: 1px 6px; font-family: inherit; }
+  .caption { position: fixed; bottom: 14px; width: 100%; text-align: center; font-size: 12px; color: #6B6B6B; }
+</style>
+</head>
+<body>
+  <div id="world">
+    <div class="wash" id="wash-cold"></div>
+    <div class="wash" id="wash-warm"></div>
+
+    <main class="frame">
+      <div class="brand">AvirLog · Prototype 3</div>
+      <h1>Temperature Wash</h1>
+      <div class="sub">Which nostril is active right now?</div>
+      <div class="thermo"><div id="dot"></div></div>
+      <div class="row">
+        <button class="nostril" id="btn-left" onclick="trigger('left')">
+          <span class="big">Left</span><span class="small">Ida · Cool</span>
+        </button>
+        <button class="nostril" id="btn-right" onclick="trigger('right')">
+          <span class="big">Right</span><span class="small">Pingala · Warm</span>
+        </button>
+      </div>
+      <button class="bothbar" id="btn-both" onclick="trigger('both')">
+        <span class="big">Both</span><span class="small">Sushumna · Even</span>
+      </button>
+      <div id="status">Neutral</div>
+      <div class="hint"><kbd>←</kbd> cool &nbsp; <kbd>→</kbd> warm &nbsp; <kbd>↓</kbd>/<kbd>space</kbd> even breath</div>
+    </main>
+  </div>
+  <div class="caption">No particles — the entire screen's color temperature drifts for ~3&nbsp;s and returns. Ships 1:1 in React Native.</div>
+
+<script>
+  const status = document.getElementById("status");
+  let timer = null;
+
+  function reset() {
+    document.body.classList.remove("cold", "warm", "even");
+    status.textContent = "Neutral";
+  }
+
+  function trigger(state) {
+    clearTimeout(timer);
+    reset();
+    // restart CSS animations cleanly
+    void document.body.offsetWidth;
+
+    const btn = document.getElementById(state === "both" ? "btn-both" : "btn-" + state);
+    btn.classList.remove("pop"); void btn.offsetWidth; btn.classList.add("pop");
+
+    if (state === "left") {
+      document.body.classList.add("cold");
+      status.textContent = "Cooling · Ida";
+    } else if (state === "right") {
+      document.body.classList.add("warm");
+      status.textContent = "Warming · Pingala";
+    } else {
+      document.body.classList.add("even");
+      status.textContent = "Even breath · Sushumna";
+    }
+    timer = setTimeout(reset, 3200);
+  }
+
+  addEventListener("keydown", e => {
+    if (e.key === "ArrowLeft") trigger("left");
+    else if (e.key === "ArrowRight") trigger("right");
+    else if (e.key === "ArrowDown" || e.key === " ") { e.preventDefault(); trigger("both"); }
+  });
+</script>
+</body>
+</html>
