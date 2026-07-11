@@ -162,6 +162,10 @@ export default function QuickLogScreen() {
       testID="quick-log-screen"
       style={[styles.root, { backgroundColor: colors.surface, paddingTop: insets.top + spacing.lg }]}
     >
+      {/* Rendered first so it sits *behind* the buttons — the ice/fire plays
+          beneath them and the buttons stay crisp on top. */}
+      <IceFireEffect ref={fx} />
+
       <Animated.View style={[styles.header, { opacity: enter, transform: [{ translateY: enterTranslate }] }]}>
         <View style={styles.topLine}>
           <View style={styles.dateRow}>
@@ -241,8 +245,6 @@ export default function QuickLogScreen() {
           onSkip={() => setSheetOpen(false)}
         />
       </Sheet>
-
-      <IceFireEffect ref={fx} />
     </View>
   );
 }
