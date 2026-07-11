@@ -5,7 +5,7 @@
 // never intercepts touches.
 import { LinearGradient } from "expo-linear-gradient";
 import React, { forwardRef, useImperativeHandle, useRef, useState } from "react";
-import { Animated, Easing, Platform, StyleSheet, useWindowDimensions } from "react-native";
+import { Animated, Easing, Platform, StyleSheet, useWindowDimensions, View } from "react-native";
 
 import { NostrilState } from "@/src/theme/theme";
 
@@ -44,7 +44,7 @@ function makeParticles(count: number): ParticleCfg[] {
 
 export const IceFireEffect = forwardRef<IceFireEffectHandle>(function IceFireEffect(_props, ref) {
   const { width, height } = useWindowDimensions();
-  const [mode, setMode] = useState<"cold" | "warm" | null>(null);
+  const [mode, setMode] = useState<"cold" | "warm" | "balance" | null>(null);
 
   const master = useRef(new Animated.Value(0)).current; // gates the whole layer
   const pulse = useRef(new Animated.Value(0)).current;
@@ -57,16 +57,35 @@ export const IceFireEffect = forwardRef<IceFireEffectHandle>(function IceFireEff
       running.current?.stop();
 
       if (state === "both") {
-        setMode(null);
+        // Balance: a mild, even white glow washes the background while a calm
+        // ring expands from the center.
+        setMode("balance");
         master.setValue(0);
         pulse.setValue(0);
-        running.current = Animated.timing(pulse, {
+        Animated.timing(pulse, {
           toValue: 1,
           duration: PULSE_MS,
           easing: Easing.out(Easing.cubic),
           useNativeDriver: USE_NATIVE,
+        }).start();
+        running.current = Animated.sequence([
+          Animated.timing(master, {
+            toValue: 1,
+            duration: FADE_IN_MS,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: USE_NATIVE,
+          }),
+          Animated.delay(EFFECT_MS - FADE_IN_MS - FADE_OUT_MS),
+          Animated.timing(master, {
+            toValue: 0,
+            duration: FADE_OUT_MS,
+            easing: Easing.inOut(Easing.quad),
+            useNativeDriver: USE_NATIVE,
+          }),
+        ]);
+        running.current.start(({ finished }) => {
+          if (finished) setMode(null);
         });
-        running.current.start();
         return;
       }
 
@@ -187,6 +206,17 @@ export const IceFireEffect = forwardRef<IceFireEffectHandle>(function IceFireEff
         </Animated.View>
       )}
 
+      {mode === "balance" && (
+        <Animated.View style={[StyleSheet.absoluteFill, { opacity: master }]}>
+          {/* soft even white base + a brighter band through the center */}
+          <View style={[StyleSheet.absoluteFill, styles.balanceBase]} />
+          <LinearGradient
+            colors={["transparent", "rgba(255,255,255,0.26)", "rgba(240,242,248,0.10)", "transparent"]}
+            style={StyleSheet.absoluteFill}
+          />
+        </Animated.View>
+      )}
+
       <Animated.View
         style={[
           styles.pulseRing,
@@ -206,6 +236,7 @@ const PULSE_BASE = 14;
 
 const styles = StyleSheet.create({
   particle: { position: "absolute", top: 0 },
+  balanceBase: { backgroundColor: "rgba(248,249,252,0.12)" },
   frost: { position: "absolute", left: 0, right: 0, height: "18%" },
   frostTop: { top: 0 },
   frostBottom: { bottom: 0 },
