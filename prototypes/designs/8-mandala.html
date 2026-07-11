@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AvirLog Design 8 — Mandala</title>
+<style>
+  /* DIRECTION 8: "Mandala" — devotional maximalism. Deep indigo and gold,
+     sacred geometry, ornamental borders, a slowly turning yantra. The one
+     design that leans fully INTO the Swara Yoga tradition instead of
+     abstracting it away. */
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    min-height:100vh; display:flex; align-items:center; justify-content:center;
+    background:#1A1230; padding:24px;
+    font-family:Georgia,"Times New Roman",serif;
+  }
+  .phone {
+    width:390px; height:800px; border-radius:44px; overflow:hidden; position:relative;
+    background:
+      radial-gradient(120% 70% at 50% -10%, #3A2A63 0%, #241A45 45%, #170F2E 100%);
+    box-shadow:0 30px 90px rgba(0,0,0,.7), inset 0 0 0 1px rgba(212,175,55,.25);
+    display:flex; flex-direction:column;
+  }
+  /* ornamental top border */
+  .fret {
+    position:absolute; top:0; left:0; right:0; height:46px; z-index:3; opacity:.8;
+    background:
+      radial-gradient(circle at 10px 46px, transparent 9px, rgba(212,175,55,.5) 9px 10px, transparent 10px) repeat-x;
+    background-size:20px 46px;
+  }
+  /* slowly rotating yantra backdrop */
+  .yantra {
+    position:absolute; top:47%; left:50%; width:560px; height:560px; z-index:1;
+    transform:translate(-50%,-50%);
+    animation:turn 90s linear infinite; opacity:.16; pointer-events:none;
+  }
+  @keyframes turn { to { transform:translate(-50%,-50%) rotate(360deg); } }
+
+  .screen { flex:1; padding:66px 26px 0; display:flex; flex-direction:column; position:relative; z-index:2; }
+  .om { text-align:center; color:#D4AF37; font-size:24px; text-shadow:0 0 18px rgba(212,175,55,.6); }
+  h1 {
+    text-align:center; font-size:25px; font-weight:400; color:#F0E6C8;
+    margin:10px 0 4px; letter-spacing:.5px;
+  }
+  .sub { text-align:center; font-size:13px; color:#9C8FC4; font-style:italic; margin-bottom:20px; }
+
+  button { border:none; cursor:pointer; font-family:inherit; -webkit-tap-highlight-color:transparent; transition:transform .2s ease, box-shadow .35s ease; }
+  button:active { transform:scale(.95); }
+
+  .lotus-row { flex:1; display:flex; gap:16px; align-items:center; min-height:0; }
+  .petal {
+    flex:1; height:82%; border-radius:120px 120px 28px 28px; position:relative;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px;
+    border:1px solid rgba(212,175,55,.4);
+  }
+  #left {
+    background:linear-gradient(180deg, rgba(90,140,220,.22), rgba(40,60,130,.34));
+    box-shadow:inset 0 0 40px rgba(90,140,220,.15);
+  }
+  #right {
+    background:linear-gradient(180deg, rgba(230,120,70,.22), rgba(150,50,40,.34));
+    box-shadow:inset 0 0 40px rgba(230,120,70,.15);
+  }
+  #left:hover  { box-shadow:0 0 34px rgba(90,140,220,.35), inset 0 0 40px rgba(90,140,220,.2); }
+  #right:hover { box-shadow:0 0 34px rgba(230,120,70,.35), inset 0 0 40px rgba(230,120,70,.2); }
+  .petal .deity { font-size:36px; }
+  .petal .name { font-size:20px; color:#F0E6C8; letter-spacing:1px; }
+  .petal .sanskrit { font-size:15px; color:#D4AF37; }
+  .petal .trad { font-size:10px; letter-spacing:2.5px; text-transform:uppercase; color:#9C8FC4; font-family:-apple-system,system-ui,sans-serif; }
+  /* inner petal arc ornament */
+  .petal::before {
+    content:""; position:absolute; top:10px; left:10px; right:10px; bottom:10px;
+    border-radius:110px 110px 22px 22px; border:1px dashed rgba(212,175,55,.3); pointer-events:none;
+  }
+
+  .both {
+    margin:16px auto 8px; width:100%; height:62px; border-radius:999px;
+    background:linear-gradient(90deg, rgba(90,140,220,.25), rgba(212,175,55,.3), rgba(230,120,70,.25));
+    border:1px solid rgba(212,175,55,.55); color:#F0E6C8;
+    display:flex; align-items:center; justify-content:center; gap:12px; font-size:17px;
+    box-shadow:0 0 30px rgba(212,175,55,.15);
+  }
+  .both .sanskrit { color:#D4AF37; font-size:14px; }
+  .both:hover { box-shadow:0 0 44px rgba(212,175,55,.35); }
+
+  .mantra {
+    text-align:center; font-size:12.5px; line-height:1.7; color:#9C8FC4; font-style:italic;
+    padding:14px 10px 18px;
+  }
+  .mantra b { color:#D4AF37; font-style:normal; font-weight:400; }
+
+  .tabs {
+    display:flex; padding:12px 10px 28px; border-top:1px solid rgba(212,175,55,.25);
+    background:rgba(23,15,46,.8); position:relative; z-index:2;
+  }
+  .tab { flex:1; text-align:center; font-size:9.5px; letter-spacing:2px; color:#6E5F9E; text-transform:uppercase; font-family:-apple-system,system-ui,sans-serif; }
+  .tab.on { color:#D4AF37; }
+  .tab span { display:block; font-size:16px; margin-bottom:4px; }
+
+  /* golden bloom feedback */
+  .bloom {
+    position:absolute; border-radius:50%; pointer-events:none; z-index:6;
+    border:1.5px solid rgba(212,175,55,.9); animation:bloom 1.6s ease-out forwards;
+  }
+  @keyframes bloom {
+    0% { transform:scale(.2); opacity:1; }
+    100% { transform:scale(2.6); opacity:0; }
+  }
+  .label { position:fixed; bottom:18px; width:100%; left:0; text-align:center; font-size:13px; color:#8F82B8; font-family:-apple-system,system-ui,sans-serif; }
+</style>
+</head>
+<body>
+  <div class="phone" id="phone">
+    <div class="fret"></div>
+    <svg class="yantra" viewBox="0 0 200 200">
+      <g fill="none" stroke="#D4AF37" stroke-width=".6">
+        <circle cx="100" cy="100" r="96"/>
+        <circle cx="100" cy="100" r="78"/>
+        <circle cx="100" cy="100" r="55"/>
+        <polygon points="100,12 176,144 24,144"/>
+        <polygon points="100,188 24,56 176,56"/>
+        <polygon points="100,30 160,135 40,135"/>
+        <polygon points="100,170 40,65 160,65"/>
+        <g>
+          <circle cx="100" cy="4" r="3"/><circle cx="100" cy="196" r="3"/>
+          <circle cx="4" cy="100" r="3"/><circle cx="196" cy="100" r="3"/>
+          <circle cx="32" cy="32" r="3"/><circle cx="168" cy="32" r="3"/>
+          <circle cx="32" cy="168" r="3"/><circle cx="168" cy="168" r="3"/>
+        </g>
+      </g>
+    </svg>
+
+    <div class="screen">
+      <div class="om">ॐ</div>
+      <h1>Where does prāṇa flow?</h1>
+      <div class="sub">Ekādaśī · waxing moon · 11 July</div>
+
+      <div class="lotus-row">
+        <button class="petal" id="left" onclick="bloom(event)">
+          <span class="deity">☾</span>
+          <span class="name">Left</span>
+          <span class="sanskrit">इडा</span>
+          <span class="trad">Ida · Chandra</span>
+        </button>
+        <button class="petal" id="right" onclick="bloom(event)">
+          <span class="deity">☀</span>
+          <span class="name">Right</span>
+          <span class="sanskrit">पिङ्गला</span>
+          <span class="trad">Pingala · Surya</span>
+        </button>
+      </div>
+
+      <button class="both" onclick="bloom(event)">
+        Both — <span class="sanskrit">सुषुम्णा</span>
+      </button>
+
+      <div class="mantra">
+        “Prāṇa rides the breath as a rider rides a horse.”<br>
+        <b>— Haṭha Yoga Pradīpikā</b>
+      </div>
+    </div>
+    <div class="tabs">
+      <div class="tab on"><span>✽</span>Log</div>
+      <div class="tab"><span>☉</span>Today</div>
+      <div class="tab"><span>࿊</span>Insights</div>
+      <div class="tab"><span>᯽</span>History</div>
+      <div class="tab"><span>⚙</span>Settings</div>
+    </div>
+  </div>
+  <div class="label">Design 8 · Mandala — devotional indigo &amp; gold: rotating yantra, Sanskrit, golden bloom on press.</div>
+<script>
+  function bloom(e){
+    const phone=document.getElementById("phone");
+    const pr=phone.getBoundingClientRect();
+    const size=90;
+    const b=document.createElement("div");
+    b.className="bloom";
+    b.style.width=b.style.height=size+"px";
+    b.style.left=(e.clientX-pr.left-size/2)+"px";
+    b.style.top=(e.clientY-pr.top-size/2)+"px";
+    phone.appendChild(b);
+    setTimeout(()=>b.remove(),1700);
+  }
+</script>
+</body>
+</html>
