@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AvirLog Design 12 — Baro</title>
+<style>
+  /* DIRECTION 12: "Baro" — the warm instrument. A brass-and-cream analog
+     gauge, like a ship's barometer for the breath. The Instrument's
+     precision with Stone & Moss's warmth: a physical object, not a screen.
+     The needle swings to what you log. */
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    min-height:100vh; display:flex; align-items:center; justify-content:center;
+    background:#8A7B66; padding:24px;
+    font-family:-apple-system,"Segoe UI",system-ui,sans-serif;
+  }
+  .phone {
+    width:390px; height:800px; border-radius:42px; overflow:hidden; position:relative;
+    background:linear-gradient(180deg,#F3EBDD,#EAE0CD);
+    box-shadow:0 30px 80px rgba(50,40,25,.55);
+    display:flex; flex-direction:column;
+  }
+  .screen { flex:1; padding:58px 24px 0; display:flex; flex-direction:column; align-items:center; min-height:0; }
+
+  .maker { font-size:10px; letter-spacing:3.5px; text-transform:uppercase; color:#9C8C72; }
+  h1 { font-family:Georgia,serif; font-size:22px; font-weight:400; color:#3A3226; margin:8px 0 2px; }
+  .sub { font-size:12px; color:#9C8C72; margin-bottom:18px; }
+
+  /* ---- the gauge ---- */
+  .gauge-wrap { position:relative; width:300px; height:300px; }
+  .bezel {
+    position:absolute; inset:0; border-radius:50%;
+    background:
+      radial-gradient(circle at 30% 25%, #E8D9A8, #B99B55 40%, #8A6F33 70%, #C4A860 100%);
+    box-shadow:0 12px 30px rgba(60,45,20,.4), inset 0 -3px 8px rgba(255,245,210,.6), inset 0 3px 8px rgba(60,45,20,.5);
+  }
+  .dial {
+    position:absolute; inset:14px; border-radius:50%;
+    background:radial-gradient(circle at 45% 38%, #FBF6E9, #EFE6D0 80%);
+    box-shadow:inset 0 4px 14px rgba(80,60,30,.25);
+  }
+  .dial svg { width:100%; height:100%; }
+  .needle {
+    position:absolute; left:50%; top:50%; width:4px; height:118px; z-index:3;
+    background:linear-gradient(180deg,#8A2F1E 70%, #5C1F14);
+    border-radius:3px 3px 1px 1px;
+    transform-origin:50% 100%;
+    transform:translate(-50%,-100%) rotate(0deg);
+    transition:transform 1.1s cubic-bezier(.34,1.3,.5,1);
+    box-shadow:1px 2px 3px rgba(60,40,20,.4);
+  }
+  .hub {
+    position:absolute; left:50%; top:50%; width:26px; height:26px; z-index:4;
+    transform:translate(-50%,-50%); border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, #E8D9A8, #8A6F33);
+    box-shadow:0 2px 5px rgba(60,45,20,.5);
+  }
+
+  .reading {
+    margin-top:14px; text-align:center;
+    font-family:ui-monospace,Menlo,monospace; font-size:12px; color:#6E6049;
+    letter-spacing:1px; min-height:16px;
+  }
+
+  /* ---- brass key buttons ---- */
+  .keys { margin-top:auto; width:100%; display:flex; gap:12px; padding-bottom:8px; }
+  button {
+    cursor:pointer; font-family:inherit; -webkit-tap-highlight-color:transparent;
+    border:none; transition:transform .1s ease, box-shadow .1s ease;
+  }
+  .key {
+    flex:1; height:82px; border-radius:16px;
+    background:linear-gradient(180deg,#FBF6E9,#E4D9C0);
+    box-shadow:0 5px 0 #B9A98A, 0 8px 14px rgba(70,55,30,.3), inset 0 1px 0 #FFFDF5;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px;
+    color:#3A3226;
+  }
+  .key:active { transform:translateY(4px); box-shadow:0 1px 0 #B9A98A, 0 3px 8px rgba(70,55,30,.3), inset 0 1px 0 #FFFDF5; }
+  .key .name { font-family:Georgia,serif; font-size:18px; }
+  .key .trad { font-size:9.5px; letter-spacing:2px; text-transform:uppercase; color:#9C8C72; }
+  .key.small { flex:.72; }
+  .key .jewel { width:8px; height:8px; border-radius:50%; margin-bottom:2px; }
+  #kl .jewel { background:radial-gradient(circle at 35% 30%, #B9D8C4, #4E7A5F); }
+  #kr .jewel { background:radial-gradient(circle at 35% 30%, #EDB795, #A45230); }
+  #kb .jewel { background:radial-gradient(circle at 35% 30%, #F2EBD8, #9A916F); }
+
+  .plaque {
+    margin:10px 0 16px; font-size:10px; letter-spacing:2px; text-transform:uppercase; color:#9C8C72;
+    border:1px solid #D3C6A9; border-radius:6px; padding:6px 14px; background:rgba(255,252,240,.5);
+  }
+
+  .tabs { display:flex; border-top:1px solid #D8CCAE; background:#F3EBDD; padding:12px 8px 28px; width:100%; }
+  .tab { flex:1; text-align:center; font-size:10px; letter-spacing:.5px; color:#A6987C; text-transform:uppercase; }
+  .tab.on { color:#3A3226; font-weight:600; }
+  .tab span { display:block; font-size:16px; margin-bottom:3px; }
+  .label { position:fixed; bottom:18px; width:100%; left:0; text-align:center; font-size:13px; color:#4E4432; }
+</style>
+</head>
+<body>
+  <div class="phone">
+    <div class="screen">
+      <div class="maker">AvirLog · Instrument № 1</div>
+      <h1>Breath Barometer</h1>
+      <div class="sub">Set the needle to what you feel</div>
+
+      <div class="gauge-wrap">
+        <div class="bezel"></div>
+        <div class="dial">
+          <svg viewBox="0 0 300 300">
+            <g font-family="Georgia,serif" text-anchor="middle">
+              <text x="72" y="118" font-size="17" fill="#4E7A5F">LEFT</text>
+              <text x="72" y="134" font-size="9" fill="#9C8C72" letter-spacing="1">IDA ☾</text>
+              <text x="228" y="118" font-size="17" fill="#A45230">RIGHT</text>
+              <text x="228" y="134" font-size="9" fill="#9C8C72" letter-spacing="1">PINGALA ☀</text>
+              <text x="150" y="66" font-size="13" fill="#3A3226">BOTH</text>
+              <text x="150" y="80" font-size="9" fill="#9C8C72" letter-spacing="1">SUSHUMNA</text>
+            </g>
+            <!-- arc ticks -->
+            <g stroke="#6E6049" stroke-width="1.5">
+              <line x1="150" y1="36" x2="150" y2="48"/>
+              <g transform="rotate(-60 150 150)"><line x1="150" y1="36" x2="150" y2="48"/></g>
+              <g transform="rotate(-40 150 150)"><line x1="150" y1="40" x2="150" y2="48"/></g>
+              <g transform="rotate(-20 150 150)"><line x1="150" y1="40" x2="150" y2="48"/></g>
+              <g transform="rotate(20 150 150)"><line x1="150" y1="40" x2="150" y2="48"/></g>
+              <g transform="rotate(40 150 150)"><line x1="150" y1="40" x2="150" y2="48"/></g>
+              <g transform="rotate(60 150 150)"><line x1="150" y1="36" x2="150" y2="48"/></g>
+            </g>
+            <!-- sub dial -->
+            <circle cx="150" cy="196" r="34" fill="none" stroke="#D3C6A9" stroke-width="1"/>
+            <text x="150" y="192" font-size="8.5" fill="#9C8C72" text-anchor="middle" letter-spacing="1">TODAY</text>
+            <text x="150" y="207" font-size="14" fill="#3A3226" text-anchor="middle" font-family="ui-monospace,Menlo,monospace" id="cnt">07</text>
+          </svg>
+        </div>
+        <div class="needle" id="needle"></div>
+        <div class="hub"></div>
+      </div>
+      <div class="reading" id="reading">AWAITING READING</div>
+
+      <div class="keys">
+        <button class="key" id="kl" onclick="swing('left')">
+          <span class="jewel"></span><span class="name">Left</span><span class="trad">Ida</span>
+        </button>
+        <button class="key small" id="kb" onclick="swing('both')">
+          <span class="jewel"></span><span class="name">Both</span><span class="trad">Sushumna</span>
+        </button>
+        <button class="key" id="kr" onclick="swing('right')">
+          <span class="jewel"></span><span class="name">Right</span><span class="trad">Pingala</span>
+        </button>
+      </div>
+      <div class="plaque">Hand-logged · no telemetry · yours alone</div>
+    </div>
+    <div class="tabs">
+      <div class="tab on"><span>◉</span>Gauge</div>
+      <div class="tab"><span>☼</span>Today</div>
+      <div class="tab"><span>∿</span>Charts</div>
+      <div class="tab"><span>▤</span>Ledger</div>
+      <div class="tab"><span>⚙</span>Works</div>
+    </div>
+  </div>
+  <div class="label">Design 12 · Baro — a brass breath-barometer: the needle swings to your reading, keys press like a typewriter.</div>
+<script>
+  const ANGLE={left:-58, right:58, both:0};
+  const TXT={left:"LEFT · IDA · 14:32", right:"RIGHT · PINGALA · 14:32", both:"BOTH · SUSHUMNA · 14:32"};
+  let n=7, t=null;
+  function swing(state){
+    const needle=document.getElementById("needle");
+    needle.style.transform="translate(-50%,-100%) rotate("+ANGLE[state]+"deg)";
+    n++;
+    document.getElementById("cnt").textContent=String(n).padStart(2,"0");
+    const time=new Date().toTimeString().slice(0,5);
+    document.getElementById("reading").textContent=TXT[state].replace("14:32",time);
+    clearTimeout(t);
+    t=setTimeout(()=>{
+      needle.style.transform="translate(-50%,-100%) rotate(0deg)";
+      document.getElementById("reading").textContent="AWAITING READING";
+    }, 3200);
+  }
+</script>
+</body>
+</html>
