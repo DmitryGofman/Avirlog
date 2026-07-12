@@ -5,12 +5,15 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Animated, Easing, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { BannerButtons } from "@/src/components/BannerButtons";
 import { IceFireEffect, IceFireEffectHandle } from "@/src/components/IceFireEffect";
+import { LivingSky } from "@/src/components/LivingSky";
 import { LogForm, LogFormPayload } from "@/src/components/LogForm";
 import { Sheet } from "@/src/components/Sheet";
 import { useToast } from "@/src/components/Toast";
 import { useTheme } from "@/src/context/ThemeContext";
 import { api, todayStr } from "@/src/lib/api";
+import { LIVING_BANNERS } from "@/src/lib/config";
 import { pickMessage, SWARA } from "@/src/lib/swara";
 import { BreathLog, fonts, NostrilState, radius, spacing, STATE_META } from "@/src/theme/theme";
 
@@ -157,11 +160,23 @@ export default function QuickLogScreen() {
     );
   };
 
+  // Over the living scene the chrome goes light with soft shadows,
+  // independent of the app theme.
+  const onScene = LIVING_BANNERS
+    ? { color: "#F2F4FC", textShadowColor: "rgba(4,6,14,0.8)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 6 }
+    : null;
+  const onSceneDim = LIVING_BANNERS ? { ...onScene, color: "rgba(242,244,252,0.75)" } : null;
+
   return (
     <View
       testID="quick-log-screen"
-      style={[styles.root, { backgroundColor: colors.surface, paddingTop: insets.top + spacing.lg }]}
+      style={[
+        styles.root,
+        { backgroundColor: LIVING_BANNERS ? "#0A0C16" : colors.surface, paddingTop: insets.top + spacing.lg },
+      ]}
     >
+      {LIVING_BANNERS && <LivingSky />}
+
       {/* Rendered first so it sits *behind* the buttons — the ice/fire plays
           beneath them and the buttons stay crisp on top. */}
       <IceFireEffect ref={fx} />
@@ -178,50 +193,68 @@ export default function QuickLogScreen() {
               />
               <View style={[styles.pulseDot, { backgroundColor: colors.brand }]} />
             </View>
-            <Text style={[styles.date, { color: colors.onSurfaceTertiary }]}>{formatDateHeading()}</Text>
+            <Text style={[styles.date, { color: colors.onSurfaceTertiary }, onSceneDim]}>{formatDateHeading()}</Text>
           </View>
           <Pressable
             testID="log-learn-button"
             onPress={() => router.push("/learn")}
             hitSlop={10}
-            style={[styles.infoBtn, { backgroundColor: colors.surfaceTertiary }]}
+            style={[
+              styles.infoBtn,
+              { backgroundColor: LIVING_BANNERS ? "rgba(8,10,20,0.4)" : colors.surfaceTertiary },
+            ]}
           >
-            <Ionicons name="book-outline" size={17} color={colors.onSurfaceTertiary} />
+            <Ionicons
+              name="book-outline"
+              size={17}
+              color={LIVING_BANNERS ? "#F2F4FC" : colors.onSurfaceTertiary}
+            />
           </Pressable>
         </View>
-        <Text style={[styles.title, { color: colors.onSurface }]}>What is dominant now?</Text>
-        <Text style={[styles.subtitle, { color: colors.onSurfaceTertiary }]}>
+        <Text style={[styles.title, { color: colors.onSurface }, onScene]}>What is dominant now?</Text>
+        <Text style={[styles.subtitle, { color: colors.onSurfaceTertiary }, onSceneDim]}>
           Log current breath state
         </Text>
       </Animated.View>
 
-      {/* Left + Right are the frequent states, side by side and tall.
-          Both (Sushumna) accrues less, so it sits below as a short bar. */}
-      <Animated.View style={[styles.buttons, { opacity: enter, transform: [{ translateY: enterTranslate }] }]}>
-        <View style={styles.topRow}>
-          {renderState("left")}
-          {renderState("right")}
-        </View>
-        {renderState("both", true)}
-      </Animated.View>
+      {LIVING_BANNERS ? (
+        <Animated.View style={[styles.buttons, { opacity: enter, transform: [{ translateY: enterTranslate }] }]}>
+          <BannerButtons disabled={!!creating} onLog={logState} />
+        </Animated.View>
+      ) : (
+        /* Left + Right are the frequent states, side by side and tall.
+           Both (Sushumna) accrues less, so it sits below as a short bar. */
+        <Animated.View style={[styles.buttons, { opacity: enter, transform: [{ translateY: enterTranslate }] }]}>
+          <View style={styles.topRow}>
+            {renderState("left")}
+            {renderState("right")}
+          </View>
+          {renderState("both", true)}
+        </Animated.View>
+      )}
 
       {guidance ? (
         <Pressable
           testID="log-guidance-card"
           onPress={() => router.push("/learn")}
-          style={[styles.guidanceCard, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}
+          style={[
+            styles.guidanceCard,
+            LIVING_BANNERS
+              ? { backgroundColor: "rgba(8,10,20,0.55)", borderColor: "rgba(255,255,255,0.16)" }
+              : { backgroundColor: colors.surfaceSecondary, borderColor: colors.border },
+          ]}
         >
           <View style={styles.guidanceHead}>
             <View style={[styles.guidanceDot, { backgroundColor: colors[STATE_META[guidance.state].colorKey] }]} />
-            <Text style={[styles.guidanceState, { color: colors.onSurfaceTertiary }]}>
+            <Text style={[styles.guidanceState, { color: LIVING_BANNERS ? "rgba(242,244,252,0.7)" : colors.onSurfaceTertiary }]}>
               {STATE_META[guidance.state].label} · {SWARA[guidance.state].sanskrit}
             </Text>
-            <Ionicons name="chevron-forward" size={14} color={colors.onSurfaceTertiary} />
+            <Ionicons name="chevron-forward" size={14} color={LIVING_BANNERS ? "rgba(242,244,252,0.7)" : colors.onSurfaceTertiary} />
           </View>
-          <Text style={[styles.guidanceText, { color: colors.onSurface }]}>{guidance.message}</Text>
+          <Text style={[styles.guidanceText, { color: LIVING_BANNERS ? "#F2F4FC" : colors.onSurface }]}>{guidance.message}</Text>
         </Pressable>
       ) : (
-        <Text style={[styles.footerHint, { color: colors.onSurfaceTertiary }]}>
+        <Text style={[styles.footerHint, { color: colors.onSurfaceTertiary }, onSceneDim]}>
           Your state changes. Track it clearly.
         </Text>
       )}
