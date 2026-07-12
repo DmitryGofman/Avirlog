@@ -29,14 +29,16 @@
   .stars i { position:absolute; width:2px; height:2px; border-radius:50%; background:#DDE6FF; animation:tw 3s ease-in-out infinite alternate; }
   @keyframes tw { from{opacity:.15} to{opacity:.9} }
 
-  /* celestial bodies */
+  /* celestial bodies — safe defaults so the scene is clean even before
+     (or without) JS: sun hidden, moon high with a prefilled crescent */
   #sunEl {
     position:absolute; left:50%; margin-left:-72px; width:144px; height:144px; border-radius:50%;
+    top:64%; opacity:0;
     background:radial-gradient(circle at 42% 38%, #FFF6DC, #F7DFA0 68%);
     box-shadow:0 0 0 14px rgba(255,244,210,.06), 0 0 0 34px rgba(255,244,210,.04), 0 0 70px rgba(255,230,170,.35);
     pointer-events:none;
   }
-  #moonEl { position:absolute; left:56%; width:104px; height:104px; pointer-events:none; }
+  #moonEl { position:absolute; left:62%; width:104px; height:104px; pointer-events:none; top:6.5%; opacity:.95; }
   #moonEl svg { width:100%; height:100%; filter:drop-shadow(0 0 26px rgba(220,230,255,.3)); }
 
   .range { position:absolute; left:0; right:0; pointer-events:none; }
@@ -50,8 +52,10 @@
   .pine svg { fill:var(--ink,#030710); }
 
   .screen { flex:1; display:flex; flex-direction:column; padding:50px 22px 0; position:relative; z-index:2; }
-  .ep { font-size:10px; letter-spacing:4px; text-transform:uppercase; color:var(--text,#E8ECF8); opacity:.75; }
-  h1 { font-size:25px; font-weight:200; letter-spacing:1px; color:var(--text,#E8ECF8); margin:6px 0 0; }
+  .ep { font-size:10px; letter-spacing:4px; text-transform:uppercase; color:var(--text,#E8ECF8); opacity:.85;
+        text-shadow:0 1px 3px rgba(6,8,16,.9), 0 2px 12px rgba(6,8,16,.7); }
+  h1 { font-size:25px; font-weight:200; letter-spacing:1px; color:var(--text,#E8ECF8); margin:6px 0 0;
+       text-shadow:0 1px 4px rgba(6,8,16,.9), 0 3px 16px rgba(6,8,16,.75); }
   h1 b { font-weight:700; }
 
   .caption {
@@ -84,29 +88,37 @@
   .banner {
     position:absolute; top:14px; width:146px; height:330px;
     transform-origin:50% 0;
-    animation:flap 4.6s ease-in-out infinite;
+    animation:sway 6s ease-in-out infinite;
     transition:filter .5s ease;
   }
   #bn-left  { left:10px; }
-  #bn-right { right:10px; animation-delay:1.9s; }
-  /* light wind flap: a gentle traveling ripple, barely there */
-  @keyframes flap {
-    0%   { transform:rotate(-.5deg) skewX(-.6deg); }
-    28%  { transform:rotate(.6deg)  skewX(1.1deg); }
-    52%  { transform:rotate(-.3deg) skewX(-.9deg); }
-    76%  { transform:rotate(.4deg)  skewX(.5deg); }
-    100% { transform:rotate(-.5deg) skewX(-.6deg); }
+  #bn-right { right:10px; animation-delay:2.6s; }
+  /* two-layer cloth physics: the whole banner sways slowly from the rod,
+     while the cloth itself ripples faster — light, but clearly alive */
+  @keyframes sway {
+    0%,100% { transform:rotate(-.7deg); }
+    50%     { transform:rotate(.8deg); }
+  }
+  .cloth {
+    width:100%; height:100%; transform-origin:50% 0;
+    animation:ripple 2.6s ease-in-out infinite;
+  }
+  #bn-right .cloth { animation-delay:1.2s; }
+  @keyframes ripple {
+    0%,100% { transform:skewX(-1.1deg) scaleY(.997); }
+    35%     { transform:skewX(1.6deg)  scaleY(1.004); }
+    65%     { transform:skewX(-.6deg)  scaleY(1); }
   }
   .banner:active { transform:scale(.96) translateY(3px); animation:none; }
-  .banner.wave { animation:cloth .95s ease-in-out; }
+  .banner.wave .cloth, #bn-both.wave .cloth { animation:cloth .95s ease-in-out; }
   /* press: a real kick of wind through the cloth */
   @keyframes cloth {
-    0%   { transform:rotate(0) skewX(0) translateY(0); }
-    14%  { transform:rotate(2.2deg) skewX(4.5deg) translateY(2px); }
-    38%  { transform:rotate(-1.8deg) skewX(-3.4deg) translateY(0); }
-    62%  { transform:rotate(1.1deg) skewX(2deg); }
-    82%  { transform:rotate(-.5deg) skewX(-.9deg); }
-    100% { transform:rotate(0) skewX(0); }
+    0%   { transform:skewX(0) translateY(0); }
+    14%  { transform:skewX(5deg) translateY(2px) scaleY(1.01); }
+    38%  { transform:skewX(-4deg) translateY(0); }
+    62%  { transform:skewX(2.4deg); }
+    82%  { transform:skewX(-1.1deg); }
+    100% { transform:skewX(0); }
   }
   #bn-left.wave, #bn-left.lit { filter:drop-shadow(0 0 26px rgba(110,170,255,.75)) drop-shadow(0 0 60px rgba(110,170,255,.35)); }
   #bn-right.wave, #bn-right.lit { filter:drop-shadow(0 0 26px rgba(255,110,90,.75)) drop-shadow(0 0 60px rgba(255,110,90,.35)); }
@@ -121,11 +133,11 @@
   #bn-both {
     position:absolute; top:14px; left:50%; margin-left:-21px; width:42px; height:318px; z-index:3;
     transform-origin:50% 0;
-    animation:flap 5.4s ease-in-out infinite; animation-delay:.9s;
+    animation:sway 7s ease-in-out infinite; animation-delay:1.1s;
     transition:filter .5s ease;
   }
+  #bn-both .cloth { animation-duration:3.1s; animation-delay:.6s; }
   #bn-both:active { transform:scale(.95) translateY(3px); animation:none; }
-  #bn-both.wave { animation:cloth .95s ease-in-out; }
   #bn-both.wave, #bn-both.lit { filter:drop-shadow(0 0 24px rgba(255,255,255,.85)) drop-shadow(0 0 55px rgba(240,244,255,.4)); }
   #bn-both svg { width:100%; height:100%; display:block; }
   #bn-both .nm {
@@ -157,7 +169,7 @@
     <div id="sunEl"></div>
     <div id="moonEl"><svg viewBox="0 0 104 104">
       <circle cx="52" cy="52" r="44" fill="#39405C"/>
-      <path id="moonlit" d="" fill="#F2EEDC"/>
+      <path id="moonlit" d="M 52 8 A 44 44 0 1 0 52 96 A 40.8 44 0 1 1 52 8 Z" fill="#F2EEDC"/>
       <circle cx="38" cy="40" r="5" fill="rgba(60,66,92,.25)"/>
       <circle cx="62" cy="62" r="7" fill="rgba(60,66,92,.2)"/>
       <circle cx="58" cy="34" r="3.5" fill="rgba(60,66,92,.25)"/>
@@ -180,7 +192,7 @@
 
         <!-- LEFT banner: moon over water -->
         <button class="banner" id="bn-left" onclick="raise('left')">
-          <svg viewBox="0 0 146 330">
+          <div class="cloth"><svg viewBox="0 0 146 330">
             <defs>
               <linearGradient id="clothL" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0" stop-color="#3A3E6E" stop-opacity=".84"/>
@@ -200,13 +212,13 @@
               <path d="M20 230 Q38 218 56 230 Q74 242 92 230 Q110 218 128 230" stroke="#5E7EB8" stroke-width="5" opacity=".65"/>
               <path d="M32 254 Q50 243 68 254 Q86 265 104 254" stroke="#4A5E98" stroke-width="5" opacity=".5"/>
             </g>
-          </svg>
+          </svg></div>
           <span class="nm">Left nostril</span>
         </button>
 
         <!-- BOTH: thin full-length eclipse banner between the two -->
         <button id="bn-both" onclick="raise('both')">
-          <svg viewBox="0 0 42 318">
+          <div class="cloth"><svg viewBox="0 0 42 318">
             <defs>
               <linearGradient id="clothB" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0" stop-color="#524E5E" stop-opacity=".84"/>
@@ -224,13 +236,13 @@
             <path d="M21 210 Q27 180 21 150" stroke="#E8934A" stroke-width="3" fill="none" stroke-linecap="round" opacity=".75"/>
             <circle cx="21" cy="150" r="4" fill="#EDE8DC" opacity=".9"/>
             <path d="M14 244 L21 230 L28 244" stroke="#C9C4D4" stroke-width="2" fill="none" stroke-linecap="round" opacity=".6"/>
-          </svg>
+          </svg></div>
           <span class="nm">Both</span>
         </button>
 
         <!-- RIGHT banner: sun over flame -->
         <button class="banner" id="bn-right" onclick="raise('right')">
-          <svg viewBox="0 0 146 330">
+          <div class="cloth"><svg viewBox="0 0 146 330">
             <defs>
               <linearGradient id="clothR" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0" stop-color="#7E4234" stop-opacity=".84"/>
@@ -257,7 +269,7 @@
               <path d="M24 252 L38 216 L52 246 L68 204 L82 246 L98 214 L112 250" stroke="#E8934A" stroke-width="5" opacity=".8"/>
               <path d="M34 270 L50 240 L66 264 L82 234 L98 262 L110 244" stroke="#B85A32" stroke-width="5" opacity=".6"/>
             </g>
-          </svg>
+          </svg></div>
           <span class="nm">Right nostril</span>
         </button>
       </div>
@@ -377,6 +389,7 @@
     });
   });
   (function init(){
+    try{
     const stars=document.getElementById("stars");
     for(let i=0;i<40;i++){
       const s=document.createElement("i");
@@ -392,6 +405,7 @@
       const nn=new Date(), m=nn.getHours()*60+nn.getMinutes();
       if(Math.abs(curMins-m)<2) setTime(m);
     }, 30000);
+    }catch(e){ /* leave the safe CSS-default scene */ }
   })();
 
   const CAP={left:"the moon banner stirs — water hours, gentle current",
