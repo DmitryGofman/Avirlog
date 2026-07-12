@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AvirLog Design 17 — Meadow</title>
+<style>
+  /* DIRECTION 17: "Meadow" — Miyazaki-inspired pastoral warmth (original
+     art). A hand-painted hillside under a big cumulus sky; grass sways,
+     seed-sprites drift. Logging sends a breeze (left), a wash of sunlight
+     (right), or wakes the little floating spirits (both). */
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    min-height:100vh; display:flex; align-items:center; justify-content:center;
+    background:#7A8C7E; padding:24px;
+    font-family:Georgia,"Times New Roman",serif;
+  }
+  .phone {
+    width:390px; height:800px; border-radius:44px; overflow:hidden; position:relative;
+    background:linear-gradient(180deg,#AEDCEC 0%,#C9E8EF 38%,#E8F3E3 52%,#9EC77F 60%,#7FB365 78%,#5E9450 100%);
+    box-shadow:0 30px 90px rgba(30,45,30,.6);
+    display:flex; flex-direction:column;
+    transition:filter 1.4s ease;
+  }
+  .phone.breeze { filter:saturate(.92) hue-rotate(-6deg) brightness(1.02); }
+  .phone.sunlit { filter:saturate(1.18) sepia(.14) brightness(1.06); }
+
+  /* clouds */
+  .cloud { position:absolute; pointer-events:none; opacity:.95; }
+  .cloud .puff { position:absolute; background:#FDFDFA; border-radius:50%; box-shadow:inset -6px -8px 14px rgba(150,190,205,.35); }
+  .c1 { top:9%; left:-40px; animation:sail 60s linear infinite; }
+  .c1 .puff:nth-child(1){width:90px;height:54px;left:0;top:12px}
+  .c1 .puff:nth-child(2){width:64px;height:48px;left:52px;top:0}
+  .c1 .puff:nth-child(3){width:70px;height:40px;left:96px;top:16px}
+  .c2 { top:20%; left:-30px; transform:scale(.55); animation:sail 85s linear infinite 10s; }
+  .c2 .puff:nth-child(1){width:90px;height:54px;left:0;top:12px}
+  .c2 .puff:nth-child(2){width:64px;height:48px;left:52px;top:0}
+  .c2 .puff:nth-child(3){width:70px;height:40px;left:96px;top:16px}
+  @keyframes sail { to { transform:translateX(500px); } }
+  .c2 { animation-name:sail2; }
+  @keyframes sail2 { to { transform:translateX(500px) scale(.55); } }
+
+  /* distant hills */
+  .hill { position:absolute; border-radius:50%; pointer-events:none; }
+  .h1 { width:420px; height:220px; left:-90px; top:47%; background:#8FBE74; }
+  .h2 { width:460px; height:260px; right:-140px; top:50%; background:#7BAD62; }
+
+  /* swaying grass tufts */
+  .grass { position:absolute; bottom:118px; width:100%; height:200px; pointer-events:none; overflow:hidden; }
+  .tuft { position:absolute; bottom:0; width:3.5px; border-radius:3px 3px 0 0; background:#3E7A38; transform-origin:bottom; animation:sway 3.2s ease-in-out infinite alternate; }
+  .phone.breeze .tuft { animation-duration:.9s; }
+  @keyframes sway { from{transform:rotate(-4deg)} to{transform:rotate(5deg)} }
+  .flower { position:absolute; bottom:0; font-size:13px; transform-origin:bottom; animation:sway 3.8s ease-in-out infinite alternate; }
+
+  /* seed sprites */
+  .sprite { position:absolute; width:7px; height:7px; border-radius:50%; background:#FFFDF2; box-shadow:0 0 10px rgba(255,253,240,.9); opacity:0; pointer-events:none; }
+  .sprite.fly { animation:floatup 3.4s ease-out forwards; }
+  @keyframes floatup {
+    0% { opacity:0; transform:translate(0,0) scale(.6); }
+    12% { opacity:.95; }
+    100% { opacity:0; transform:translate(var(--dx),-260px) scale(1.15); }
+  }
+  /* sun wash for right */
+  .sunwash {
+    position:absolute; inset:0; pointer-events:none; opacity:0; transition:opacity 1s ease;
+    background:radial-gradient(80% 60% at 72% 18%, rgba(255,235,160,.55), transparent 65%);
+  }
+  .phone.sunlit .sunwash { opacity:1; }
+
+  .screen { flex:1; display:flex; flex-direction:column; padding:62px 26px 0; position:relative; z-index:2; }
+  .date { font-size:11px; letter-spacing:3px; text-transform:uppercase; color:#4E6E86; font-family:-apple-system,system-ui,sans-serif; }
+  h1 { font-size:27px; font-weight:400; color:#2E4A38; margin:10px 0 2px; }
+  .sub { font-size:14px; font-style:italic; color:#527862; }
+
+  .word {
+    position:absolute; left:0; right:0; top:44%; text-align:center; pointer-events:none;
+    font-style:italic; font-size:15px; color:#2E4A38; opacity:0; transition:opacity .8s ease;
+    text-shadow:0 1px 8px rgba(232,243,227,.9);
+  }
+  .word.show { opacity:1; }
+
+  /* wooden signpost buttons */
+  .signs { margin-top:auto; display:flex; gap:12px; padding-bottom:14px; }
+  button { border:none; cursor:pointer; font-family:inherit; -webkit-tap-highlight-color:transparent; transition:transform .18s ease; }
+  button:active { transform:scale(.95) rotate(-.5deg); }
+  .sign {
+    flex:1; height:88px; border-radius:14px;
+    background:linear-gradient(180deg,#B98F5E,#9A7146);
+    box-shadow:0 5px 0 #755430, 0 8px 16px rgba(45,60,40,.35), inset 0 1px 0 rgba(255,235,200,.5);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px;
+    color:#3A2C1A;
+  }
+  .sign .nm { font-size:19px; }
+  .sign .tr { font-size:9.5px; letter-spacing:2px; text-transform:uppercase; color:#6E5334; font-family:-apple-system,system-ui,sans-serif; }
+  .sign.small { flex:.75; }
+
+  .tabs { display:flex; border-top:1px solid rgba(62,90,50,.35); background:rgba(94,148,80,.92); padding:12px 8px 28px; position:relative; z-index:2; }
+  .tab { flex:1; text-align:center; font-size:9.5px; letter-spacing:1.5px; color:#DFF0D2; opacity:.6; text-transform:uppercase; font-family:-apple-system,system-ui,sans-serif; }
+  .tab.on { opacity:1; font-weight:700; }
+  .tab span { display:block; font-size:16px; margin-bottom:3px; }
+  .label { position:fixed; bottom:18px; width:100%; left:0; text-align:center; font-size:13px; color:#DDE8DA; font-family:-apple-system,system-ui,sans-serif; }
+</style>
+</head>
+<body>
+  <div class="phone" id="phone">
+    <div class="cloud c1"><div class="puff"></div><div class="puff"></div><div class="puff"></div></div>
+    <div class="cloud c2"><div class="puff"></div><div class="puff"></div><div class="puff"></div></div>
+    <div class="hill h1"></div><div class="hill h2"></div>
+    <div class="sunwash"></div>
+    <div class="grass" id="grassband"></div>
+    <div class="word" id="word"></div>
+
+    <div class="screen">
+      <div class="date">Saturday · 11 July</div>
+      <h1>The valley is breathing</h1>
+      <div class="sub">— and so are you. Which way does the wind lean?</div>
+
+      <div class="signs">
+        <button class="sign" onclick="meadow('left', event)">
+          <span class="nm">Left</span><span class="tr">Ida · breeze</span>
+        </button>
+        <button class="sign small" onclick="meadow('both', event)">
+          <span class="nm">Both</span><span class="tr">Sushumna</span>
+        </button>
+        <button class="sign" onclick="meadow('right', event)">
+          <span class="nm">Right</span><span class="tr">Pingala · sun</span>
+        </button>
+      </div>
+    </div>
+    <div class="tabs">
+      <div class="tab on"><span>❀</span>Meadow</div>
+      <div class="tab"><span>☀</span>Today</div>
+      <div class="tab"><span>〜</span>Winds</div>
+      <div class="tab"><span>🗺</span>Journey</div>
+      <div class="tab"><span>⚙</span>Satchel</div>
+    </div>
+  </div>
+  <div class="label">Design 17 · Meadow — Miyazaki-inspired hillside: breeze bends the grass, sunlight washes the valley, spirits rise.</div>
+<script>
+  // plant the grass band
+  const band=document.getElementById("grassband");
+  for(let i=0;i<64;i++){
+    const t=document.createElement("div");
+    t.className="tuft";
+    t.style.left=(Math.random()*100)+"%";
+    t.style.height=(26+Math.random()*54)+"px";
+    t.style.animationDelay=(Math.random()*2)+"s";
+    t.style.background=["#3E7A38","#4C8A42","#356B30"][i%3];
+    band.appendChild(t);
+  }
+  ["🌼","🌾","🌼","🌿","🌾"].forEach((f,i)=>{
+    const e=document.createElement("div");
+    e.className="flower"; e.textContent=f;
+    e.style.left=(8+i*19+Math.random()*8)+"%";
+    e.style.animationDelay=(Math.random()*2)+"s";
+    band.appendChild(e);
+  });
+
+  const WORD={left:"a cool wind combs the grass… rest with it",
+              right:"the sun leans in… a good hour to do things",
+              both:"the air goes still — the small spirits notice you"};
+  const phone=document.getElementById("phone");
+  let t=null;
+  function meadow(state){
+    clearTimeout(t);
+    phone.classList.remove("breeze","sunlit");
+    if(state==="left") phone.classList.add("breeze");
+    if(state==="right") phone.classList.add("sunlit");
+    if(state==="both"){
+      for(let i=0;i<10;i++){
+        const s=document.createElement("div");
+        s.className="sprite";
+        s.style.left=(15+Math.random()*70)+"%";
+        s.style.bottom=(130+Math.random()*60)+"px";
+        s.style.setProperty("--dx",(Math.random()*80-40)+"px");
+        s.style.animationDelay=(Math.random()*.5)+"s";
+        phone.appendChild(s);
+        requestAnimationFrame(()=>s.classList.add("fly"));
+        setTimeout(()=>s.remove(),4200);
+      }
+    }
+    const w=document.getElementById("word");
+    w.textContent=WORD[state]; w.classList.add("show");
+    t=setTimeout(()=>{ phone.classList.remove("breeze","sunlit"); w.classList.remove("show"); }, 3200);
+  }
+</script>
+</body>
+</html>

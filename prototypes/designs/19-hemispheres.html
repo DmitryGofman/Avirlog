@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AvirLog Design 19 — Hemispheres</title>
+<style>
+  /* DIRECTION 19: "Hemispheres" — the split-brain poster as an app. One
+     brain, two worlds: the analytic half (mono grid, formulas) and the
+     creative half (paint, color). Faithful to Swara: LEFT nostril wakes the
+     RIGHT (creative) hemisphere; RIGHT nostril wakes the LEFT (analytic). */
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    min-height:100vh; display:flex; align-items:center; justify-content:center;
+    background:#191A1E; padding:24px;
+    font-family:-apple-system,"Segoe UI",system-ui,sans-serif;
+  }
+  .phone {
+    width:390px; height:800px; border-radius:44px; overflow:hidden; position:relative;
+    background:#111216;
+    box-shadow:0 30px 90px rgba(0,0,0,.8);
+    display:flex; flex-direction:column;
+  }
+  /* split backdrop: analytic left / creative right */
+  .side { position:absolute; top:0; bottom:0; width:50%; pointer-events:none; transition:opacity 1s ease; }
+  .side.analytic {
+    left:0;
+    background:
+      linear-gradient(rgba(140,150,165,.08) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(140,150,165,.08) 1px, transparent 1px),
+      #14161B;
+    background-size:24px 24px;
+  }
+  .side.creative {
+    right:0;
+    background:
+      radial-gradient(45% 30% at 70% 22%, rgba(255,90,120,.24), transparent 70%),
+      radial-gradient(40% 28% at 55% 48%, rgba(90,200,255,.2), transparent 70%),
+      radial-gradient(45% 30% at 78% 70%, rgba(255,200,60,.2), transparent 70%),
+      radial-gradient(38% 26% at 52% 86%, rgba(160,110,255,.22), transparent 70%),
+      #17141D;
+  }
+  .formulas {
+    position:absolute; top:0; bottom:0; left:0; width:50%; pointer-events:none;
+    font-family:ui-monospace,Menlo,monospace; font-size:10px; color:rgba(150,165,185,.28);
+    padding:70px 12px; line-height:2.2; overflow:hidden;
+  }
+  .splitline { position:absolute; top:0; bottom:0; left:50%; width:1px; background:linear-gradient(rgba(255,255,255,.25), rgba(255,255,255,.05)); pointer-events:none; }
+
+  .screen { flex:1; display:flex; flex-direction:column; padding:60px 24px 0; position:relative; z-index:2; }
+  .kicker { text-align:center; font-size:10.5px; letter-spacing:3.5px; text-transform:uppercase; color:#6E7382; }
+  h1 { text-align:center; font-size:24px; font-weight:700; letter-spacing:-.3px; margin:10px 0 2px; }
+  h1 .an { color:#AEB9CC; font-family:ui-monospace,Menlo,monospace; font-weight:400; }
+  h1 .cr { background:linear-gradient(90deg,#FF6E8C,#FFC63D,#59C8FF,#B07CFF); -webkit-background-clip:text; background-clip:text; color:transparent; font-style:italic; }
+  .sub { text-align:center; font-size:12.5px; color:#8A8F9E; margin-bottom:14px; }
+
+  /* the brain */
+  .brainbox { flex:1; display:flex; align-items:center; justify-content:center; min-height:0; position:relative; }
+  .brainbox svg { width:300px; height:auto; }
+  .hemi { transition:opacity .8s ease, filter .8s ease; opacity:.45; }
+  .hemi.lit { opacity:1; filter:drop-shadow(0 0 16px rgba(255,255,255,.25)); }
+  .gear-set, .splash-set { transition:opacity .8s ease; opacity:.3; }
+  .gear-set.lit, .splash-set.lit { opacity:1; }
+  .spark { opacity:0; }
+  .spark.go { animation:zap 2.4s ease-out forwards; }
+  @keyframes zap { 0%{opacity:0} 15%{opacity:1} 70%{opacity:1} 100%{opacity:0} }
+
+  .verdict {
+    text-align:center; min-height:20px; font-size:13px; padding-bottom:12px;
+  }
+  .verdict .an { color:#AEB9CC; font-family:ui-monospace,Menlo,monospace; }
+  .verdict .cr { background:linear-gradient(90deg,#FF6E8C,#FFC63D,#59C8FF); -webkit-background-clip:text; background-clip:text; color:transparent; font-style:italic; font-weight:600; }
+  .verdict .bo { color:#EDEFF4; }
+
+  .keys { display:flex; gap:10px; padding-bottom:16px; }
+  button { border:none; cursor:pointer; font-family:inherit; -webkit-tap-highlight-color:transparent; transition:transform .15s ease, box-shadow .3s ease; }
+  button:active { transform:scale(.94); }
+  .key { flex:1; height:84px; border-radius:18px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; }
+  /* left nostril button = creative payoff, painterly */
+  #k-left {
+    background:linear-gradient(135deg,#FF6E8C,#FFC63D 55%,#59C8FF);
+    color:#231018;
+  }
+  #k-left:hover { box-shadow:0 0 30px rgba(255,150,120,.4); }
+  /* right nostril button = analytic payoff, blueprint */
+  #k-right {
+    background:#1C2230; color:#C9D6EA; border:1px solid #3A4E63;
+    background-image:linear-gradient(rgba(120,160,210,.12) 1px, transparent 1px), linear-gradient(90deg, rgba(120,160,210,.12) 1px, transparent 1px);
+    background-size:12px 12px;
+    font-family:ui-monospace,Menlo,monospace;
+  }
+  #k-right:hover { box-shadow:0 0 30px rgba(90,140,210,.35); }
+  #k-both { flex:.72; background:#EDEFF4; color:#1B1D24; }
+  #k-both:hover { box-shadow:0 0 30px rgba(240,242,248,.35); }
+  .key .nm { font-size:17px; font-weight:700; }
+  .key .tr { font-size:9px; letter-spacing:1.5px; text-transform:uppercase; opacity:.7; }
+
+  .tabs { display:flex; padding:12px 8px 28px; border-top:1px solid #262933; background:#111216; position:relative; z-index:2; }
+  .tab { flex:1; text-align:center; font-size:9.5px; letter-spacing:1.5px; color:#565B68; text-transform:uppercase; }
+  .tab.on { color:#EDEFF4; }
+  .tab span { display:block; font-size:15px; margin-bottom:3px; }
+  .label { position:fixed; bottom:18px; width:100%; left:0; text-align:center; font-size:13px; color:#8A8F9E; }
+</style>
+</head>
+<body>
+  <div class="phone">
+    <div class="side analytic"></div>
+    <div class="side creative"></div>
+    <div class="formulas">f(x)=σ(w·x+b)<br>∂E/∂t = −∇·J<br>PV = nRT<br>Σ 1/n² = π²/6<br>e^{iπ}+1=0<br>t = 14:32:08<br>n = 8 samples<br>L:R = 58:29</div>
+    <div class="splitline"></div>
+
+    <div class="screen">
+      <div class="kicker">One breath · two minds</div>
+      <h1><span class="an">logic</span> &nbsp;/&nbsp; <span class="cr">wonder</span></h1>
+      <div class="sub">Left nostril wakes the artist. Right nostril wakes the engineer.</div>
+
+      <div class="brainbox">
+        <svg viewBox="0 0 300 240" fill="none">
+          <!-- corpus callosum midline -->
+          <line x1="150" y1="26" x2="150" y2="196" stroke="#3A3E4A" stroke-width="2" stroke-dasharray="4 5"/>
+
+          <!-- LEFT hemisphere (analytic) -->
+          <g class="hemi" id="hemi-left">
+            <path d="M150 30 Q84 26 58 74 Q36 116 56 154 Q74 190 118 196 Q140 199 150 196 Z"
+              fill="#1D2634" stroke="#7FA3CC" stroke-width="2.5"/>
+            <g class="gear-set" id="gears" stroke="#9FC2E8" stroke-width="2" fill="none">
+              <circle cx="96" cy="86" r="14"/>
+              <path d="M96 68 v-7 M96 104 v7 M78 86 h-7 M114 86 h7 M84 74 l-5 -5 M108 98 l5 5 M108 74 l5 -5 M84 98 l-5 5"/>
+              <circle cx="120" cy="140" r="10"/>
+              <path d="M120 127 v-6 M120 153 v6 M107 140 h-6 M133 140 h6"/>
+              <path d="M70 120 h28 M70 128 h20 M70 136 h24" stroke-width="1.5" opacity=".7"/>
+            </g>
+          </g>
+
+          <!-- RIGHT hemisphere (creative) -->
+          <g class="hemi" id="hemi-right">
+            <path d="M150 30 Q216 26 242 74 Q264 116 244 154 Q226 190 182 196 Q160 199 150 196 Z"
+              fill="#241B2E" stroke="url(#rainbow)" stroke-width="2.5"/>
+            <g class="splash-set" id="splashes">
+              <circle cx="196" cy="80" r="12" fill="#FF6E8C"/>
+              <circle cx="226" cy="108" r="9" fill="#FFC63D"/>
+              <circle cx="188" cy="128" r="11" fill="#59C8FF"/>
+              <circle cx="216" cy="152" r="8" fill="#B07CFF"/>
+              <path d="M172 96 q10 -18 26 -10" stroke="#FF9E6E" stroke-width="3" fill="none" stroke-linecap="round"/>
+              <path d="M206 132 q14 6 8 20" stroke="#6EE8B0" stroke-width="3" fill="none" stroke-linecap="round"/>
+            </g>
+          </g>
+
+          <!-- both: spark across the bridge -->
+          <g class="spark" id="spark" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" fill="none">
+            <path d="M118 112 L142 104 L138 116 L162 106 L158 120 L182 112"/>
+          </g>
+
+          <defs>
+            <linearGradient id="rainbow" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#FF6E8C"/><stop offset=".4" stop-color="#FFC63D"/>
+              <stop offset=".7" stop-color="#59C8FF"/><stop offset="1" stop-color="#B07CFF"/>
+            </linearGradient>
+          </defs>
+        </svg>
+      </div>
+
+      <div class="verdict" id="verdict"><span class="bo">tap a nostril — see which mind wakes</span></div>
+
+      <div class="keys">
+        <button class="key" id="k-left" onclick="wake('left')">
+          <span class="nm">Left</span><span class="tr">ida → right brain</span>
+        </button>
+        <button class="key" id="k-both" onclick="wake('both')">
+          <span class="nm">Both</span><span class="tr">whole mind</span>
+        </button>
+        <button class="key" id="k-right" onclick="wake('right')">
+          <span class="nm">Right</span><span class="tr">pingala → left brain</span>
+        </button>
+      </div>
+    </div>
+    <div class="tabs">
+      <div class="tab on"><span>◐</span>Mind</div>
+      <div class="tab"><span>◷</span>Today</div>
+      <div class="tab"><span>∿</span>Patterns</div>
+      <div class="tab"><span>▤</span>History</div>
+      <div class="tab"><span>⚙</span>Settings</div>
+    </div>
+  </div>
+  <div class="label">Design 19 · Hemispheres — the split-brain poster: left nostril lights the artist, right lights the engineer.</div>
+<script>
+  const V={left:'<span class="cr">the artist is awake — create, feel, wander</span>',
+           right:'<span class="an">the engineer is awake — compute, decide, build</span>',
+           both:'<span class="bo">✦ whole mind — the bridge lights up ✦</span>'};
+  let t=null;
+  function wake(state){
+    clearTimeout(t);
+    const hl=document.getElementById("hemi-left"), hr=document.getElementById("hemi-right");
+    const g=document.getElementById("gears"), s=document.getElementById("splashes"), sp=document.getElementById("spark");
+    [hl,hr,g,s].forEach(e=>e.classList.remove("lit"));
+    sp.classList.remove("go");
+    // swara mapping: left nostril → right hemisphere, right nostril → left hemisphere
+    if(state==="left"){ hr.classList.add("lit"); s.classList.add("lit"); }
+    else if(state==="right"){ hl.classList.add("lit"); g.classList.add("lit"); }
+    else { hl.classList.add("lit"); hr.classList.add("lit"); g.classList.add("lit"); s.classList.add("lit");
+           void sp.getBoundingClientRect(); sp.classList.add("go"); }
+    document.getElementById("verdict").innerHTML=V[state];
+    t=setTimeout(()=>{
+      [hl,hr,g,s].forEach(e=>e.classList.remove("lit"));
+      document.getElementById("verdict").innerHTML='<span class="bo">tap a nostril — see which mind wakes</span>';
+    }, 3200);
+  }
+</script>
+</body>
+</html>
