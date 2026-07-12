@@ -56,10 +56,15 @@
 
   .caption {
     position:absolute; left:0; right:0; top:24%; text-align:center; pointer-events:none; z-index:5;
-    color:var(--text,#E8ECF8); font-size:14px; font-weight:300; opacity:0; transition:opacity .8s ease;
-    text-shadow:0 2px 12px rgba(0,0,0,.6);
+    opacity:0; transition:opacity .8s ease;
   }
-  .caption.show { opacity:.95; }
+  .caption span {
+    display:inline-block; padding:8px 18px; border-radius:999px;
+    background:rgba(8,10,20,.62); backdrop-filter:blur(8px);
+    border:1px solid rgba(255,255,255,.16);
+    color:#F2F4FC; font-size:13.5px; font-weight:400;
+  }
+  .caption.show { opacity:1; }
 
   /* ---------- the banner rig — raised & elongated ---------- */
   .rig { margin-top:16px; position:relative; height:412px; flex:1; }
@@ -79,23 +84,32 @@
   .banner {
     position:absolute; top:14px; width:146px; height:330px;
     transform-origin:50% 0;
-    animation:sway 5.5s ease-in-out infinite alternate;
+    animation:flap 4.6s ease-in-out infinite;
     transition:filter .5s ease;
   }
   #bn-left  { left:10px; }
-  #bn-right { right:10px; animation-delay:2.2s; }
-  @keyframes sway { from{transform:rotate(-1.2deg)} to{transform:rotate(1.3deg)} }
-  .banner:active { transform:scale(.97); animation:none; }
-  .banner.wave { animation:cloth .9s ease-in-out; }
+  #bn-right { right:10px; animation-delay:1.9s; }
+  /* light wind flap: a gentle traveling ripple, barely there */
+  @keyframes flap {
+    0%   { transform:rotate(-.5deg) skewX(-.6deg); }
+    28%  { transform:rotate(.6deg)  skewX(1.1deg); }
+    52%  { transform:rotate(-.3deg) skewX(-.9deg); }
+    76%  { transform:rotate(.4deg)  skewX(.5deg); }
+    100% { transform:rotate(-.5deg) skewX(-.6deg); }
+  }
+  .banner:active { transform:scale(.96) translateY(3px); animation:none; }
+  .banner.wave { animation:cloth .95s ease-in-out; }
+  /* press: a real kick of wind through the cloth */
   @keyframes cloth {
-    0% { transform:rotate(0) skewX(0); }
-    22% { transform:rotate(1.8deg) skewX(3.5deg); }
-    48% { transform:rotate(-1.4deg) skewX(-2.8deg); }
-    74% { transform:rotate(.9deg) skewX(1.6deg); }
+    0%   { transform:rotate(0) skewX(0) translateY(0); }
+    14%  { transform:rotate(2.2deg) skewX(4.5deg) translateY(2px); }
+    38%  { transform:rotate(-1.8deg) skewX(-3.4deg) translateY(0); }
+    62%  { transform:rotate(1.1deg) skewX(2deg); }
+    82%  { transform:rotate(-.5deg) skewX(-.9deg); }
     100% { transform:rotate(0) skewX(0); }
   }
-  #bn-left.wave, #bn-left.lit { filter:drop-shadow(0 0 22px rgba(160,190,255,.5)); }
-  #bn-right.wave, #bn-right.lit { filter:drop-shadow(0 0 22px rgba(255,190,120,.5)); }
+  #bn-left.wave, #bn-left.lit { filter:drop-shadow(0 0 26px rgba(110,170,255,.75)) drop-shadow(0 0 60px rgba(110,170,255,.35)); }
+  #bn-right.wave, #bn-right.lit { filter:drop-shadow(0 0 26px rgba(255,110,90,.75)) drop-shadow(0 0 60px rgba(255,110,90,.35)); }
   .banner svg { width:100%; height:100%; display:block; }
   .banner .nm {
     position:absolute; left:0; bottom:-24px; width:100%; text-align:center;
@@ -107,12 +121,12 @@
   #bn-both {
     position:absolute; top:14px; left:50%; margin-left:-21px; width:42px; height:318px; z-index:3;
     transform-origin:50% 0;
-    animation:sway 6.5s ease-in-out infinite alternate; animation-delay:1s;
+    animation:flap 5.4s ease-in-out infinite; animation-delay:.9s;
     transition:filter .5s ease;
   }
-  #bn-both:active { transform:scale(.96); animation:none; }
-  #bn-both.wave { animation:cloth .9s ease-in-out; }
-  #bn-both.wave, #bn-both.lit { filter:drop-shadow(0 0 22px rgba(235,240,255,.6)); }
+  #bn-both:active { transform:scale(.95) translateY(3px); animation:none; }
+  #bn-both.wave { animation:cloth .95s ease-in-out; }
+  #bn-both.wave, #bn-both.lit { filter:drop-shadow(0 0 24px rgba(255,255,255,.85)) drop-shadow(0 0 55px rgba(240,244,255,.4)); }
   #bn-both svg { width:100%; height:100%; display:block; }
   #bn-both .nm {
     position:absolute; left:-20px; bottom:-24px; width:82px; text-align:center;
@@ -390,7 +404,7 @@
     const ids = state==="both" ? ["bn-left","bn-right","bn-both"] : ["bn-"+state];
     ids.forEach(id=>document.getElementById(id).classList.add("wave","lit"));
     const c=document.getElementById("caption");
-    c.textContent=CAP[state]; c.classList.add("show");
+    c.innerHTML="<span>"+CAP[state]+"</span>"; c.classList.add("show");
     clearTimeout(capT);
     capT=setTimeout(()=>{
       ["bn-left","bn-right","bn-both"].forEach(id=>document.getElementById(id).classList.remove("lit","wave"));

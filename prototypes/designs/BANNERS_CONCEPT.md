@@ -42,12 +42,26 @@ the user's **actual sunrise/sunset**:
 
 - The **sun** crosses an arc during daylight (position from the day fraction),
   fading in/out at the horizons.
-- At night the **moon** rises in its **true current phase**, computed on-device
-  from the synodic month (`(now − known new moon) / 29.530588853d`) — the
-  prototype draws the lit portion as an SVG path from that fraction (waxing
-  lights the right side, waning the left). `suncalc` also provides
-  `getMoonIllumination()` if we want library-grade accuracy plus moon
-  rise/set times.
+- At night the **moon** rises in its **true current phase**.
+
+### Moon phase: the decision (date-math, no API, no location)
+
+Three ways to know the moon's phase, evaluated:
+
+| Approach | Needs | Verdict |
+|---|---|---|
+| **Compute from the date** (synodic month: `(now − known new moon) / 29.530588853 days`) | nothing — just the device clock | ✅ **Use this.** Accurate to within hours, works offline, zero permissions, zero privacy cost. This is what the prototype already does. |
+| `suncalc`'s `getMoonIllumination(date)` | an npm package (offline) | ✅ Same idea, library-grade precision + waxing/waning + angle. Use it in the RN app since we already want suncalc for sunrise/sunset. |
+| A network API (e.g. farmsense / ipgeolocation moon API) | network + sometimes a key | ❌ Unnecessary — the phase is pure astronomy, identical everywhere on Earth. An API adds a failure mode and a privacy question for data we can compute in one line. |
+
+Key insight: **moon phase does not depend on the user's location** — only on
+the date. Location (or just the IANA timezone, no GPS permission needed)
+matters only for *sunrise/sunset times* that anchor the day palette, and
+`suncalc` computes those offline too. So the entire living sky runs with **no
+network and no location permission** — coarse timezone → approximate
+lat/long → suncalc. Optionally offer "use precise location" as an opt-in for
+sharper sunrise timing.
+
 - Full-moon nights can subtly brighten the whole valley; new-moon nights get
   the deepest black and the most stars.
 
