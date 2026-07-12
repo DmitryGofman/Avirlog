@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AvirLog Design 16 — Prāṇa Lo-fi</title>
+<style>
+  /* DIRECTION 16: "Prāṇa Lo-fi" — yogic chill. Dusk lavender-peach sky, a
+     meditator silhouette whose subtle channels light up when you log,
+     drifting clouds, slow everything. The lo-fi-beats-to-breathe-to app. */
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    min-height:100vh; display:flex; align-items:center; justify-content:center;
+    background:#2E2440; padding:24px;
+    font-family:-apple-system,"Segoe UI",system-ui,sans-serif;
+  }
+  .phone {
+    width:390px; height:800px; border-radius:44px; overflow:hidden; position:relative;
+    background:linear-gradient(180deg,#4A3B6B 0%,#7B5A8E 34%,#C97B96 62%,#EFA987 84%,#F7C99B 100%);
+    box-shadow:0 30px 90px rgba(15,10,25,.8);
+    display:flex; flex-direction:column;
+  }
+  /* drifting clouds */
+  .cloud {
+    position:absolute; border-radius:99px; background:rgba(255,235,220,.18);
+    filter:blur(2px); pointer-events:none;
+  }
+  .c1 { width:180px; height:34px; top:16%; left:-60px; animation:drift 34s linear infinite; }
+  .c2 { width:120px; height:24px; top:26%; left:-40px; animation:drift 46s linear infinite 8s; }
+  .c3 { width:220px; height:40px; top:9%; left:-80px; animation:drift 58s linear infinite 4s; }
+  @keyframes drift { to { transform:translateX(510px); } }
+  /* low sun */
+  .sun {
+    position:absolute; bottom:31%; left:50%; transform:translateX(-50%);
+    width:120px; height:120px; border-radius:50%;
+    background:radial-gradient(circle, #FFF0D0, #FFD9A0 60%, rgba(255,217,160,0));
+    opacity:.85; pointer-events:none;
+  }
+
+  .screen { flex:1; display:flex; flex-direction:column; padding:60px 24px 0; position:relative; z-index:2; }
+  .np { display:flex; align-items:center; gap:8px; font-size:11px; color:rgba(255,240,225,.85); letter-spacing:1px; }
+  .np .eq { display:flex; gap:2px; align-items:flex-end; height:12px; }
+  .np .eq i { width:3px; background:rgba(255,240,225,.85); border-radius:2px; animation:eq 1s ease-in-out infinite alternate; }
+  .np .eq i:nth-child(1){height:6px} .np .eq i:nth-child(2){height:11px;animation-delay:.2s} .np .eq i:nth-child(3){height:8px;animation-delay:.4s}
+  @keyframes eq { to { transform:scaleY(.4); } }
+  h1 { font-size:26px; font-weight:700; letter-spacing:-.3px; color:#FFF4E8; margin:14px 0 2px; text-shadow:0 2px 14px rgba(80,50,90,.5); }
+  .sub { font-size:13.5px; color:rgba(255,240,225,.75); }
+
+  /* the meditator */
+  .sit { flex:1; position:relative; display:flex; align-items:flex-end; justify-content:center; min-height:0; }
+  .sit svg { width:250px; height:auto; margin-bottom:-6px; }
+  .channel { opacity:.25; transition:opacity .5s ease; }
+  .channel.on { opacity:1; filter:drop-shadow(0 0 8px currentColor); }
+  .breath-ring { opacity:0; transform-origin:125px 92px; }
+  .breath-ring.go { animation:haloo 2.8s ease-out forwards; }
+  @keyframes haloo {
+    0% { opacity:.9; transform:scale(.4); }
+    100% { opacity:0; transform:scale(2.6); }
+  }
+
+  .chips { display:flex; gap:10px; padding:14px 0 8px; }
+  button { border:none; cursor:pointer; font-family:inherit; -webkit-tap-highlight-color:transparent; transition:transform .25s cubic-bezier(.34,1.4,.64,1), background .3s ease; }
+  button:active { transform:scale(.93); }
+  .chip {
+    flex:1; height:78px; border-radius:24px;
+    background:rgba(45,30,60,.42); backdrop-filter:blur(10px);
+    border:1px solid rgba(255,240,225,.25);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px;
+    color:#FFF4E8;
+  }
+  .chip:hover { background:rgba(45,30,60,.6); }
+  .chip .ic { font-size:20px; }
+  .chip .nm { font-size:14.5px; font-weight:700; }
+  .chip .tr { font-size:9.5px; letter-spacing:1.5px; text-transform:uppercase; color:rgba(255,240,225,.6); }
+  .chip.mid { flex:.8; }
+
+  .vibe {
+    text-align:center; font-size:12.5px; color:rgba(255,244,232,.9); padding:4px 0 16px;
+    font-style:italic; min-height:34px; transition:opacity .4s ease;
+  }
+
+  .tabs { display:flex; padding:10px 12px 28px; gap:6px; background:rgba(30,20,45,.45); backdrop-filter:blur(12px); position:relative; z-index:2; }
+  .tab { flex:1; text-align:center; font-size:9.5px; font-weight:600; color:rgba(255,240,225,.5); padding:7px 0; border-radius:14px; }
+  .tab.on { color:#FFF4E8; background:rgba(255,240,225,.14); }
+  .tab span { display:block; font-size:16px; margin-bottom:2px; }
+  .label { position:fixed; bottom:18px; width:100%; left:0; text-align:center; font-size:13px; color:#A895B8; }
+</style>
+</head>
+<body>
+  <div class="phone">
+    <div class="cloud c1"></div><div class="cloud c2"></div><div class="cloud c3"></div>
+    <div class="sun"></div>
+
+    <div class="screen">
+      <div class="np"><span class="eq"><i></i><i></i><i></i></span> now breathing · dusk session</div>
+      <h1>Settle in. Notice.</h1>
+      <div class="sub">Which side of you is breathing this hour?</div>
+
+      <div class="sit">
+        <svg viewBox="0 0 250 260" fill="none">
+          <!-- halo ring for logging feedback -->
+          <circle class="breath-ring" id="ring" cx="125" cy="92" r="40" stroke="#FFF0D0" stroke-width="3"/>
+          <!-- silhouette: seated meditator -->
+          <g fill="#33254A">
+            <circle cx="125" cy="74" r="26"/>
+            <path d="M125 96 Q160 100 168 138 Q174 166 196 180 Q210 190 206 204 Q200 218 176 214 L74 214 Q50 218 44 204 Q40 190 54 180 Q76 166 82 138 Q90 100 125 96 Z"/>
+            <path d="M60 206 Q90 188 125 188 Q160 188 190 206 Q196 216 186 220 L64 220 Q54 216 60 206 Z"/>
+          </g>
+          <!-- ida channel (left of spine, viewer's left) -->
+          <path class="channel" id="ch-left" d="M117 100 Q104 130 112 158 Q118 180 112 200" stroke="#7FD8E8" stroke-width="5" stroke-linecap="round" color="#7FD8E8"/>
+          <!-- pingala channel -->
+          <path class="channel" id="ch-right" d="M133 100 Q146 130 138 158 Q132 180 138 200" stroke="#FFB37A" stroke-width="5" stroke-linecap="round" color="#FFB37A"/>
+          <!-- sushumna -->
+          <path class="channel" id="ch-both" d="M125 98 L125 202" stroke="#FFF0D0" stroke-width="4" stroke-linecap="round" color="#FFF0D0"/>
+        </svg>
+      </div>
+
+      <div class="chips">
+        <button class="chip" onclick="glow('left')">
+          <span class="ic">🌙</span><span class="nm">Left</span><span class="tr">ida · chill</span>
+        </button>
+        <button class="chip mid" onclick="glow('both')">
+          <span class="ic">🪷</span><span class="nm">Both</span><span class="tr">sushumna</span>
+        </button>
+        <button class="chip" onclick="glow('right')">
+          <span class="ic">☀️</span><span class="nm">Right</span><span class="tr">pingala · flow</span>
+        </button>
+      </div>
+      <div class="vibe" id="vibe">tap what you feel · no rush</div>
+    </div>
+
+    <div class="tabs">
+      <div class="tab on"><span>🪷</span>Breathe</div>
+      <div class="tab"><span>🌇</span>Today</div>
+      <div class="tab"><span>〰️</span>Waves</div>
+      <div class="tab"><span>🗒</span>Journal</div>
+      <div class="tab"><span>⚙️</span>Vibe</div>
+    </div>
+  </div>
+  <div class="label">Design 16 · Prāṇa Lo-fi — dusk chill: the meditator's ida/pingala channels light up as you log.</div>
+<script>
+  const VIBE={left:"ida glows — cool, lunar, unhurried 🌙",
+              right:"pingala glows — warm, solar, awake ☀️",
+              both:"sushumna opens — the quiet middle path 🪷"};
+  let t=null;
+  function glow(state){
+    document.querySelectorAll(".channel").forEach(c=>c.classList.remove("on"));
+    document.getElementById("ch-"+state).classList.add("on");
+    if(state==="both"){
+      document.getElementById("ch-left").classList.add("on");
+      document.getElementById("ch-right").classList.add("on");
+    }
+    const ring=document.getElementById("ring");
+    ring.classList.remove("go"); void ring.getBoundingClientRect(); ring.classList.add("go");
+    document.getElementById("vibe").textContent=VIBE[state];
+    clearTimeout(t);
+    t=setTimeout(()=>{
+      document.querySelectorAll(".channel").forEach(c=>c.classList.remove("on"));
+      document.getElementById("vibe").textContent="tap what you feel · no rush";
+    }, 3200);
+  }
+</script>
+</body>
+</html>

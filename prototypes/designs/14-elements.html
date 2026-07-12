@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AvirLog Design 14 — Elements</title>
+<style>
+  /* DIRECTION 14: "Elements" — an element-bending homage (original art, no
+     franchise assets). Aged scroll parchment, carved element emblems:
+     Left bends water, Right bends fire, Both bends air. Pressing "bends"
+     the element across the screen in a sweeping arc. */
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    min-height:100vh; display:flex; align-items:center; justify-content:center;
+    background:#3B2F24; padding:24px;
+    font-family:Georgia,"Times New Roman",serif;
+  }
+  .phone {
+    width:390px; height:800px; border-radius:40px; overflow:hidden; position:relative;
+    background:
+      radial-gradient(130% 100% at 50% 0%, rgba(90,60,30,.16), transparent 60%),
+      radial-gradient(120% 90% at 50% 110%, rgba(70,45,20,.22), transparent 55%),
+      #E8D9B8;
+    box-shadow:0 30px 85px rgba(20,14,8,.7), inset 0 0 0 3px #6E4F2A, inset 0 0 0 5px #C9B288;
+    display:flex; flex-direction:column;
+  }
+  /* worn scroll edges */
+  .phone::before {
+    content:""; position:absolute; inset:0; pointer-events:none; z-index:4;
+    background:
+      radial-gradient(40% 8% at 20% 0%, rgba(90,60,30,.18), transparent),
+      radial-gradient(30% 6% at 80% 100%, rgba(90,60,30,.15), transparent);
+  }
+
+  .screen { flex:1; display:flex; flex-direction:column; padding:60px 26px 0; position:relative; z-index:2; }
+  .chapter { text-align:center; font-size:11px; letter-spacing:4px; text-transform:uppercase; color:#8A6F45; }
+  h1 { text-align:center; font-size:26px; font-weight:400; color:#3D2E17; margin:12px 0 4px; }
+  .sub { text-align:center; font-size:13px; font-style:italic; color:#8A6F45; margin-bottom:22px; }
+
+  button { border:none; background:none; cursor:pointer; font-family:inherit; -webkit-tap-highlight-color:transparent; transition:transform .18s ease; }
+  button:active { transform:scale(.94); }
+
+  .emblems { flex:1; display:flex; gap:18px; align-items:center; justify-content:center; min-height:0; }
+  .emblem { display:flex; flex-direction:column; align-items:center; gap:12px; }
+  .disc {
+    width:128px; height:128px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    border:4px solid #6E4F2A;
+    box-shadow:0 6px 0 rgba(60,40,15,.25), inset 0 2px 8px rgba(255,250,230,.5), inset 0 -4px 10px rgba(60,40,15,.3);
+    transition:box-shadow .3s ease;
+  }
+  #water .disc { background:radial-gradient(circle at 40% 32%, #BFE3EA, #5E97AC 75%); }
+  #fire .disc  { background:radial-gradient(circle at 40% 32%, #F2C09A, #B4552F 75%); }
+  #water:hover .disc { box-shadow:0 6px 0 rgba(60,40,15,.25), 0 0 34px rgba(95,160,185,.6), inset 0 2px 8px rgba(255,250,230,.5); }
+  #fire:hover .disc  { box-shadow:0 6px 0 rgba(60,40,15,.25), 0 0 34px rgba(200,95,45,.6), inset 0 2px 8px rgba(255,250,230,.5); }
+  .disc svg { width:76px; height:76px; }
+  .em-name { font-size:17px; color:#3D2E17; letter-spacing:1px; }
+  .em-sub { font-size:10.5px; letter-spacing:2.5px; text-transform:uppercase; color:#8A6F45; margin-top:-6px; font-family:-apple-system,system-ui,sans-serif; }
+
+  .air-btn { margin:6px auto 20px; display:flex; flex-direction:column; align-items:center; gap:8px; }
+  .air-disc {
+    width:86px; height:86px; border-radius:50%;
+    background:radial-gradient(circle at 40% 32%, #F4F0E2, #B8AF97 78%);
+    border:3.5px solid #6E4F2A;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 5px 0 rgba(60,40,15,.25), inset 0 2px 6px rgba(255,250,230,.6);
+  }
+  .air-disc svg { width:52px; height:52px; }
+  .air-btn:hover .air-disc { box-shadow:0 5px 0 rgba(60,40,15,.25), 0 0 30px rgba(230,225,205,.8); }
+
+  .proverb {
+    text-align:center; font-style:italic; font-size:13px; line-height:1.6; color:#6E5A38;
+    padding-bottom:18px;
+  }
+
+  .tabs { display:flex; border-top:2px solid #C9B288; background:rgba(232,217,184,.95); padding:12px 8px 28px; position:relative; z-index:2; }
+  .tab { flex:1; text-align:center; font-size:9.5px; letter-spacing:2px; color:#A08A5E; text-transform:uppercase; font-family:-apple-system,system-ui,sans-serif; }
+  .tab.on { color:#3D2E17; font-weight:700; }
+  .tab span { display:block; font-size:16px; margin-bottom:3px; }
+
+  /* bending arcs sweep across the whole screen */
+  .bend { position:absolute; inset:0; pointer-events:none; z-index:3; opacity:0; }
+  .bend.go { animation:sweep 1.6s ease-out forwards; }
+  @keyframes sweep {
+    0% { opacity:0; transform:translateX(var(--from)) scale(.8); }
+    20% { opacity:1; }
+    100% { opacity:0; transform:translateX(var(--to)) scale(1.05); }
+  }
+  .bend svg { width:100%; height:100%; }
+  .label { position:fixed; bottom:18px; width:100%; left:0; text-align:center; font-size:13px; color:#C9BFA8; font-family:-apple-system,system-ui,sans-serif; }
+</style>
+</head>
+<body>
+  <div class="phone">
+    <!-- water bend sweeping right-to-left -->
+    <div class="bend" id="bend-water" style="--from:40px; --to:-70px;">
+      <svg viewBox="0 0 390 800" fill="none">
+        <path d="M410 250 Q260 210 190 300 Q120 390 -30 360" stroke="#5E97AC" stroke-width="26" stroke-linecap="round" opacity=".5"/>
+        <path d="M410 280 Q270 250 200 330 Q130 410 -30 390" stroke="#8FC3D4" stroke-width="14" stroke-linecap="round" opacity=".7"/>
+        <path d="M410 310 Q280 290 215 355 Q150 420 -30 415" stroke="#BFE3EA" stroke-width="6" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <!-- fire bend sweeping left-to-right -->
+    <div class="bend" id="bend-fire" style="--from:-40px; --to:70px;">
+      <svg viewBox="0 0 390 800" fill="none">
+        <path d="M-20 480 Q140 440 210 520 Q280 600 420 570" stroke="#B4552F" stroke-width="26" stroke-linecap="round" opacity=".5"/>
+        <path d="M-20 510 Q150 480 220 550 Q290 620 420 600" stroke="#DE8A50" stroke-width="14" stroke-linecap="round" opacity=".7"/>
+        <path d="M-20 540 Q160 520 230 580 Q300 640 420 630" stroke="#F2C09A" stroke-width="6" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <!-- air bend spiraling from center -->
+    <div class="bend" id="bend-air" style="--from:0px; --to:0px;">
+      <svg viewBox="0 0 390 800" fill="none" stroke="#9C917A" stroke-linecap="round">
+        <path d="M195 400 q60 -10 55 -60 q-5 -50 -70 -45 q-65 5 -60 75 q5 70 90 70 q85 0 95 -95" stroke-width="10" opacity=".5"/>
+        <path d="M195 400 q40 -6 36 -40 q-4 -34 -47 -30 q-43 4 -40 50 q3 46 60 46" stroke-width="5" opacity=".8"/>
+      </svg>
+    </div>
+
+    <div class="screen">
+      <div class="chapter">Book One · Breath</div>
+      <h1>Bend your element</h1>
+      <div class="sub">the body keeps two currents — which answers you?</div>
+
+      <div class="emblems">
+        <button class="emblem" id="water" onclick="bend('water')">
+          <div class="disc">
+            <svg viewBox="0 0 80 80" fill="none" stroke="#1E4B5C" stroke-width="5" stroke-linecap="round">
+              <path d="M14 50 Q26 38 40 50 Q54 62 66 50"/>
+              <path d="M14 34 Q26 22 40 34 Q54 46 66 34"/>
+            </svg>
+          </div>
+          <span class="em-name">Left · Water</span>
+          <span class="em-sub">Ida — cool current</span>
+        </button>
+        <button class="emblem" id="fire" onclick="bend('fire')">
+          <div class="disc">
+            <svg viewBox="0 0 80 80" fill="none" stroke="#5C1E10" stroke-width="5" stroke-linecap="round">
+              <path d="M40 12 Q54 30 48 44 Q60 40 62 30 Q70 52 54 64 Q40 74 26 64 Q10 52 20 32 Q26 20 24 14 Q36 20 34 32 Q40 24 40 12 Z"/>
+            </svg>
+          </div>
+          <span class="em-name">Right · Fire</span>
+          <span class="em-sub">Pingala — hot current</span>
+        </button>
+      </div>
+
+      <button class="air-btn" onclick="bend('air')">
+        <div class="air-disc">
+          <svg viewBox="0 0 60 60" fill="none" stroke="#4E4636" stroke-width="4" stroke-linecap="round">
+            <path d="M30 30 q22 -4 20 -18 M30 30 q-4 -22 -18 -20 M30 30 q-22 4 -20 18 M30 30 q4 22 18 20"/>
+          </svg>
+        </div>
+        <span class="em-name" style="font-size:14px;">Both · Air</span>
+        <span class="em-sub">Sushumna — the open way</span>
+      </button>
+
+      <div class="proverb" id="proverb">
+        “Water flows around; fire drives through.<br>The wise breath knows when to be each.”
+      </div>
+    </div>
+    <div class="tabs">
+      <div class="tab on"><span>〜</span>Bend</div>
+      <div class="tab"><span>☀</span>Today</div>
+      <div class="tab"><span>◐</span>Balance</div>
+      <div class="tab"><span>📜</span>Scrolls</div>
+      <div class="tab"><span>⚙</span>Training</div>
+    </div>
+  </div>
+  <div class="label">Design 14 · Elements — bending homage: water/fire/air arcs sweep the scroll when you log.</div>
+<script>
+  const SAY={water:"“Water answers — flow, rest, restore.”",
+             fire:"“Fire answers — act while the coal is hot.”",
+             air:"“Both open — the air moves freely. Meditate.”"};
+  let t=null;
+  function bend(el){
+    const b=document.getElementById("bend-"+el);
+    b.classList.remove("go"); void b.getBoundingClientRect(); b.classList.add("go");
+    const p=document.getElementById("proverb");
+    p.innerHTML=SAY[el];
+    clearTimeout(t);
+    t=setTimeout(()=>p.innerHTML="“Water flows around; fire drives through.<br>The wise breath knows when to be each.”", 3000);
+  }
+</script>
+</body>
+</html>
