@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AvirLog — Rōnin Mind · Option A (Mind Tokens)</title>
+<style>
+  /* OPTION A: Rōnin scenography + Hemispheres concept IN THE BUTTONS.
+     The background is driven by the real clock — it blends continuously
+     through night, dawn, day, golden hour and dusk. Each button carries a
+     mini-hemisphere: Left = the artist (colorful right brain), Right = the
+     engineer (blueprint left brain), Both = the whole mind with its bridge. */
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    min-height:100vh; display:flex; align-items:center; justify-content:center;
+    background:#17131A; padding:24px;
+    font-family:-apple-system,"Segoe UI",system-ui,sans-serif;
+  }
+  .phone {
+    width:390px; height:800px; border-radius:44px; overflow:hidden; position:relative;
+    background:linear-gradient(180deg,var(--sky1),var(--sky2) 70%);
+    box-shadow:0 30px 90px rgba(0,0,0,.75);
+    display:flex; flex-direction:column;
+  }
+  .sun {
+    position:absolute; left:50%; transform:translateX(-50%);
+    width:180px; height:180px; border-radius:50%;
+    background:var(--sun);
+    box-shadow:0 0 0 14px rgba(255,255,255,.05), 0 0 0 34px rgba(255,255,255,.04);
+  }
+  .stars { position:absolute; inset:0 0 40% 0; pointer-events:none; opacity:var(--starop); transition:opacity 2s ease; }
+  .stars i { position:absolute; width:2px; height:2px; border-radius:50%; background:#DDE6FF; animation:tw 3s ease-in-out infinite alternate; }
+  @keyframes tw { from{opacity:.15} to{opacity:.9} }
+
+  .range { position:absolute; left:0; right:0; pointer-events:none; }
+  .far  { top:44%; height:60%; background:var(--far);
+          clip-path:polygon(0 32%, 12% 20%, 26% 30%, 40% 12%, 55% 28%, 70% 8%, 84% 26%, 100% 16%, 100% 100%, 0 100%); }
+  .mid  { top:56%; height:50%; background:var(--mid);
+          clip-path:polygon(0 40%, 16% 24%, 32% 38%, 50% 18%, 66% 36%, 82% 22%, 100% 34%, 100% 100%, 0 100%); }
+  .near { top:70%; height:36%; background:var(--near);
+          clip-path:polygon(0 30%, 20% 46%, 42% 26%, 60% 44%, 78% 30%, 100% 42%, 100% 100%, 0 100%); }
+  .pine { position:absolute; bottom:23%; right:9%; pointer-events:none; }
+  .pine svg { fill:var(--ink); }
+
+  .screen { flex:1; display:flex; flex-direction:column; padding:56px 26px 0; position:relative; z-index:2; }
+  .ep { font-size:10.5px; letter-spacing:4px; text-transform:uppercase; color:var(--text); opacity:.75; }
+  h1 { font-size:28px; font-weight:200; letter-spacing:1px; color:var(--text); margin:10px 0 2px; }
+  h1 b { font-weight:700; }
+  .sub { font-size:13px; color:var(--text); opacity:.75; font-style:italic; }
+
+  .caption {
+    position:absolute; left:0; right:0; bottom:266px; text-align:center; pointer-events:none;
+    color:var(--text); font-size:14px; font-weight:300; opacity:0; transition:opacity .8s ease;
+  }
+  .caption.show { opacity:.95; }
+
+  /* mind tokens */
+  .tokens { margin-top:auto; display:flex; gap:10px; padding-bottom:10px; }
+  button {
+    border:none; cursor:pointer; font-family:inherit; -webkit-tap-highlight-color:transparent;
+    transition:transform .15s ease, box-shadow .3s ease;
+  }
+  button:active { transform:scale(.94); }
+  .token {
+    flex:1; height:112px; border-radius:18px;
+    background:rgba(0,0,0,.32); backdrop-filter:blur(8px);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px;
+    color:var(--text);
+  }
+  .token .nm { font-size:15px; letter-spacing:1px; font-weight:600; }
+  .token .tr { font-size:8.5px; letter-spacing:2px; text-transform:uppercase; opacity:.6; }
+  .token svg { width:52px; height:44px; }
+  .token .glow { transition:opacity .5s ease, filter .5s ease; opacity:.55; }
+  .token.lit .glow { opacity:1; filter:drop-shadow(0 0 8px rgba(255,255,255,.5)); }
+  .token.lit { box-shadow:0 0 30px rgba(255,255,255,.18); }
+  .spark2 { opacity:0; }
+  .token.lit .spark2 { opacity:1; }
+
+  /* time scrubber (demo control) */
+  .scrub {
+    display:flex; align-items:center; gap:10px; padding:0 2px 14px;
+    color:var(--text); font-size:10.5px; letter-spacing:1px;
+  }
+  .scrub input { flex:1; accent-color:#fff; height:3px; cursor:pointer; }
+  .scrub .t { font-family:ui-monospace,Menlo,monospace; opacity:.85; min-width:44px; }
+
+  .tabs { display:flex; padding:12px 8px 28px; background:rgba(0,0,0,.3); backdrop-filter:blur(8px); position:relative; z-index:2; }
+  .tab { flex:1; text-align:center; font-size:9.5px; letter-spacing:2px; color:var(--text); opacity:.5; text-transform:uppercase; }
+  .tab.on { opacity:1; }
+  .tab span { display:block; font-size:15px; margin-bottom:3px; }
+  .label { position:fixed; bottom:18px; width:100%; left:0; text-align:center; font-size:13px; color:#B8ACA8; }
+</style>
+</head>
+<body>
+  <div class="phone" id="phone">
+    <div class="stars" id="stars"></div>
+    <div class="sun" id="sun"></div>
+    <div class="range far"></div><div class="range mid"></div><div class="range near"></div>
+    <div class="pine">
+      <svg width="90" height="120" viewBox="0 0 90 120">
+        <path d="M44 118 L46 118 L46 66 L44 66 Z"/>
+        <path d="M45 8 L20 40 L34 38 L12 62 L30 60 L8 84 L45 74 L82 84 L60 60 L78 62 L56 38 L70 40 Z"/>
+      </svg>
+    </div>
+    <div class="caption" id="caption"></div>
+
+    <div class="screen">
+      <div class="ep" id="ep">Chapter VII · The Long Road</div>
+      <h1>Which mind <b>wakes?</b></h1>
+      <div class="sub">the left hand carries the artist · the right, the engineer</div>
+
+      <div class="tokens">
+        <button class="token" id="tok-left" onclick="wake('left')">
+          <svg viewBox="0 0 60 50" class="glow">
+            <path d="M30 4 Q52 3 58 22 Q62 36 50 44 Q40 49 30 47 Z" fill="none" stroke="url(#rb)" stroke-width="2.5"/>
+            <circle cx="42" cy="18" r="4.5" fill="#FF6E8C"/>
+            <circle cx="50" cy="30" r="3.5" fill="#FFC63D"/>
+            <circle cx="40" cy="36" r="4" fill="#59C8FF"/>
+            <defs><linearGradient id="rb" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#FF6E8C"/><stop offset=".5" stop-color="#FFC63D"/><stop offset="1" stop-color="#59C8FF"/>
+            </linearGradient></defs>
+          </svg>
+          <span class="nm">Left</span><span class="tr">ida → artist</span>
+        </button>
+        <button class="token" id="tok-both" onclick="wake('both')">
+          <svg viewBox="0 0 60 50" class="glow">
+            <path d="M30 4 Q8 3 2 22 Q-2 36 10 44 Q20 49 30 47 Z" fill="none" stroke="#B8C6DA" stroke-width="2"/>
+            <path d="M30 4 Q52 3 58 22 Q62 36 50 44 Q40 49 30 47 Z" fill="none" stroke="url(#rb2)" stroke-width="2"/>
+            <path class="spark2" d="M22 26 L28 23 L27 28 L36 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round"/>
+            <defs><linearGradient id="rb2" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#FF6E8C"/><stop offset="1" stop-color="#59C8FF"/>
+            </linearGradient></defs>
+          </svg>
+          <span class="nm">Both</span><span class="tr">whole mind</span>
+        </button>
+        <button class="token" id="tok-right" onclick="wake('right')">
+          <svg viewBox="0 0 60 50" class="glow">
+            <path d="M30 4 Q8 3 2 22 Q-2 36 10 44 Q20 49 30 47 Z" fill="none" stroke="#9FC2E8" stroke-width="2.5"/>
+            <circle cx="16" cy="24" r="6" fill="none" stroke="#9FC2E8" stroke-width="2"/>
+            <path d="M16 15 v-4 M16 33 v4 M7 24 h-4 M25 24 h4" stroke="#9FC2E8" stroke-width="2"/>
+          </svg>
+          <span class="nm">Right</span><span class="tr">pingala → engineer</span>
+        </button>
+      </div>
+
+      <div class="scrub">
+        <span>☀</span>
+        <input type="range" id="clock" min="0" max="1439" step="1" oninput="scrub(this.value)">
+        <span class="t" id="tlabel">14:32</span>
+      </div>
+    </div>
+    <div class="tabs">
+      <div class="tab on"><span>⛩</span>Road</div>
+      <div class="tab"><span>◐</span>Today</div>
+      <div class="tab"><span>△</span>Ranges</div>
+      <div class="tab"><span>≡</span>Chronicle</div>
+      <div class="tab"><span>◦</span>Pack</div>
+    </div>
+  </div>
+  <div class="label">Option A · Mind Tokens — Rōnin world on a real clock; each button carries its hemisphere.</div>
+
+<script>
+  /* ---- day-cycle engine: blends the palette continuously by clock time ---- */
+  const KEYS=[ // [hour, sky1, sky2, sun, far, mid, near, ink, text, starOpacity, sunTop%]
+    [0,  "#141C36","#0E1428","#E9EDF5","#223058","#1A2445","#111A33","#0A1020","#E8ECF8",1,  12],
+    [5,  "#2E3A5E","#3E3A55","#F0E6D8","#3A4468","#2C3452","#1E2640","#141A30","#F0EAE0",.5, 24],
+    [7,  "#C9DCD9","#EAD9C5","#F7EFE0","#9FB8AE","#7E9C94","#54746E","#3A5652","#FFF8EC",0,  26],
+    [12, "#7FB7D9","#AACFE3","#FBF3D9","#7FA3B8","#5E8AA3","#3E6A85","#2A4A60","#FFFFFF",0,  8],
+    [17, "#E8B36A","#D98A56","#F7E9C4","#B87A5A","#8E5A54","#5E3A48","#3E2436","#FFF3E4",0,  20],
+    [19.5,"#E8896A","#D96A56","#F5E6C4","#A6504A","#7E3A44","#4A2438","#2E1626","#FFF3E4",.1,26],
+    [21.5,"#25355C","#1B2745","#E9EDF5","#2E4068","#232F52","#161F3A","#0E1428","#EDF0FA",.8,14],
+    [24, "#141C36","#0E1428","#E9EDF5","#223058","#1A2445","#111A33","#0A1020","#E8ECF8",1,  12],
+  ];
+  const hex=h=>[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];
+  const mix=(a,b,t)=>"#"+hex(a).map((v,i)=>Math.round(v+(hex(b)[i]-v)*t).toString(16).padStart(2,"0")).join("");
+  function setTime(mins){
+    const h=mins/60;
+    let i=0; while(i<KEYS.length-2 && KEYS[i+1][0]<=h) i++;
+    const A=KEYS[i], B=KEYS[i+1], t=(h-A[0])/(B[0]-A[0]);
+    const names=["--sky1","--sky2","--sun","--far","--mid","--near","--ink","--text"];
+    const ph=document.getElementById("phone");
+    names.forEach((n,k)=>ph.style.setProperty(n, mix(A[k+1],B[k+1],t)));
+    ph.style.setProperty("--starop", (A[9]+(B[9]-A[9])*t).toFixed(2));
+    const sun=document.getElementById("sun");
+    sun.style.top=(A[10]+(B[10]-A[10])*t)+"%";
+    const lbl=document.getElementById("tlabel");
+    if(lbl) lbl.textContent=String(Math.floor(mins/60)).padStart(2,"0")+":"+String(Math.round(mins%60)).padStart(2,"0");
+  }
+  function scrub(v){ setTime(+v); }
+  function initClock(){
+    const stars=document.getElementById("stars");
+    for(let i=0;i<34;i++){
+      const s=document.createElement("i");
+      s.style.left=Math.random()*100+"%"; s.style.top=Math.random()*100+"%";
+      s.style.animationDelay=(Math.random()*3)+"s";
+      stars.appendChild(s);
+    }
+    const now=new Date();
+    const mins=now.getHours()*60+now.getMinutes();
+    const slider=document.getElementById("clock");
+    if(slider) slider.value=mins;
+    setTime(mins);
+    setInterval(()=>{ // follow real time unless the user is scrubbing
+      const n=new Date(), m=n.getHours()*60+n.getMinutes();
+      if(slider && Math.abs(+slider.value-m)<3){ slider.value=m; setTime(m); }
+    }, 30000);
+  }
+  initClock(); // paints the sky from the actual time, wires the scrubber
+
+  const CAP={left:"the artist wakes — wander, feel, make",
+             right:"the engineer wakes — plan, build, decide",
+             both:"the bridge lights — the whole mind is yours"};
+  let capT=null;
+  function wake(state){
+    document.querySelectorAll(".token").forEach(t=>t.classList.remove("lit"));
+    if(state==="both") document.querySelectorAll(".token").forEach(t=>t.classList.add("lit"));
+    else document.getElementById("tok-"+state).classList.add("lit");
+    const c=document.getElementById("caption");
+    c.textContent=CAP[state]; c.classList.add("show");
+    clearTimeout(capT);
+    capT=setTimeout(()=>{
+      document.querySelectorAll(".token").forEach(t=>t.classList.remove("lit"));
+      c.classList.remove("show");
+    }, 3000);
+  }
+</script>
+</body>
+</html>
