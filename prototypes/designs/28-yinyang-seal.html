@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AvirLog — Option H (Yin-Yang Seal)</title>
+<style>
+  /* OPTION H "Yin-Yang Seal" — one great slowly-turning taiji seal is the
+     entire control. Its dark half holds a violet moon-flame; its bright half
+     a gold sun-flame. Tap a half to log that nostril — the half FLARES and
+     the seal spins up. The glowing pearl at the center is Both. Aura rings
+     breathe around it. Manhua cultivation, kept elegant. */
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    min-height:100vh; display:flex; align-items:center; justify-content:center;
+    background:#17131A; padding:24px;
+    font-family:-apple-system,"Segoe UI",system-ui,sans-serif;
+  }
+  .phone {
+    width:390px; height:800px; border-radius:44px; overflow:hidden; position:relative;
+    background:linear-gradient(180deg,var(--sky1,#25355C),var(--sky2,#1B2745) 70%);
+    box-shadow:0 30px 90px rgba(0,0,0,.75);
+    display:flex; flex-direction:column;
+  }
+  .stars { position:absolute; inset:0 0 40% 0; pointer-events:none; opacity:var(--starop,1); transition:opacity 1s ease; }
+  .stars i { position:absolute; width:2px; height:2px; border-radius:50%; background:#DDE6FF; animation:tw 3s ease-in-out infinite alternate; }
+  @keyframes tw { from{opacity:.15} to{opacity:.9} }
+  .sun {
+    position:absolute; left:50%; transform:translateX(-50%); top:11%;
+    width:140px; height:140px; border-radius:50%;
+    background:var(--sun,#E9EDF5);
+    box-shadow:0 0 0 14px rgba(255,255,255,.05), 0 0 0 34px rgba(255,255,255,.04);
+  }
+  .range { position:absolute; left:0; right:0; pointer-events:none; }
+  .far  { top:40%; height:60%; background:var(--far,#2E4068);
+          clip-path:polygon(0 32%, 12% 20%, 26% 30%, 40% 12%, 55% 28%, 70% 8%, 84% 26%, 100% 16%, 100% 100%, 0 100%); }
+  .mid  { top:52%; height:50%; background:var(--mid,#232F52);
+          clip-path:polygon(0 40%, 16% 24%, 32% 38%, 50% 18%, 66% 36%, 82% 22%, 100% 34%, 100% 100%, 0 100%); }
+  .near { top:64%; height:42%; background:var(--near,#161F3A);
+          clip-path:polygon(0 26%, 20% 40%, 42% 22%, 60% 38%, 78% 26%, 100% 36%, 100% 100%, 0 100%); }
+
+  .screen { flex:1; display:flex; flex-direction:column; padding:54px 22px 0; position:relative; z-index:2; }
+  .ep { font-size:10.5px; letter-spacing:4px; text-transform:uppercase; color:var(--text,#EDF0FA); opacity:.75; }
+  h1 { font-size:27px; font-weight:200; letter-spacing:1px; color:var(--text,#EDF0FA); margin:8px 0 2px; }
+  h1 b { font-weight:700; }
+  .sub { font-size:12.5px; color:var(--text,#EDF0FA); opacity:.7; font-style:italic; }
+
+  .caption {
+    position:absolute; left:0; right:0; top:30%; text-align:center; pointer-events:none;
+    color:var(--text,#EDF0FA); font-size:14px; font-weight:300; opacity:0; transition:opacity .8s ease;
+  }
+  .caption.show { opacity:.95; }
+
+  /* ---------- the seal ---------- */
+  .sealwrap { margin-top:auto; position:relative; height:320px; display:flex; align-items:center; justify-content:center; }
+  /* breathing aura rings */
+  .aura { position:absolute; border-radius:50%; border:1.5px solid rgba(230,220,255,.28); pointer-events:none; }
+  .a1 { width:262px; height:262px; animation:breatheA 4s ease-in-out infinite alternate; }
+  .a2 { width:300px; height:300px; border-style:dashed; opacity:.6; animation:spinSlow 50s linear infinite; }
+  @keyframes breatheA { from{transform:scale(1); opacity:.7} to{transform:scale(1.06); opacity:.3} }
+  @keyframes spinSlow { to { transform:rotate(360deg); } }
+
+  .seal {
+    position:relative; width:236px; height:236px; border-radius:50%;
+    transition:transform 2.4s cubic-bezier(.22,1,.36,1);
+    filter:drop-shadow(0 14px 30px rgba(0,0,0,.55));
+  }
+  .seal.spin { transform:rotate(540deg); }
+  .seal svg { width:100%; height:100%; display:block; }
+
+  .half-el { transition:filter .5s ease; cursor:pointer; }
+  .half-el.flare-yin { filter:drop-shadow(0 0 26px rgba(200,120,255,.95)); }
+  .half-el.flare-yang { filter:drop-shadow(0 0 26px rgba(255,190,80,.95)); }
+
+  /* invisible big hit zones over the halves + pearl */
+  .hit { position:absolute; border:none; background:none; cursor:pointer; -webkit-tap-highlight-color:transparent; padding:0; }
+  .hit:active { transform:scale(.97); }
+  #hit-left  { left:0; top:0; width:50%; height:100%; border-radius:118px 0 0 118px; }
+  #hit-right { right:0; top:0; width:50%; height:100%; border-radius:0 118px 118px 0; }
+  #hit-both {
+    left:50%; top:50%; width:74px; height:74px; transform:translate(-50%,-50%);
+    border-radius:50%; z-index:5;
+  }
+  #hit-both:active { transform:translate(-50%,-50%) scale(.93); }
+
+  /* the pearl (Both) */
+  .pearl {
+    position:absolute; left:50%; top:50%; width:52px; height:52px; transform:translate(-50%,-50%);
+    border-radius:50%; z-index:4; pointer-events:none;
+    background:radial-gradient(circle at 36% 32%, #FFFFFF, #C9D6F5 45%, #7E92C9 80%);
+    box-shadow:0 0 22px rgba(220,230,255,.75), inset 0 -4px 8px rgba(90,110,170,.5);
+    animation:pearlbreathe 3.2s ease-in-out infinite alternate;
+  }
+  @keyframes pearlbreathe { from{box-shadow:0 0 16px rgba(220,230,255,.55), inset 0 -4px 8px rgba(90,110,170,.5)} to{box-shadow:0 0 40px rgba(230,240,255,.95), inset 0 -4px 8px rgba(90,110,170,.5)} }
+  .pearl.burst { animation:burst 1.4s ease-out; }
+  @keyframes burst {
+    0% { box-shadow:0 0 20px rgba(230,240,255,.8); }
+    40% { box-shadow:0 0 90px 30px rgba(240,246,255,.95); }
+    100% { box-shadow:0 0 20px rgba(230,240,255,.8); }
+  }
+
+  .names { display:flex; justify-content:space-between; padding:0 26px 0; margin-top:-6px; }
+  .names .nm { font-size:14.5px; font-weight:600; color:var(--text,#EDF0FA); letter-spacing:.5px; text-shadow:0 2px 10px rgba(0,0,0,.7); }
+
+  /* time chips */
+  .chips { display:flex; gap:6px; padding:14px 0 14px; }
+  .chip {
+    flex:1; height:40px; border-radius:12px; font-size:15px;
+    background:rgba(0,0,0,.3); color:var(--text,#EDF0FA); backdrop-filter:blur(6px);
+    border:1px solid rgba(255,255,255,.18);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .chip.sel { background:rgba(255,255,255,.28); border-color:rgba(255,255,255,.5); }
+  .chip small { font-size:8.5px; letter-spacing:1px; margin-left:4px; text-transform:uppercase; opacity:.7; }
+
+  .tabs { display:flex; padding:12px 8px 28px; background:rgba(0,0,0,.3); backdrop-filter:blur(8px); position:relative; z-index:4; }
+  .tab { flex:1; text-align:center; font-size:9.5px; letter-spacing:2px; color:var(--text,#EDF0FA); opacity:.5; text-transform:uppercase; }
+  .tab.on { opacity:1; }
+  .tab span { display:block; font-size:15px; margin-bottom:3px; }
+  .label { position:fixed; bottom:18px; width:100%; left:0; text-align:center; font-size:13px; color:#B8ACA8; }
+</style>
+</head>
+<body>
+  <div class="phone" id="phone">
+    <div class="stars" id="stars"></div>
+    <div class="sun" id="sun"></div>
+    <div class="range far"></div><div class="range mid"></div><div class="range near"></div>
+    <div class="caption" id="caption"></div>
+
+    <div class="screen">
+      <div class="ep">Scroll IX · The Turning Seal</div>
+      <h1>The seal <b>turns</b> with you</h1>
+      <div class="sub">press the half your breath is feeding · the pearl for both</div>
+
+      <div class="sealwrap">
+        <div class="aura a1"></div>
+        <div class="aura a2"></div>
+        <div class="seal" id="seal">
+          <svg viewBox="0 0 236 236">
+            <defs>
+              <radialGradient id="yin" cx="40%" cy="35%"><stop offset="0" stop-color="#4E2A6E"/><stop offset="1" stop-color="#1C1030"/></radialGradient>
+              <radialGradient id="yang" cx="40%" cy="35%"><stop offset="0" stop-color="#FFE9B8"/><stop offset="1" stop-color="#E8A44D"/></radialGradient>
+            </defs>
+            <!-- yin (left) half with swirl -->
+            <g class="half-el" id="el-yin">
+              <path d="M118 6 A112 112 0 0 0 118 230 A56 56 0 0 1 118 118 A56 56 0 0 0 118 6 Z" fill="url(#yin)" stroke="#C9A8F0" stroke-width="2"/>
+              <path d="M74 60 Q56 84 62 112" stroke="#B678E8" stroke-width="3" fill="none" stroke-linecap="round" opacity=".8"/>
+              <path d="M58 140 Q64 168 86 184" stroke="#9E5AD6" stroke-width="3" fill="none" stroke-linecap="round" opacity=".6"/>
+              <circle cx="118" cy="62" r="15" fill="url(#yang)"/>
+              <path d="M112 58 a7 7 0 1 0 7 11 a5.5 5.5 0 1 1 -7 -11 Z" fill="#4E2A6E" opacity=".9"/>
+            </g>
+            <!-- yang (right) half with rays -->
+            <g class="half-el" id="el-yang">
+              <path d="M118 230 A112 112 0 0 0 118 6 A56 56 0 0 1 118 118 A56 56 0 0 0 118 230 Z" fill="url(#yang)" stroke="#FFE0A0" stroke-width="2"/>
+              <path d="M162 76 L186 58 M170 96 L198 88 M172 120 L200 122" stroke="#B4642A" stroke-width="3" stroke-linecap="round" opacity=".75"/>
+              <circle cx="118" cy="174" r="15" fill="url(#yin)"/>
+              <path d="M118 166 v16 M110 174 h16" stroke="#FFE9B8" stroke-width="2.5" stroke-linecap="round"/>
+            </g>
+            <circle cx="118" cy="118" r="112" fill="none" stroke="#EDE4D0" stroke-width="2.5" opacity=".85"/>
+          </svg>
+          <div class="pearl" id="pearl"></div>
+        </div>
+        <button class="hit" id="hit-left" onclick="turn('left')" aria-label="Left nostril"></button>
+        <button class="hit" id="hit-right" onclick="turn('right')" aria-label="Right nostril"></button>
+        <button class="hit" id="hit-both" onclick="turn('both')" aria-label="Both"></button>
+      </div>
+      <div class="names">
+        <span class="nm">Left nostril</span>
+        <span class="nm">Right nostril</span>
+      </div>
+
+      <div class="chips" id="chips">
+        <button class="chip" data-m="now">◉<small>now</small></button>
+        <button class="chip" data-m="390">🌅</button>
+        <button class="chip" data-m="720">☀️</button>
+        <button class="chip" data-m="1050">🌇</button>
+        <button class="chip" data-m="1380">🌙</button>
+        <button class="chip" data-m="play">▶</button>
+      </div>
+    </div>
+    <div class="tabs">
+      <div class="tab on"><span>☯</span>Seal</div>
+      <div class="tab"><span>◐</span>Today</div>
+      <div class="tab"><span>△</span>Ranges</div>
+      <div class="tab"><span>≡</span>Chronicle</div>
+      <div class="tab"><span>◦</span>Pack</div>
+    </div>
+  </div>
+  <div class="label">Option H · Yin-Yang Seal — one turning taiji: tap a half to log it (it flares and spins), the pearl is Both.</div>
+
+<script>
+  const KEYS=[
+    [0,  "#141C36","#0E1428","#E9EDF5","#223058","#1A2445","#111A33","#0A1020","#E8ECF8",1,  12],
+    [5,  "#2E3A5E","#3E3A55","#F0E6D8","#3A4468","#2C3452","#1E2640","#141A30","#F0EAE0",.5, 24],
+    [7,  "#C9DCD9","#EAD9C5","#F7EFE0","#9FB8AE","#7E9C94","#54746E","#3A5652","#FFF8EC",0,  26],
+    [12, "#7FB7D9","#AACFE3","#FBF3D9","#7FA3B8","#5E8AA3","#3E6A85","#2A4A60","#FFFFFF",0,  8],
+    [17, "#E8B36A","#D98A56","#F7E9C4","#B87A5A","#8E5A54","#5E3A48","#3E2436","#FFF3E4",0,  20],
+    [19.5,"#E8896A","#D96A56","#F5E6C4","#A6504A","#7E3A44","#4A2438","#2E1626","#FFF3E4",.1,26],
+    [21.5,"#25355C","#1B2745","#E9EDF5","#2E4068","#232F52","#161F3A","#0E1428","#EDF0FA",.8,14],
+    [24, "#141C36","#0E1428","#E9EDF5","#223058","#1A2445","#111A33","#0A1020","#E8ECF8",1,  12],
+  ];
+  const hex=h=>[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];
+  const mix=(a,b,t)=>"#"+hex(a).map((v,i)=>Math.round(v+(hex(b)[i]-v)*t).toString(16).padStart(2,"0")).join("");
+  let curMins=0, animId=null;
+  function setTime(mins){
+    curMins=mins;
+    const h=(mins%1440)/60;
+    let i=0; while(i<KEYS.length-2 && KEYS[i+1][0]<=h) i++;
+    const A=KEYS[i], B=KEYS[i+1], t=(h-A[0])/(B[0]-A[0]);
+    const names=["--sky1","--sky2","--sun","--far","--mid","--near","--ink","--text"];
+    const ph=document.getElementById("phone");
+    names.forEach((n,k)=>ph.style.setProperty(n, mix(A[k+1],B[k+1],t)));
+    ph.style.setProperty("--starop",(A[9]+(B[9]-A[9])*t).toFixed(2));
+    document.getElementById("sun").style.top=(A[10]+(B[10]-A[10])*t)+"%";
+  }
+  function tweenTo(target){
+    cancelAnimationFrame(animId);
+    const from=curMins, diff=((target-from)%1440+2160)%1440-720;
+    const start=performance.now(), DUR=1400;
+    (function step(now){
+      const p=Math.min(1,(now-start)/DUR), e=p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2;
+      setTime((from+diff*e+1440)%1440);
+      if(p<1) animId=requestAnimationFrame(step);
+    })(start);
+  }
+  function playDay(){
+    cancelAnimationFrame(animId);
+    const start=performance.now(), from=curMins, DUR=9000;
+    (function step(now){
+      const p=Math.min(1,(now-start)/DUR);
+      setTime((from+1440*p)%1440);
+      if(p<1) animId=requestAnimationFrame(step);
+    })(start);
+  }
+  document.querySelectorAll("#chips .chip").forEach(c=>{
+    c.addEventListener("click",()=>{
+      document.querySelectorAll("#chips .chip").forEach(x=>x.classList.remove("sel"));
+      c.classList.add("sel");
+      const m=c.dataset.m;
+      if(m==="play") playDay();
+      else if(m==="now"){ const n=new Date(); tweenTo(n.getHours()*60+n.getMinutes()); }
+      else tweenTo(+m);
+    });
+  });
+  (function init(){
+    const stars=document.getElementById("stars");
+    for(let i=0;i<34;i++){
+      const s=document.createElement("i");
+      s.style.left=Math.random()*100+"%"; s.style.top=Math.random()*100+"%";
+      s.style.animationDelay=(Math.random()*3)+"s";
+      stars.appendChild(s);
+    }
+    const n=new Date();
+    setTime(n.getHours()*60+n.getMinutes());
+    document.querySelector('#chips .chip[data-m="now"]').classList.add("sel");
+  })();
+
+  const CAP={left:"yin deepens — the violet half carries this hour",
+             right:"yang rises — the golden half carries this hour",
+             both:"the pearl shines — the seal rests in perfect turn"};
+  let capT=null;
+  function turn(state){
+    const seal=document.getElementById("seal");
+    seal.classList.remove("spin"); void seal.offsetWidth; seal.classList.add("spin");
+    document.getElementById("el-yin").classList.remove("flare-yin");
+    document.getElementById("el-yang").classList.remove("flare-yang");
+    if(state==="left") document.getElementById("el-yin").classList.add("flare-yin");
+    else if(state==="right") document.getElementById("el-yang").classList.add("flare-yang");
+    else {
+      document.getElementById("el-yin").classList.add("flare-yin");
+      document.getElementById("el-yang").classList.add("flare-yang");
+      const p=document.getElementById("pearl");
+      p.classList.remove("burst"); void p.offsetWidth; p.classList.add("burst");
+    }
+    const c=document.getElementById("caption");
+    c.textContent=CAP[state]; c.classList.add("show");
+    clearTimeout(capT);
+    capT=setTimeout(()=>{
+      c.classList.remove("show");
+      document.getElementById("el-yin").classList.remove("flare-yin");
+      document.getElementById("el-yang").classList.remove("flare-yang");
+    }, 3000);
+  }
+</script>
+</body>
+</html>
