@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
 import React from "react";
-import { ActivityIndicator, View } from "react-native";
+import { ActivityIndicator, Platform, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth } from "@/src/context/AuthContext";
@@ -33,8 +33,10 @@ export default function TabsLayout() {
           backgroundColor: colors.surfaceSecondary,
           borderTopColor: colors.divider,
           borderTopWidth: 1,
-          height: 56 + insets.bottom,
-          paddingBottom: insets.bottom > 0 ? insets.bottom : 6,
+          // Web fallback fonts render taller than Geist — give the labels
+          // extra room there so they don't clip against the bar's bottom.
+          height: (Platform.OS === "web" ? 64 : 56) + insets.bottom,
+          paddingBottom: insets.bottom > 0 ? insets.bottom : Platform.OS === "web" ? 10 : 6,
           paddingTop: 6,
         },
         tabBarLabelStyle: { fontFamily: fonts.medium, fontSize: 11 },
