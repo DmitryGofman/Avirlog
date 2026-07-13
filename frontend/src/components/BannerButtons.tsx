@@ -21,12 +21,6 @@ import { NostrilState } from "@/src/theme/theme";
 
 const USE_NATIVE = Platform.OS !== "web";
 
-const GLOW: Record<NostrilState, string> = {
-  left: "rgba(110,170,255,0.55)",
-  right: "rgba(255,110,90,0.55)",
-  both: "rgba(255,255,255,0.6)",
-};
-
 interface BannerProps {
   state: NostrilState;
   disabled: boolean;
@@ -40,7 +34,6 @@ function Banner({ state, disabled, onPress, swayDelay, children, thin }: BannerP
   const sway = useRef(new Animated.Value(0)).current;
   const ripple = useRef(new Animated.Value(0)).current;
   const wave = useRef(new Animated.Value(0)).current;
-  const glow = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     const mk = (v: Animated.Value, dur: number, delay: number) =>
@@ -64,11 +57,6 @@ function Banner({ state, disabled, onPress, swayDelay, children, thin }: BannerP
   const press = () => {
     wave.setValue(0);
     Animated.timing(wave, { toValue: 1, duration: 950, easing: Easing.out(Easing.quad), useNativeDriver: USE_NATIVE }).start();
-    glow.setValue(0);
-    Animated.sequence([
-      Animated.timing(glow, { toValue: 1, duration: 220, useNativeDriver: USE_NATIVE }),
-      Animated.timing(glow, { toValue: 0, duration: 2400, easing: Easing.out(Easing.quad), useNativeDriver: USE_NATIVE }),
-    ]).start();
     onPress(state);
   };
 
@@ -78,7 +66,6 @@ function Banner({ state, disabled, onPress, swayDelay, children, thin }: BannerP
     inputRange: [0, 0.14, 0.38, 0.62, 0.82, 1],
     outputRange: ["0deg", "5deg", "-4deg", "2.4deg", "-1.1deg", "0deg"],
   });
-  const glowOpacity = glow.interpolate({ inputRange: [0, 1], outputRange: [0, 1] });
 
   return (
     <Pressable
@@ -91,10 +78,6 @@ function Banner({ state, disabled, onPress, swayDelay, children, thin }: BannerP
         { transform: [{ scale: pressed ? 0.96 : 1 }, { translateY: pressed ? 3 : 0 }] },
       ]}
     >
-      <Animated.View
-        pointerEvents="none"
-        style={[styles.halo, { backgroundColor: GLOW[state], opacity: glowOpacity }]}
-      />
       <Animated.View style={{ flex: 1, transform: [{ rotate }] }}>
         <Animated.View style={{ flex: 1, transform: [{ skewX: rippleSkew }, { skewX: waveSkew }] }}>
           {children}
@@ -273,12 +256,4 @@ const styles = StyleSheet.create({
   row: { flex: 1, flexDirection: "row", justifyContent: "space-between", paddingTop: 6 },
   slot: { width: "39%", maxWidth: 176, height: "100%", maxHeight: 500 },
   thinSlot: { width: "12%", maxWidth: 52, height: "97%", maxHeight: 484 },
-  halo: {
-    position: "absolute",
-    top: -8,
-    left: -10,
-    right: -10,
-    bottom: -2,
-    borderRadius: 26,
-  },
 });
