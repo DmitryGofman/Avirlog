@@ -4,7 +4,7 @@
 // (Left / Ida · Calming, Right / Pingala · Active, Both / Sushumna ·
 // Balanced). Cloth physics = a slow sway from the rod plus a faster ripple;
 // pressing kicks a wave through the fabric and glows blue / red / white.
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Animated, Easing, Platform, Pressable, StyleSheet, View } from "react-native";
 import Svg, {
   Circle,
@@ -34,18 +34,22 @@ function Banner({ state, disabled, onPress, swayDelay, children, thin }: BannerP
   const sway = useRef(new Animated.Value(0)).current;
   const ripple = useRef(new Animated.Value(0)).current;
   const wave = useRef(new Animated.Value(0)).current;
+  const [clothHeight, setClothHeight] = useState(0);
 
   useEffect(() => {
-    const mk = (v: Animated.Value, dur: number, delay: number) =>
+    // Real cloth doesn't oscillate symmetrically: the gust pushes it out
+    // faster than gravity settles it back, so each loop rises quicker than
+    // it falls.
+    const mk = (v: Animated.Value, up: number, down: number, delay: number) =>
       Animated.loop(
         Animated.sequence([
           Animated.delay(delay),
-          Animated.timing(v, { toValue: 1, duration: dur, easing: Easing.inOut(Easing.sin), useNativeDriver: USE_NATIVE }),
-          Animated.timing(v, { toValue: 0, duration: dur, easing: Easing.inOut(Easing.sin), useNativeDriver: USE_NATIVE }),
+          Animated.timing(v, { toValue: 1, duration: up, easing: Easing.out(Easing.sin), useNativeDriver: USE_NATIVE }),
+          Animated.timing(v, { toValue: 0, duration: down, easing: Easing.inOut(Easing.sin), useNativeDriver: USE_NATIVE }),
         ]),
       );
-    const a = mk(sway, 3000, swayDelay);
-    const b = mk(ripple, 1300, swayDelay / 2);
+    const a = mk(sway, 2600, 3700, swayDelay);
+    const b = mk(ripple, 950, 1550, swayDelay / 2);
     a.start();
     b.start();
     return () => {
@@ -61,11 +65,24 @@ function Banner({ state, disabled, onPress, swayDelay, children, thin }: BannerP
   };
 
   const rotate = sway.interpolate({ inputRange: [0, 1], outputRange: ["-0.7deg", "0.8deg"] });
-  const rippleSkew = ripple.interpolate({ inputRange: [0, 1], outputRange: ["-1.1deg", "1.6deg"] });
+  const rippleSkew = ripple.interpolate({ inputRange: [0, 1], outputRange: ["-1.4deg", "2deg"] });
   const waveSkew = wave.interpolate({
     inputRange: [0, 0.14, 0.38, 0.62, 0.82, 1],
     outputRange: ["0deg", "5deg", "-4deg", "2.4deg", "-1.1deg", "0deg"],
   });
+  // RN transforms pivot around the center, which would swing the banner's
+  // top edge off the rod — sandwich the rotation/skew between translations
+  // so the cloth hangs and moves from its hanging edge instead.
+  const hangTransform =
+    clothHeight > 0
+      ? [
+          { translateY: -clothHeight / 2 },
+          { rotate },
+          { skewX: rippleSkew },
+          { skewX: waveSkew },
+          { translateY: clothHeight / 2 },
+        ]
+      : [{ rotate }, { skewX: rippleSkew }, { skewX: waveSkew }];
 
   return (
     <Pressable
@@ -78,10 +95,11 @@ function Banner({ state, disabled, onPress, swayDelay, children, thin }: BannerP
         { transform: [{ scale: pressed ? 0.96 : 1 }, { translateY: pressed ? 3 : 0 }] },
       ]}
     >
-      <Animated.View style={{ flex: 1, transform: [{ rotate }] }}>
-        <Animated.View style={{ flex: 1, transform: [{ skewX: rippleSkew }, { skewX: waveSkew }] }}>
-          {children}
-        </Animated.View>
+      <Animated.View
+        onLayout={(e) => setClothHeight(e.nativeEvent.layout.height)}
+        style={{ flex: 1, transform: hangTransform }}
+      >
+        {children}
       </Animated.View>
     </Pressable>
   );
@@ -89,16 +107,16 @@ function Banner({ state, disabled, onPress, swayDelay, children, thin }: BannerP
 
 function LeftBannerArt() {
   return (
-    <Svg width="100%" height="100%" viewBox="0 0 146 404">
+    <Svg width="100%" height="100%" viewBox="0 0 146 404" preserveAspectRatio="xMidYMin meet">
       <Defs>
         <LinearGradient id="clothL" x1="0" y1="0" x2="0" y2="1">
           <Stop offset="0" stopColor="#3A3E6E" stopOpacity="0.9" />
           <Stop offset="1" stopColor="#282250" stopOpacity="0.94" />
         </LinearGradient>
       </Defs>
-      <Path d="M4 6 H142 V360 L73 396 L4 360 Z" fill="url(#clothL)" stroke="#8E93C4" strokeWidth="1.5" strokeOpacity="0.55" />
-      <Path d="M26 6 v-6 M73 6 v-6 M120 6 v-6" stroke="#4A3018" strokeWidth="5" />
-      <Path d="M14 16 H132 V354 L73 385 L14 354 Z" fill="none" stroke="#AEB2DC" strokeWidth="1" strokeDasharray="4 4" opacity="0.45" />
+      <Path d="M4 12 H142 V360 L73 396 L4 360 Z" fill="url(#clothL)" stroke="#8E93C4" strokeWidth="1.5" strokeOpacity="0.55" />
+      <Path d="M26 14 v-14 M73 14 v-14 M120 14 v-14" stroke="#4A3018" strokeWidth="6" />
+      <Path d="M14 22 H132 V354 L73 385 L14 354 Z" fill="none" stroke="#AEB2DC" strokeWidth="1" strokeDasharray="4 4" opacity="0.45" />
       <Path d="M90 60 a27 27 0 1 0 12 48 a21 21 0 1 1 -12 -48 Z" fill="#EDE8F5" opacity="0.92" />
       <Circle cx="48" cy="56" r="2" fill="#C9CFF0" opacity="0.8" />
       <Circle cx="42" cy="84" r="1.6" fill="#C9CFF0" opacity="0.6" />
@@ -122,16 +140,16 @@ function LeftBannerArt() {
 
 function RightBannerArt() {
   return (
-    <Svg width="100%" height="100%" viewBox="0 0 146 404">
+    <Svg width="100%" height="100%" viewBox="0 0 146 404" preserveAspectRatio="xMidYMin meet">
       <Defs>
         <LinearGradient id="clothR" x1="0" y1="0" x2="0" y2="1">
           <Stop offset="0" stopColor="#7E4234" stopOpacity="0.9" />
           <Stop offset="1" stopColor="#5A2824" stopOpacity="0.94" />
         </LinearGradient>
       </Defs>
-      <Path d="M4 6 H142 V360 L73 396 L4 360 Z" fill="url(#clothR)" stroke="#D9A088" strokeWidth="1.5" strokeOpacity="0.55" />
-      <Path d="M26 6 v-6 M73 6 v-6 M120 6 v-6" stroke="#4A3018" strokeWidth="5" />
-      <Path d="M14 16 H132 V354 L73 385 L14 354 Z" fill="none" stroke="#E8B89E" strokeWidth="1" strokeDasharray="4 4" opacity="0.45" />
+      <Path d="M4 12 H142 V360 L73 396 L4 360 Z" fill="url(#clothR)" stroke="#D9A088" strokeWidth="1.5" strokeOpacity="0.55" />
+      <Path d="M26 14 v-14 M73 14 v-14 M120 14 v-14" stroke="#4A3018" strokeWidth="6" />
+      <Path d="M14 22 H132 V354 L73 385 L14 354 Z" fill="none" stroke="#E8B89E" strokeWidth="1" strokeDasharray="4 4" opacity="0.45" />
       <Circle cx="73" cy="82" r="23" fill="#F2E2BC" opacity="0.95" />
       <G fill="#F2E2BC" opacity="0.85">
         <Path d="M73 46 L77 57 L69 57 Z" />
@@ -162,16 +180,16 @@ function RightBannerArt() {
 
 function BothBannerArt() {
   return (
-    <Svg width="100%" height="100%" viewBox="0 0 42 390">
+    <Svg width="100%" height="100%" viewBox="0 0 42 390" preserveAspectRatio="xMidYMin meet">
       <Defs>
         <LinearGradient id="clothB" x1="0" y1="0" x2="0" y2="1">
           <Stop offset="0" stopColor="#524E5E" stopOpacity="0.9" />
           <Stop offset="1" stopColor="#363240" stopOpacity="0.94" />
         </LinearGradient>
       </Defs>
-      <Path d="M2 6 H40 V350 L21 386 L2 350 Z" fill="url(#clothB)" stroke="#C9C4D4" strokeWidth="1.2" strokeOpacity="0.5" />
-      <Path d="M12 6 v-6 M30 6 v-6" stroke="#4A3018" strokeWidth="4" />
-      <Path d="M8 14 H34 V344 L21 376 L8 344 Z" fill="none" stroke="#D4CFE0" strokeWidth="0.8" strokeDasharray="3 4" opacity="0.4" />
+      <Path d="M2 12 H40 V350 L21 386 L2 350 Z" fill="url(#clothB)" stroke="#C9C4D4" strokeWidth="1.2" strokeOpacity="0.5" />
+      <Path d="M12 14 v-14 M30 14 v-14" stroke="#4A3018" strokeWidth="5" />
+      <Path d="M8 20 H34 V344 L21 376 L8 344 Z" fill="none" stroke="#D4CFE0" strokeWidth="0.8" strokeDasharray="3 4" opacity="0.4" />
       <Circle cx="21" cy="58" r="13" fill="#EDE8DC" opacity="0.95" />
       <Path d="M21 45 a13 13 0 0 1 0 26 Z" fill="#2E2A3E" />
       {/* embroidered name */}
@@ -253,7 +271,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: "#6E4A2A",
   },
-  row: { flex: 1, flexDirection: "row", justifyContent: "space-between", paddingTop: 6 },
+  row: { flex: 1, flexDirection: "row", justifyContent: "space-between", paddingTop: 0 },
   slot: { width: "39%", maxWidth: 176, height: "100%", maxHeight: 500 },
   thinSlot: { width: "12%", maxWidth: 52, height: "97%", maxHeight: 484 },
 });
