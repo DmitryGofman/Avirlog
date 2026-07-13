@@ -7,7 +7,28 @@
 // in Settings and api() resumes talking to the server when authenticated.
 export const ACCOUNTS_ENABLED = false;
 
-// The "Living Banners" Log screen: day-cycle sky on the real clock, true
-// moon phase, banner buttons. Flip to false to instantly revert the Log
-// screen to the classic button design (everything else is unaffected).
-export const LIVING_BANNERS = true;
+// ---- Skins ----
+// The Log screen ships with two skins; the registry is the seed of a future
+// skin library (planned as a premium feature — more worlds uploaded later).
+export type SkinId = "classic" | "banners";
+
+export interface SkinMeta {
+  id: SkinId;
+  name: string;
+  description: string;
+}
+
+export const SKINS: SkinMeta[] = [
+  {
+    id: "classic",
+    name: "Classic",
+    description: "The original minimal buttons — clean, quiet, fast.",
+  },
+  {
+    id: "banners",
+    name: "Living Banners",
+    description: "A valley on your real clock: day-cycle sky, true moon phase, cloth banners.",
+  },
+];
+
+export const DEFAULT_SKIN: SkinId = "banners";

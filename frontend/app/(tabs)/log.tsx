@@ -13,7 +13,7 @@ import { Sheet } from "@/src/components/Sheet";
 import { useToast } from "@/src/components/Toast";
 import { useTheme } from "@/src/context/ThemeContext";
 import { api, todayStr } from "@/src/lib/api";
-import { LIVING_BANNERS } from "@/src/lib/config";
+import { DEFAULT_SKIN, SkinId } from "@/src/lib/config";
 import { pickMessage, SWARA } from "@/src/lib/swara";
 import { BreathLog, fonts, NostrilState, radius, spacing, STATE_META } from "@/src/theme/theme";
 
@@ -37,6 +37,7 @@ export default function QuickLogScreen() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [moodJournaling, setMoodJournaling] = useState(true);
+  const [skin, setSkin] = useState<SkinId>(DEFAULT_SKIN);
   const [guidance, setGuidance] = useState<{ state: NostrilState; message: string } | null>(null);
 
   // Entrance + ambient "breathing" motion — calm, on-brand, never distracting.
@@ -78,8 +79,11 @@ export default function QuickLogScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      api<{ mood_journaling?: boolean }>("/settings")
-        .then((s) => setMoodJournaling(s.mood_journaling ?? true))
+      api<{ mood_journaling?: boolean; skin?: SkinId }>("/settings")
+        .then((s) => {
+          setMoodJournaling(s.mood_journaling ?? true);
+          setSkin(s.skin ?? DEFAULT_SKIN);
+        })
         .catch(() => {});
     }, []),
   );
@@ -162,20 +166,21 @@ export default function QuickLogScreen() {
 
   // Over the living scene the chrome goes light with soft shadows,
   // independent of the app theme.
-  const onScene = LIVING_BANNERS
+  const living = skin === "banners";
+  const onScene = living
     ? { color: "#F2F4FC", textShadowColor: "rgba(4,6,14,0.8)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 6 }
     : null;
-  const onSceneDim = LIVING_BANNERS ? { ...onScene, color: "rgba(242,244,252,0.75)" } : null;
+  const onSceneDim = living ? { ...onScene, color: "rgba(242,244,252,0.75)" } : null;
 
   return (
     <View
       testID="quick-log-screen"
       style={[
         styles.root,
-        { backgroundColor: LIVING_BANNERS ? "#0A0C16" : colors.surface, paddingTop: insets.top + spacing.lg },
+        { backgroundColor: living ? "#0A0C16" : colors.surface, paddingTop: insets.top + spacing.lg },
       ]}
     >
-      {LIVING_BANNERS && <LivingSky />}
+      {living && <LivingSky />}
 
       {/* Rendered first so it sits *behind* the buttons — the ice/fire plays
           beneath them and the buttons stay crisp on top. */}
@@ -201,13 +206,13 @@ export default function QuickLogScreen() {
             hitSlop={10}
             style={[
               styles.infoBtn,
-              { backgroundColor: LIVING_BANNERS ? "rgba(8,10,20,0.4)" : colors.surfaceTertiary },
+              { backgroundColor: living ? "rgba(8,10,20,0.4)" : colors.surfaceTertiary },
             ]}
           >
             <Ionicons
               name="book-outline"
               size={17}
-              color={LIVING_BANNERS ? "#F2F4FC" : colors.onSurfaceTertiary}
+              color={living ? "#F2F4FC" : colors.onSurfaceTertiary}
             />
           </Pressable>
         </View>
@@ -217,7 +222,7 @@ export default function QuickLogScreen() {
         </Text>
       </Animated.View>
 
-      {LIVING_BANNERS ? (
+      {living ? (
         <Animated.View style={[styles.buttons, { opacity: enter, transform: [{ translateY: enterTranslate }] }]}>
           <BannerButtons disabled={!!creating} onLog={logState} />
         </Animated.View>
@@ -239,19 +244,19 @@ export default function QuickLogScreen() {
           onPress={() => router.push("/learn")}
           style={[
             styles.guidanceCard,
-            LIVING_BANNERS
+            living
               ? { backgroundColor: "rgba(8,10,20,0.55)", borderColor: "rgba(255,255,255,0.16)" }
               : { backgroundColor: colors.surfaceSecondary, borderColor: colors.border },
           ]}
         >
           <View style={styles.guidanceHead}>
             <View style={[styles.guidanceDot, { backgroundColor: colors[STATE_META[guidance.state].colorKey] }]} />
-            <Text style={[styles.guidanceState, { color: LIVING_BANNERS ? "rgba(242,244,252,0.7)" : colors.onSurfaceTertiary }]}>
+            <Text style={[styles.guidanceState, { color: living ? "rgba(242,244,252,0.7)" : colors.onSurfaceTertiary }]}>
               {STATE_META[guidance.state].label} · {SWARA[guidance.state].sanskrit}
             </Text>
-            <Ionicons name="chevron-forward" size={14} color={LIVING_BANNERS ? "rgba(242,244,252,0.7)" : colors.onSurfaceTertiary} />
+            <Ionicons name="chevron-forward" size={14} color={living ? "rgba(242,244,252,0.7)" : colors.onSurfaceTertiary} />
           </View>
-          <Text style={[styles.guidanceText, { color: LIVING_BANNERS ? "#F2F4FC" : colors.onSurface }]}>{guidance.message}</Text>
+          <Text style={[styles.guidanceText, { color: living ? "#F2F4FC" : colors.onSurface }]}>{guidance.message}</Text>
         </Pressable>
       ) : (
         <Text style={[styles.footerHint, { color: colors.onSurfaceTertiary }, onSceneDim]}>

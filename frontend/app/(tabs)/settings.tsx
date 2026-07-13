@@ -20,7 +20,7 @@ import { useToast } from "@/src/components/Toast";
 import { useAuth } from "@/src/context/AuthContext";
 import { useTheme } from "@/src/context/ThemeContext";
 import { api } from "@/src/lib/api";
-import { ACCOUNTS_ENABLED } from "@/src/lib/config";
+import { ACCOUNTS_ENABLED, DEFAULT_SKIN, SKINS, SkinId } from "@/src/lib/config";
 import { cancelReminders, ensurePermission, scheduleReminders } from "@/src/lib/notifications";
 import { fonts, radius, spacing } from "@/src/theme/theme";
 
@@ -29,6 +29,7 @@ interface Settings {
   reminder_interval_minutes: number;
   theme: "light" | "dark";
   mood_journaling: boolean;
+  skin: SkinId;
 }
 
 const INTERVALS = [
@@ -53,7 +54,9 @@ export default function SettingsScreen() {
 
   useEffect(() => {
     api<Settings>("/settings")
-      .then((s) => setSettings({ ...s, mood_journaling: s.mood_journaling ?? true }))
+      .then((s) =>
+        setSettings({ ...s, mood_journaling: s.mood_journaling ?? true, skin: s.skin ?? DEFAULT_SKIN }),
+      )
       .catch(() => showToast("Could not load settings", "error"));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -223,6 +226,33 @@ export default function SettingsScreen() {
               </Text>
             </>
           )}
+        </Section>
+
+        <Section title="Skin">
+          {SKINS.map((s, i) => (
+            <React.Fragment key={s.id}>
+              {i > 0 && <View style={[styles.divider, { backgroundColor: colors.divider }]} />}
+              <Row
+                icon={s.id === "banners" ? "flag-outline" : "square-outline"}
+                label={s.name}
+                testID={`settings-skin-${s.id}`}
+                onPress={() => {
+                  if (settings) persist({ ...settings, skin: s.id });
+                }}
+                right={
+                  settings?.skin === s.id ? (
+                    <Ionicons name="checkmark-circle" size={20} color={colors.brand} />
+                  ) : (
+                    <Ionicons name="ellipse-outline" size={20} color={colors.border} />
+                  )
+                }
+              />
+            </React.Fragment>
+          ))}
+          <Text style={[styles.reminderHint, { color: colors.onSurfaceTertiary, paddingBottom: spacing.lg }]}>
+            Skins change how the Log screen looks and feels. A growing skin library is planned as a
+            premium upgrade.
+          </Text>
         </Section>
 
         <Section title="Appearance">

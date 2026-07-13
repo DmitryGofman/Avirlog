@@ -3,6 +3,7 @@
 // is signed in everything still works against AsyncStorage / localStorage.
 // Routed from src/lib/api.ts whenever there is no auth token.
 
+import { DEFAULT_SKIN, SkinId } from "@/src/lib/config";
 import { storage } from "@/src/utils/storage";
 import { BreathLog, NostrilState } from "@/src/theme/theme";
 
@@ -16,6 +17,7 @@ export interface LocalSettings {
   reminder_interval_minutes: number;
   theme: "light" | "dark";
   mood_journaling: boolean;
+  skin: SkinId;
 }
 
 const LOGS_KEY = "avirlog_local_logs";
@@ -26,6 +28,7 @@ const DEFAULT_SETTINGS: LocalSettings = {
   reminder_interval_minutes: 60,
   theme: "light",
   mood_journaling: true,
+  skin: DEFAULT_SKIN,
 };
 
 function genId(): string {
