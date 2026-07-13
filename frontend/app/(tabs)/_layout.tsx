@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
 import React from "react";
-import { ActivityIndicator, Platform, View } from "react-native";
+import { ActivityIndicator, Platform, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth } from "@/src/context/AuthContext";
@@ -26,12 +26,39 @@ export default function TabsLayout() {
     );
   }
 
+  // Instrument tabs are numbered cells in the record-grid language (01 LOG …);
+  // other skins keep their icons.
+  const tabIcon = (index: string, name: keyof typeof Ionicons.glyphMap) => {
+    function TabGlyph({ color, size, focused }: { color: string; size: number; focused: boolean }) {
+      return instrument ? (
+        <Text
+          style={{
+            fontFamily: MONO,
+            fontSize: 14,
+            fontWeight: focused ? "700" : "400",
+            letterSpacing: 1,
+            color,
+          }}
+        >
+          {index}
+        </Text>
+      ) : (
+        <Ionicons name={name} size={size} color={color} />
+      );
+    }
+    return TabGlyph;
+  };
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.onSurface,
-        tabBarInactiveTintColor: colors.onSurfaceTertiary,
+        tabBarActiveTintColor: instrument ? "#111111" : colors.onSurface,
+        tabBarInactiveTintColor: instrument ? "#9A9A94" : colors.onSurfaceTertiary,
+        tabBarActiveBackgroundColor: instrument ? colors.surfaceTertiary : undefined,
+        tabBarItemStyle: instrument
+          ? { borderRightWidth: 1, borderRightColor: colors.divider }
+          : undefined,
         tabBarStyle: {
           backgroundColor: instrument ? colors.surface : colors.surfaceSecondary,
           borderTopColor: instrument ? colors.border : colors.divider,
@@ -52,45 +79,35 @@ export default function TabsLayout() {
         name="log"
         options={{
           title: "Log",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="add-circle-outline" size={size} color={color} />
-          ),
+          tabBarIcon: tabIcon("01", "add-circle-outline"),
         }}
       />
       <Tabs.Screen
         name="today"
         options={{
           title: "Today",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="time-outline" size={size} color={color} />
-          ),
+          tabBarIcon: tabIcon("02", "time-outline"),
         }}
       />
       <Tabs.Screen
         name="insights"
         options={{
           title: "Insights",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="stats-chart-outline" size={size} color={color} />
-          ),
+          tabBarIcon: tabIcon("03", "stats-chart-outline"),
         }}
       />
       <Tabs.Screen
         name="history"
         options={{
           title: "History",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="calendar-outline" size={size} color={color} />
-          ),
+          tabBarIcon: tabIcon("04", "calendar-outline"),
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
           title: "Settings",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="settings-outline" size={size} color={color} />
-          ),
+          tabBarIcon: tabIcon("05", "settings-outline"),
         }}
       />
     </Tabs>
