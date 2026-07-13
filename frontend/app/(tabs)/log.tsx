@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { BannerButtons } from "@/src/components/BannerButtons";
 import { IceFireEffect, IceFireEffectHandle } from "@/src/components/IceFireEffect";
+import { InstrumentLog } from "@/src/components/InstrumentLog";
 import { LivingSky } from "@/src/components/LivingSky";
 import { LogForm, LogFormPayload } from "@/src/components/LogForm";
 import { Sheet } from "@/src/components/Sheet";
@@ -38,6 +39,7 @@ export default function QuickLogScreen() {
   const [saving, setSaving] = useState(false);
   const [moodJournaling, setMoodJournaling] = useState(true);
   const [skin, setSkin] = useState<SkinId>(DEFAULT_SKIN);
+  const [logVersion, setLogVersion] = useState(0);
   const [guidance, setGuidance] = useState<{ state: NostrilState; message: string } | null>(null);
 
   // Entrance + ambient "breathing" motion — calm, on-brand, never distracting.
@@ -106,11 +108,13 @@ export default function QuickLogScreen() {
         },
       });
       setGuidance({ state, message: pickMessage(state) });
+      setLogVersion((v) => v + 1);
       if (moodJournaling) {
         setActiveLog(log);
         // The sheet is a native Modal and would cover the ice/fire burst —
         // let the effect read first, then slide the context sheet up.
-        setTimeout(() => setSheetOpen(true), 1200);
+        // (The Instrument skin has no burst; open right after the shutter.)
+        setTimeout(() => setSheetOpen(true), skin === "instrument" ? 250 : 1200);
       }
       showToast(`Logged · ${STATE_META[state].label}`);
     } catch (e: any) {
@@ -167,10 +171,41 @@ export default function QuickLogScreen() {
   // Over the living scene the chrome goes light with soft shadows,
   // independent of the app theme.
   const living = skin === "banners";
+  const instrument = skin === "instrument";
   const onScene = living
     ? { color: "#F2F4FC", textShadowColor: "rgba(4,6,14,0.8)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 6 }
     : null;
   const onSceneDim = living ? { ...onScene, color: "rgba(242,244,252,0.75)" } : null;
+
+  if (instrument) {
+    return (
+      <View
+        testID="quick-log-screen"
+        style={[styles.instrumentRoot, { paddingTop: insets.top + spacing.md }]}
+      >
+        <InstrumentLog creating={creating} onLog={logState} refreshToken={logVersion} />
+        <Sheet
+          visible={sheetOpen}
+          onClose={() => setSheetOpen(false)}
+          title={
+            activeLog
+              ? `${STATE_META[activeLog.nostril_state].label} · ${SWARA[activeLog.nostril_state].sanskrit}`
+              : "Add context"
+          }
+        >
+          {activeLog && guidance && guidance.state === activeLog.nostril_state && (
+            <Text style={[styles.sheetGuidance, { color: colors.onSurfaceSecondary }]}>{guidance.message}</Text>
+          )}
+          <LogForm
+            key={activeLog?.id ?? "none"}
+            saving={saving}
+            onSave={saveContext}
+            onSkip={() => setSheetOpen(false)}
+          />
+        </Sheet>
+      </View>
+    );
+  }
 
   return (
     <View
@@ -289,6 +324,7 @@ export default function QuickLogScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, paddingHorizontal: spacing.xl },
+  instrumentRoot: { flex: 1, backgroundColor: "#FAFAF8" },
   header: { marginBottom: spacing.xl },
   topLine: {
     flexDirection: "row",

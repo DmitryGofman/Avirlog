@@ -233,7 +233,9 @@ export default function SettingsScreen() {
             <React.Fragment key={s.id}>
               {i > 0 && <View style={[styles.divider, { backgroundColor: colors.divider }]} />}
               <Row
-                icon={s.id === "banners" ? "flag-outline" : "square-outline"}
+                icon={
+                  s.id === "banners" ? "flag-outline" : s.id === "instrument" ? "grid-outline" : "square-outline"
+                }
                 label={s.name}
                 testID={`settings-skin-${s.id}`}
                 onPress={() => {
