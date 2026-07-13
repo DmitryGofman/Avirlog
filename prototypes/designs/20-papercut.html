@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AvirLog Design 20 — Papercut</title>
+<style>
+  /* DIRECTION 20: "Papercut" — a layered paper diorama. Every element looks
+     cut from cardstock and stacked with real depth: torn-edge valley layers,
+     a paper sun on a string, buttons like pressed paper tokens. Logging
+     tilts the whole diorama toward that side, as if you leaned in. */
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    min-height:100vh; display:flex; align-items:center; justify-content:center;
+    background:#6E655B; padding:24px;
+    font-family:-apple-system,"Segoe UI",system-ui,sans-serif;
+    perspective:1200px;
+  }
+  .phone {
+    width:390px; height:800px; border-radius:40px; overflow:hidden; position:relative;
+    background:#F0E9DC;
+    box-shadow:0 34px 80px rgba(35,30,22,.6);
+    display:flex; flex-direction:column;
+    transition:transform 1s cubic-bezier(.22,1,.36,1);
+    transform-style:preserve-3d;
+  }
+  .phone.tilt-l { transform:rotateY(7deg) rotateZ(-1deg); }
+  .phone.tilt-r { transform:rotateY(-7deg) rotateZ(1deg); }
+  .phone.tilt-c { transform:rotateX(4deg) scale(1.01); }
+
+  /* paper sun hanging on a string */
+  .string { position:absolute; top:0; left:64%; width:2px; height:120px; background:#B8AD98; z-index:3; }
+  .papersun {
+    position:absolute; top:112px; left:64%; transform:translateX(-50%); z-index:3;
+    width:86px; height:86px; border-radius:50%;
+    background:#F6C56A;
+    box-shadow:0 10px 18px rgba(60,45,20,.3), inset 0 -5px 0 rgba(180,120,40,.35);
+    animation:dangle 6s ease-in-out infinite alternate;
+    transform-origin:50% -112px;
+  }
+  @keyframes dangle { from{transform:translateX(-50%) rotate(-3deg)} to{transform:translateX(-50%) rotate(3deg)} }
+  .papersun::after {
+    content:""; position:absolute; inset:12px; border-radius:50%;
+    background:#F9D68B; box-shadow:inset 0 -4px 0 rgba(180,120,40,.25);
+  }
+
+  /* torn-edge valley layers */
+  .layer { position:absolute; left:-10px; right:-10px; pointer-events:none; filter:drop-shadow(0 -8px 10px rgba(50,40,25,.22)); }
+  .layer svg { width:100%; height:auto; display:block; }
+  .L1 { bottom:220px; } .L2 { bottom:150px; } .L3 { bottom:90px; }
+
+  /* clouds = torn paper scraps */
+  .scrap {
+    position:absolute; background:#FBF7EE; z-index:2;
+    box-shadow:0 6px 12px rgba(60,45,20,.25);
+    border-radius:8px 22px 10px 26px;
+    animation:floaty 8s ease-in-out infinite alternate;
+  }
+  .s1 { width:98px; height:30px; top:17%; left:10%; }
+  .s2 { width:66px; height:22px; top:24%; left:56%; animation-delay:2s; }
+  @keyframes floaty { from{transform:translateY(0)} to{transform:translateY(-10px)} }
+
+  .screen { flex:1; display:flex; flex-direction:column; padding:58px 26px 0; position:relative; z-index:4; }
+  .tag {
+    align-self:flex-start; background:#FBF7EE; padding:7px 14px; font-size:10.5px;
+    letter-spacing:2.5px; text-transform:uppercase; color:#8A7C62;
+    box-shadow:0 4px 8px rgba(60,45,20,.2); border-radius:3px 12px 3px 12px;
+    transform:rotate(-1.5deg);
+  }
+  h1 {
+    font-family:Georgia,serif; font-size:29px; font-weight:400; color:#4A3E2C;
+    margin:16px 0 4px; transform:rotate(-.5deg);
+  }
+  .sub { font-size:13px; color:#8A7C62; font-style:italic; }
+
+  .note {
+    position:absolute; left:26px; right:26px; bottom:238px; z-index:4; text-align:center;
+    background:#FFF9E8; padding:12px 16px; font-family:Georgia,serif; font-style:italic;
+    font-size:13.5px; color:#5E5138; border-radius:4px 16px 6px 14px;
+    box-shadow:0 8px 16px rgba(60,45,20,.25);
+    opacity:0; transform:rotate(1deg) translateY(8px); transition:all .5s ease; pointer-events:none;
+  }
+  .note.show { opacity:1; transform:rotate(1deg) translateY(0); }
+  .note::before {
+    content:""; position:absolute; top:-8px; left:50%; transform:translateX(-50%) rotate(-2deg);
+    width:56px; height:16px; background:rgba(200,185,150,.55);
+  }
+
+  /* paper token buttons */
+  .tokens { margin-top:auto; display:flex; gap:12px; padding-bottom:16px; }
+  button { border:none; cursor:pointer; font-family:inherit; -webkit-tap-highlight-color:transparent; transition:transform .15s ease, box-shadow .15s ease; }
+  .token {
+    flex:1; height:88px; border-radius:16px 26px 14px 24px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px;
+    box-shadow:0 7px 0 rgba(60,45,20,.28), 0 12px 20px rgba(60,45,20,.25);
+  }
+  .token:active { transform:translateY(6px); box-shadow:0 1px 0 rgba(60,45,20,.28), 0 4px 8px rgba(60,45,20,.25); }
+  #t-left  { background:#9DB89A; color:#2C3D2A; transform:rotate(-1deg); }
+  #t-right { background:#DCA184; color:#4A2614; transform:rotate(1.2deg); }
+  #t-both  { flex:.72; background:#FBF7EE; color:#6E6249; transform:rotate(-.6deg); }
+  .token .nm { font-family:Georgia,serif; font-size:20px; }
+  .token .tr { font-size:9px; letter-spacing:2px; text-transform:uppercase; opacity:.7; }
+  /* stitched edge */
+  .token::before {
+    content:""; position:absolute; inset:6px; border:1.5px dashed rgba(0,0,0,.22);
+    border-radius:12px 20px 10px 18px; pointer-events:none;
+  }
+  .token { position:relative; }
+
+  .tabs { display:flex; padding:12px 8px 28px; background:#E5DCC9; box-shadow:0 -6px 12px rgba(60,45,20,.12); position:relative; z-index:5; }
+  .tab { flex:1; text-align:center; font-size:9.5px; letter-spacing:1.5px; color:#A3947A; text-transform:uppercase; }
+  .tab.on { color:#4A3E2C; font-weight:700; }
+  .tab span { display:block; font-size:15px; margin-bottom:3px; }
+  .label { position:fixed; bottom:18px; width:100%; left:0; text-align:center; font-size:13px; color:#D8D0C2; }
+</style>
+</head>
+<body>
+  <div class="phone" id="phone">
+    <div class="string"></div>
+    <div class="papersun"></div>
+    <div class="scrap s1"></div>
+    <div class="scrap s2"></div>
+
+    <!-- torn paper valley -->
+    <div class="layer L1">
+      <svg viewBox="0 0 410 160"><path d="M0 70 Q30 52 60 66 Q95 82 130 60 Q170 38 205 58 Q245 80 280 62 Q320 44 355 64 Q385 78 410 66 L410 160 L0 160 Z" fill="#C4CDB4"/></svg>
+    </div>
+    <div class="layer L2">
+      <svg viewBox="0 0 410 150"><path d="M0 78 Q40 60 78 74 Q118 90 158 70 Q198 50 238 72 Q278 92 318 74 Q358 58 410 76 L410 150 L0 150 Z" fill="#A4B394"/></svg>
+    </div>
+    <div class="layer L3">
+      <svg viewBox="0 0 410 140"><path d="M0 66 Q50 84 96 68 Q140 52 186 70 Q232 88 276 68 Q322 50 366 70 Q392 80 410 72 L410 140 L0 140 Z" fill="#83987A"/></svg>
+    </div>
+
+    <div class="note" id="note"></div>
+
+    <div class="screen">
+      <div class="tag">Handmade · one of one</div>
+      <h1>Fold this moment in</h1>
+      <div class="sub">press a token — the diorama leans with your breath</div>
+
+      <div class="tokens">
+        <button class="token" id="t-left" onclick="lean('l')">
+          <span class="nm">Left</span><span class="tr">Ida · cool side</span>
+        </button>
+        <button class="token" id="t-both" onclick="lean('c')">
+          <span class="nm">Both</span><span class="tr">Sushumna</span>
+        </button>
+        <button class="token" id="t-right" onclick="lean('r')">
+          <span class="nm">Right</span><span class="tr">Pingala · warm side</span>
+        </button>
+      </div>
+    </div>
+    <div class="tabs">
+      <div class="tab on"><span>✂</span>Fold</div>
+      <div class="tab"><span>☼</span>Today</div>
+      <div class="tab"><span>〜</span>Layers</div>
+      <div class="tab"><span>▤</span>Album</div>
+      <div class="tab"><span>⚙</span>Craft</div>
+    </div>
+  </div>
+  <div class="label">Design 20 · Papercut — a cardstock diorama with real depth; each log tilts the whole scene toward that side.</div>
+<script>
+  const NOTE={l:"leaned left — the cool paper side. rest a little.",
+              r:"leaned right — the warm paper side. good hour to make things.",
+              c:"perfectly flat — both sides open. a balanced sheet."};
+  const phone=document.getElementById("phone");
+  let t=null;
+  function lean(side){
+    clearTimeout(t);
+    phone.classList.remove("tilt-l","tilt-r","tilt-c");
+    void phone.offsetWidth;
+    phone.classList.add(side==="l"?"tilt-l":side==="r"?"tilt-r":"tilt-c");
+    const n=document.getElementById("note");
+    n.textContent=NOTE[side]; n.classList.add("show");
+    t=setTimeout(()=>{ phone.classList.remove("tilt-l","tilt-r","tilt-c"); n.classList.remove("show"); }, 3000);
+  }
+</script>
+</body>
+</html>

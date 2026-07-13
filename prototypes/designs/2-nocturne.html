@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AvirLog Design 2 — Nocturne</title>
+<style>
+  /* DIRECTION 2: "Nocturne" — celestial dark. Deep space blues, aurora
+     gradients, frosted-glass cards, soft glows. Mystical but disciplined —
+     closer to a modern astronomy app than neon cyberpunk. */
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    min-height:100vh; display:flex; align-items:center; justify-content:center;
+    background:#05060E; font-family:-apple-system,"Segoe UI",system-ui,sans-serif;
+    padding:24px;
+  }
+  .phone {
+    width:390px; height:800px; border-radius:44px; overflow:hidden; position:relative;
+    background:radial-gradient(120% 90% at 80% -10%, #1B2140 0%, #0A0D1E 45%, #05060E 100%);
+    box-shadow:0 30px 90px rgba(0,0,0,.8), inset 0 0 0 1px rgba(140,160,255,.12);
+    display:flex; flex-direction:column;
+  }
+  /* aurora ribbon */
+  .aurora {
+    position:absolute; inset:-30% -20%; pointer-events:none; opacity:.5; filter:blur(50px);
+    background:
+      radial-gradient(35% 22% at 30% 22%, rgba(90,140,255,.35), transparent 70%),
+      radial-gradient(30% 18% at 70% 12%, rgba(140,90,235,.3), transparent 70%),
+      radial-gradient(30% 16% at 55% 32%, rgba(60,190,180,.22), transparent 70%);
+    animation:drift 14s ease-in-out infinite alternate;
+  }
+  @keyframes drift { from{transform:translateX(-3%) rotate(-2deg)} to{transform:translateX(3%) rotate(2deg)} }
+  .stars { position:absolute; inset:0; pointer-events:none; }
+  .stars i { position:absolute; width:2px; height:2px; border-radius:50%; background:#CFD8FF; opacity:.7; animation:tw 3s ease-in-out infinite alternate; }
+  @keyframes tw { from{opacity:.15} to{opacity:.85} }
+
+  .screen { flex:1; padding:64px 24px 0; display:flex; flex-direction:column; position:relative; z-index:2; }
+  .date { font-size:11px; letter-spacing:3px; text-transform:uppercase; color:#7D89B8; }
+  h1 { font-size:28px; font-weight:600; letter-spacing:-.4px; color:#EDF0FF; margin:10px 0 4px; }
+  .sub { font-size:13.5px; color:#7D89B8; margin-bottom:24px; }
+
+  button { border:none; cursor:pointer; font-family:inherit; -webkit-tap-highlight-color:transparent; transition:transform .18s ease, box-shadow .35s ease; }
+  button:active { transform:scale(.96); }
+
+  .row { display:flex; gap:14px; flex:1; min-height:0; }
+  .orb {
+    flex:1; border-radius:28px; position:relative; overflow:hidden;
+    background:rgba(255,255,255,.045);
+    border:1px solid rgba(160,175,255,.16);
+    backdrop-filter:blur(12px);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px;
+    color:#EDF0FF;
+  }
+  .orb .moon {
+    width:74px; height:74px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center; font-size:30px;
+  }
+  #left .moon { background:radial-gradient(circle at 32% 30%, #9FD8FF, #3C6BD6 70%); box-shadow:0 0 44px rgba(90,140,255,.55); }
+  #right .moon { background:radial-gradient(circle at 32% 30%, #FFC08A, #D65A3C 70%); box-shadow:0 0 44px rgba(255,120,70,.5); }
+  .orb .name { font-size:19px; font-weight:600; }
+  .orb .trad { font-size:11px; letter-spacing:2px; text-transform:uppercase; color:#8C97C6; }
+  #left:hover { box-shadow:0 0 50px rgba(90,140,255,.25); }
+  #right:hover { box-shadow:0 0 50px rgba(255,120,70,.22); }
+
+  .both {
+    margin-top:14px; height:62px; border-radius:22px; width:100%;
+    background:linear-gradient(90deg, rgba(90,140,255,.14), rgba(200,160,255,.14), rgba(255,140,90,.14));
+    border:1px solid rgba(200,210,255,.2); color:#EDF0FF;
+    display:flex; align-items:center; justify-content:center; gap:10px; font-size:15px; font-weight:600;
+    backdrop-filter:blur(12px);
+  }
+  .both small { font-weight:400; font-size:11px; letter-spacing:2px; text-transform:uppercase; color:#8C97C6; }
+
+  .reading {
+    margin:20px 0; padding:16px 18px; border-radius:18px;
+    background:rgba(255,255,255,.04); border:1px solid rgba(160,175,255,.12);
+    font-size:13.5px; line-height:1.5; color:#B9C2E6;
+  }
+  .reading b { color:#EDF0FF; font-weight:600; }
+
+  .tabs { display:flex; padding:14px 10px 30px; background:rgba(5,6,14,.6); border-top:1px solid rgba(160,175,255,.1); position:relative; z-index:2; }
+  .tab { flex:1; text-align:center; font-size:10.5px; color:#5A6490; }
+  .tab.on { color:#CFD8FF; text-shadow:0 0 12px rgba(140,160,255,.8); }
+  .tab span { display:block; font-size:17px; margin-bottom:3px; }
+
+  .toast {
+    position:absolute; top:66px; left:50%; transform:translate(-50%,-16px); z-index:5;
+    background:rgba(20,26,54,.9); border:1px solid rgba(160,175,255,.3); color:#EDF0FF;
+    font-size:13px; padding:10px 18px; border-radius:999px; opacity:0; transition:all .35s ease; pointer-events:none;
+    box-shadow:0 0 30px rgba(90,140,255,.3);
+  }
+  .toast.show { opacity:1; transform:translate(-50%,0); }
+  .label { position:fixed; bottom:18px; width:100%; left:0; text-align:center; font-size:13px; color:#8A93B8; }
+</style>
+</head>
+<body>
+  <div class="phone">
+    <div class="aurora"></div>
+    <div class="stars" id="stars"></div>
+    <div class="toast" id="toast"></div>
+    <div class="screen">
+      <div class="date">Saturday · 11 July</div>
+      <h1>Tonight&rsquo;s current</h1>
+      <div class="sub">Which channel is flowing?</div>
+
+      <div class="row">
+        <button class="orb" id="left" onclick="log('Left · Ida')">
+          <span class="moon">☾</span>
+          <span class="name">Left</span>
+          <span class="trad">Ida · Lunar</span>
+        </button>
+        <button class="orb" id="right" onclick="log('Right · Pingala')">
+          <span class="moon">☀</span>
+          <span class="name">Right</span>
+          <span class="trad">Pingala · Solar</span>
+        </button>
+      </div>
+      <button class="both" onclick="log('Both · Sushumna')">
+        Both&nbsp; <small>Sushumna · Eclipse</small>
+      </button>
+
+      <div class="reading">
+        <b>Lunar hours favor rest.</b> Your left channel has led for the past
+        two readings — a good evening for winding down.
+      </div>
+    </div>
+    <div class="tabs">
+      <div class="tab on"><span>◉</span>Log</div>
+      <div class="tab"><span>☼</span>Today</div>
+      <div class="tab"><span>✦</span>Insights</div>
+      <div class="tab"><span>☰</span>History</div>
+      <div class="tab"><span>⚙</span>Settings</div>
+    </div>
+  </div>
+  <div class="label">Design 2 · Nocturne — celestial dark: aurora glow, frosted glass, lunar/solar orbs.</div>
+<script>
+  const stars=document.getElementById("stars");
+  for(let i=0;i<40;i++){
+    const s=document.createElement("i");
+    s.style.left=Math.random()*100+"%";
+    s.style.top=Math.random()*100+"%";
+    s.style.animationDelay=(Math.random()*3)+"s";
+    stars.appendChild(s);
+  }
+  let t=null;
+  function log(what){
+    const el=document.getElementById("toast");
+    el.textContent="Logged · "+what;
+    el.classList.add("show");
+    clearTimeout(t); t=setTimeout(()=>el.classList.remove("show"),1800);
+  }
+</script>
+</body>
+</html>

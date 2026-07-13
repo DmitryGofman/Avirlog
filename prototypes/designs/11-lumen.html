@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AvirLog Design 11 — Lumen</title>
+<style>
+  /* DIRECTION 11: "Lumen" — radical minimalism. One breathing orb of light,
+     no cards, no chrome. Tap the LEFT half of the screen, the RIGHT half,
+     or the orb itself for Both. The whole screen is the button. This is the
+     zero-friction extreme: log in literally half a second, eyes closed. */
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    min-height:100vh; display:flex; align-items:center; justify-content:center;
+    background:#0E0F11; padding:24px;
+    font-family:-apple-system,"SF Pro Text","Segoe UI",system-ui,sans-serif;
+  }
+  .phone {
+    width:390px; height:800px; border-radius:44px; overflow:hidden; position:relative;
+    background:#131417;
+    box-shadow:0 30px 90px rgba(0,0,0,.8), inset 0 0 0 1px rgba(255,255,255,.06);
+    user-select:none;
+  }
+
+  .date {
+    position:absolute; top:64px; width:100%; text-align:center; z-index:3;
+    font-size:12px; letter-spacing:3px; text-transform:uppercase; color:#54565C;
+  }
+  .question {
+    position:absolute; top:92px; width:100%; text-align:center; z-index:3;
+    font-size:19px; font-weight:500; color:#C9CBD1; letter-spacing:-.2px;
+  }
+
+  /* the orb */
+  .orb-wrap { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
+  .orb {
+    width:230px; height:230px; border-radius:50%;
+    background:radial-gradient(circle at 38% 34%, #3E4147, #1B1C20 70%);
+    box-shadow:0 0 90px 10px rgba(120,130,150,.10), inset 0 0 40px rgba(0,0,0,.6);
+    transition:background 1s ease, box-shadow 1s ease, transform 1s ease;
+    animation:breathe 5.4s ease-in-out infinite;
+    display:flex; align-items:center; justify-content:center;
+  }
+  @keyframes breathe { 0%,100%{transform:scale(1)} 50%{transform:scale(1.055)} }
+  .orb .word {
+    font-size:15px; letter-spacing:4px; text-transform:uppercase; color:#6E7178;
+    transition:color 1s ease;
+  }
+
+  .phone.left .orb {
+    background:radial-gradient(circle at 38% 34%, #9FD3C8, #22554B 72%);
+    box-shadow:0 0 130px 24px rgba(110,200,180,.25), inset 0 0 40px rgba(0,40,30,.5);
+    transform:translateX(-34px);
+  }
+  .phone.right .orb {
+    background:radial-gradient(circle at 38% 34%, #F0B08C, #6E3320 72%);
+    box-shadow:0 0 130px 24px rgba(235,150,100,.25), inset 0 0 40px rgba(50,15,5,.5);
+    transform:translateX(34px);
+  }
+  .phone.both .orb {
+    background:radial-gradient(circle at 38% 34%, #F2F1EC, #6E6F72 75%);
+    box-shadow:0 0 150px 30px rgba(240,240,235,.22), inset 0 0 40px rgba(40,40,40,.4);
+  }
+  .phone.left .word, .phone.right .word, .phone.both .word { color:rgba(255,255,255,.9); }
+
+  /* the two invisible half-screen targets */
+  .half { position:absolute; top:0; bottom:120px; width:50%; z-index:4; cursor:pointer; -webkit-tap-highlight-color:transparent; }
+  #tapL { left:0; } #tapR { right:0; }
+  .edge-hint {
+    position:absolute; top:50%; transform:translateY(-50%); z-index:3;
+    font-size:11px; letter-spacing:2.5px; text-transform:uppercase; color:#43454B;
+    writing-mode:vertical-rl;
+  }
+  .edge-hint.l { left:20px; transform:translateY(-50%) rotate(180deg); }
+  .edge-hint.r { right:20px; }
+
+  .foot {
+    position:absolute; bottom:0; left:0; right:0; z-index:5; padding:0 0 30px;
+    display:flex; flex-direction:column; align-items:center; gap:14px;
+  }
+  .hint { font-size:12px; color:#54565C; }
+  .hint b { color:#9A9DA5; font-weight:600; }
+  .dots { display:flex; gap:22px; }
+  .dot { width:5px; height:5px; border-radius:50%; background:#33353A; }
+  .dot.on { background:#C9CBD1; }
+  .label { position:fixed; bottom:18px; width:100%; left:0; text-align:center; font-size:13px; color:#7C7F87; }
+</style>
+</head>
+<body>
+  <div class="phone" id="phone">
+    <div class="date">Saturday · 11 July</div>
+    <div class="question" id="q">Where is the breath?</div>
+
+    <div class="orb-wrap"><div class="orb"><span class="word" id="word">listen</span></div></div>
+
+    <div class="edge-hint l">tap left side · ida</div>
+    <div class="edge-hint r">tap right side · pingala</div>
+
+    <div class="half" id="tapL" onclick="set('left')"></div>
+    <div class="half" id="tapR" onclick="set('right')"></div>
+
+    <div class="foot">
+      <div class="hint">tap a side to log · <b>tap the orb for both</b></div>
+      <div class="dots"><span class="dot on"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+    </div>
+  </div>
+  <div class="label">Design 11 · Lumen — zero chrome: the screen is the button, the orb is the state. Log eyes-closed.</div>
+<script>
+  const phone=document.getElementById("phone");
+  const word=document.getElementById("word");
+  const q=document.getElementById("q");
+  let t=null;
+  // the orb itself = Both (it sits above the halves via z-index of orb-wrap? keep simple: distance check)
+  document.querySelectorAll(".half").forEach(h=>h.addEventListener("click", e=>{
+    const r=phone.getBoundingClientRect();
+    const cx=e.clientX-r.left-195, cy=e.clientY-r.top-400;
+    if(Math.hypot(cx,cy)<115){ e.stopImmediatePropagation(); set("both"); }
+  }, true));
+  const TEXT={left:["left · ida","The cool current. Rest suits this hour."],
+              right:["right · pingala","The warm current. Move, do, decide."],
+              both:["both · sushumna","Balance. A rare and quiet door."]};
+  function set(state){
+    clearTimeout(t);
+    phone.classList.remove("left","right","both");
+    void phone.offsetWidth;
+    phone.classList.add(state);
+    word.textContent=TEXT[state][0];
+    q.textContent=TEXT[state][1];
+    t=setTimeout(()=>{
+      phone.classList.remove("left","right","both");
+      word.textContent="listen";
+      q.textContent="Where is the breath?";
+    }, 3000);
+  }
+  addEventListener("keydown",e=>{
+    if(e.key==="ArrowLeft")set("left");
+    else if(e.key==="ArrowRight")set("right");
+    else if(e.key==="ArrowDown"||e.key===" "){e.preventDefault();set("both");}
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AvirLog Design 4 — Sundara</title>
+<style>
+  /* DIRECTION 4: "Sundara" — warm, friendly, alive. Sunrise gradients,
+     big soft pills, bouncy motion, rounded everything. The joyful,
+     approachable take — closer to Headspace than to a journal. */
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    min-height:100vh; display:flex; align-items:center; justify-content:center;
+    background:#F3E3D3; padding:24px;
+    font-family:-apple-system,"Segoe UI",system-ui,sans-serif;
+  }
+  .phone {
+    width:390px; height:800px; border-radius:48px; overflow:hidden; position:relative;
+    background:linear-gradient(175deg,#FFD9A0 0%,#FFB88A 34%,#F49B79 62%,#C97BA4 100%);
+    box-shadow:0 30px 80px rgba(150,90,60,.45);
+    display:flex; flex-direction:column;
+  }
+  .sun {
+    position:absolute; top:84px; left:50%; transform:translateX(-50%);
+    width:170px; height:170px; border-radius:50%;
+    background:radial-gradient(circle at 50% 40%, #FFF3D6, #FFCF8E 65%, rgba(255,207,142,0));
+    filter:blur(2px); opacity:.9; animation:rise 6s ease-in-out infinite alternate;
+  }
+  @keyframes rise { from{transform:translate(-50%,6px) scale(1)} to{transform:translate(-50%,-6px) scale(1.05)} }
+  .hills { position:absolute; bottom:0; left:0; right:0; height:44%; pointer-events:none; }
+  .hills::before, .hills::after {
+    content:""; position:absolute; border-radius:50%;
+  }
+  .hills::before { width:130%; height:120%; left:-40%; bottom:-58%; background:rgba(140,70,110,.35); }
+  .hills::after  { width:140%; height:130%; right:-45%; bottom:-70%; background:rgba(110,55,95,.4); }
+
+  .screen { flex:1; padding:60px 24px 0; display:flex; flex-direction:column; position:relative; z-index:2; }
+  .hello { font-size:15px; color:rgba(70,30,40,.75); font-weight:600; }
+  h1 { font-size:32px; font-weight:800; letter-spacing:-.6px; color:#4A1F2E; margin:6px 0 2px; }
+  .sub { font-size:14px; color:rgba(70,30,40,.65); margin-bottom:auto; }
+
+  .cards { display:flex; gap:14px; margin-top:auto; }
+  button {
+    border:none; cursor:pointer; font-family:inherit; -webkit-tap-highlight-color:transparent;
+    transition:transform .25s cubic-bezier(.34,1.56,.64,1), box-shadow .3s ease;
+  }
+  button:active { transform:scale(.92); }
+  .puff {
+    flex:1; height:170px; border-radius:34px; background:rgba(255,255,255,.92);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px;
+    box-shadow:0 14px 34px rgba(120,50,60,.25);
+  }
+  .puff:hover { transform:translateY(-6px); }
+  .puff .face { font-size:40px; }
+  .puff .name { font-size:19px; font-weight:800; color:#4A1F2E; }
+  .puff .vibe { font-size:12px; font-weight:600; }
+  #left .vibe  { color:#3E7E9C; }
+  #right .vibe { color:#D96C3F; }
+
+  .both {
+    margin:14px 0 0; height:64px; border-radius:999px; width:100%;
+    background:rgba(74,31,46,.92); color:#FFE9D6;
+    display:flex; align-items:center; justify-content:center; gap:10px;
+    font-size:16px; font-weight:800; box-shadow:0 14px 34px rgba(74,31,46,.35);
+  }
+  .both small { font-weight:600; font-size:12px; opacity:.75; }
+  .both:hover { transform:translateY(-4px); }
+
+  .streak {
+    margin:18px 0 20px; display:flex; align-items:center; gap:10px;
+    background:rgba(255,255,255,.35); border-radius:999px; padding:10px 16px;
+    backdrop-filter:blur(6px);
+  }
+  .streak .fire { font-size:20px; }
+  .streak .txt { font-size:13px; font-weight:700; color:#4A1F2E; }
+  .streak .txt small { display:block; font-weight:500; color:rgba(70,30,40,.65); }
+
+  .tabs {
+    display:flex; padding:12px 14px 30px; gap:6px; position:relative; z-index:2;
+    background:rgba(60,25,45,.25); backdrop-filter:blur(10px);
+  }
+  .tab {
+    flex:1; text-align:center; font-size:10px; font-weight:700; color:rgba(255,240,225,.6);
+    padding:8px 0; border-radius:16px;
+  }
+  .tab.on { background:rgba(255,255,255,.25); color:#FFF3E6; }
+  .tab span { display:block; font-size:17px; margin-bottom:2px; }
+
+  .confetti { position:absolute; pointer-events:none; font-size:22px; z-index:6; animation:fall 1.4s ease-in forwards; }
+  @keyframes fall {
+    0%   { transform:translateY(0) rotate(0deg) scale(1); opacity:1; }
+    100% { transform:translateY(300px) rotate(240deg) scale(.6); opacity:0; }
+  }
+  .label { position:fixed; bottom:18px; width:100%; left:0; text-align:center; font-size:13px; color:#8A5A4A; }
+</style>
+</head>
+<body>
+  <div class="phone" id="phone">
+    <div class="sun"></div>
+    <div class="hills"></div>
+    <div class="screen">
+      <div class="hello">Good afternoon, Dmitry 👋</div>
+      <h1>Check your breath</h1>
+      <div class="sub">Cover one nostril, feel the flow, tap what you notice.</div>
+
+      <div class="cards">
+        <button class="puff" id="left" onclick="log(this,'🌊')">
+          <span class="face">🌙</span>
+          <span class="name">Left</span>
+          <span class="vibe">calm &amp; cool</span>
+        </button>
+        <button class="puff" id="right" onclick="log(this,'🔥')">
+          <span class="face">☀️</span>
+          <span class="name">Right</span>
+          <span class="vibe">energized</span>
+        </button>
+      </div>
+      <button class="both" onclick="log(this,'✨')">
+        Both <small>· perfectly balanced</small>
+      </button>
+
+      <div class="streak">
+        <span class="fire">🔥</span>
+        <div class="txt">6-day streak!<small>You've logged 7 times today</small></div>
+      </div>
+    </div>
+    <div class="tabs">
+      <div class="tab on"><span>➕</span>Log</div>
+      <div class="tab"><span>🌅</span>Today</div>
+      <div class="tab"><span>📈</span>Insights</div>
+      <div class="tab"><span>🗓️</span>History</div>
+      <div class="tab"><span>⚙️</span>Settings</div>
+    </div>
+  </div>
+  <div class="label">Design 4 · Sundara — sunrise warmth: friendly pills, playful motion, gentle gamification.</div>
+<script>
+  function log(btn, emoji){
+    const phone=document.getElementById("phone");
+    const r=btn.getBoundingClientRect(), pr=phone.getBoundingClientRect();
+    for(let i=0;i<7;i++){
+      const c=document.createElement("div");
+      c.className="confetti";
+      c.textContent=emoji;
+      c.style.left=(r.left-pr.left + r.width*Math.random())+"px";
+      c.style.top=(r.top-pr.top - 6)+"px";
+      c.style.animationDelay=(Math.random()*.25)+"s";
+      phone.appendChild(c);
+      setTimeout(()=>c.remove(),1800);
+    }
+  }
+</script>
+</body>
+</html>

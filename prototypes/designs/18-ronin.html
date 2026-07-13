@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AvirLog Design 18 — Rōnin</title>
+<style>
+  /* DIRECTION 18: "Rōnin" — flat cinematic landscape in the Samurai Jack
+     lineage, but serene instead of severe. Bold flat color fields, no
+     outlines, layered silhouettes, one enormous sun. Logging recolors the
+     entire world: left → moonlit night, right → burning dusk, both → pale
+     dawn. The whole screen is scenography. */
+  * { margin:0; padding:0; box-sizing:border-box; }
+  :root {
+    /* dusk (default) */
+    --sky1:#E8896A; --sky2:#D96A56; --sun:#F5E6C4;
+    --far:#A6504A; --mid:#7E3A44; --near:#4A2438; --ink:#2E1626;
+    --text:#FFF3E4;
+  }
+  .phone.night {
+    --sky1:#25355C; --sky2:#1B2745; --sun:#E9EDF5;
+    --far:#2E4068; --mid:#232F52; --near:#161F3A; --ink:#0E1428;
+  }
+  .phone.dawn {
+    --sky1:#C9DCD9; --sky2:#EAD9C5; --sun:#F7EFE0;
+    --far:#9FB8AE; --mid:#7E9C94; --near:#54746E; --ink:#3A5652;
+  }
+  * { transition-property:background-color,background,fill,color; }
+  body {
+    min-height:100vh; display:flex; align-items:center; justify-content:center;
+    background:#1B1418; padding:24px;
+    font-family:-apple-system,"Segoe UI",system-ui,sans-serif;
+  }
+  .phone {
+    width:390px; height:800px; border-radius:44px; overflow:hidden; position:relative;
+    background:linear-gradient(180deg,var(--sky1),var(--sky2) 70%);
+    box-shadow:0 30px 90px rgba(0,0,0,.75);
+    display:flex; flex-direction:column;
+    transition:background 1.6s ease;
+  }
+
+  /* the great sun */
+  .sun {
+    position:absolute; top:14%; left:50%; transform:translateX(-50%);
+    width:190px; height:190px; border-radius:50%;
+    background:var(--sun); transition:background 1.6s ease;
+    box-shadow:0 0 0 14px rgba(255,255,255,.05), 0 0 0 34px rgba(255,255,255,.04);
+  }
+  /* flat layered ranges */
+  .range { position:absolute; left:0; right:0; pointer-events:none; transition:background 1.6s ease; }
+  .far  { top:44%; height:60%; background:var(--far);
+          clip-path:polygon(0 32%, 12% 20%, 26% 30%, 40% 12%, 55% 28%, 70% 8%, 84% 26%, 100% 16%, 100% 100%, 0 100%); }
+  .mid  { top:56%; height:50%; background:var(--mid);
+          clip-path:polygon(0 40%, 16% 24%, 32% 38%, 50% 18%, 66% 36%, 82% 22%, 100% 34%, 100% 100%, 0 100%); }
+  .near { top:70%; height:36%; background:var(--near);
+          clip-path:polygon(0 30%, 20% 46%, 42% 26%, 60% 44%, 78% 30%, 100% 42%, 100% 100%, 0 100%); }
+
+  /* lone pine + walking figure silhouettes */
+  .setpiece { position:absolute; pointer-events:none; }
+  .pine { bottom:22%; right:9%; }
+  .pine svg { fill:var(--ink); transition:fill 1.6s ease; }
+  .walker { bottom:20.5%; left:14%; }
+  .walker svg { fill:var(--ink); transition:fill 1.6s ease; }
+
+  /* drifting petals */
+  .petal {
+    position:absolute; width:9px; height:7px; border-radius:60% 40% 55% 45%;
+    background:rgba(255,240,235,.85); pointer-events:none; opacity:0;
+  }
+  .petal.fly { animation:petal 4.5s linear forwards; }
+  @keyframes petal {
+    0% { opacity:0; transform:translate(0,0) rotate(0); }
+    10% { opacity:.9; }
+    100% { opacity:0; transform:translate(-230px,180px) rotate(340deg); }
+  }
+
+  .screen { flex:1; display:flex; flex-direction:column; padding:58px 26px 0; position:relative; z-index:2; }
+  .ep { font-size:10.5px; letter-spacing:4px; text-transform:uppercase; color:var(--text); opacity:.75; transition:color 1.6s ease; }
+  h1 { font-size:30px; font-weight:200; letter-spacing:1px; color:var(--text); margin:12px 0 2px; transition:color 1.6s ease; }
+  h1 b { font-weight:700; }
+  .sub { font-size:13px; color:var(--text); opacity:.75; font-style:italic; transition:color 1.6s ease; }
+
+  .caption {
+    position:absolute; left:0; right:0; bottom:214px; text-align:center; pointer-events:none;
+    color:var(--text); font-size:14px; letter-spacing:.5px; opacity:0; transition:opacity .9s ease, color 1.6s ease;
+    font-weight:300;
+  }
+  .caption.show { opacity:.95; }
+
+  /* minimal blade-line buttons */
+  .blades { margin-top:auto; padding-bottom:16px; display:flex; flex-direction:column; gap:10px; }
+  button {
+    border:none; cursor:pointer; font-family:inherit; -webkit-tap-highlight-color:transparent;
+    background:rgba(0,0,0,.28); color:var(--text);
+    backdrop-filter:blur(6px);
+    height:56px; border-radius:12px; overflow:hidden; position:relative;
+    display:flex; align-items:center; justify-content:space-between; padding:0 20px;
+    transition:transform .15s ease, background .3s ease, color 1.6s ease;
+    font-size:15px; letter-spacing:1px;
+  }
+  button:active { transform:scale(.97); }
+  button .tr { font-size:10px; letter-spacing:2.5px; text-transform:uppercase; opacity:.65; }
+  .duo { display:flex; gap:10px; }
+  .duo button { flex:1; }
+  /* clean color slash on press */
+  button::after {
+    content:""; position:absolute; top:0; bottom:0; left:-40%; width:26%;
+    background:rgba(255,255,255,.35); transform:skewX(-24deg);
+  }
+  button.slash::after { animation:slash .55s ease-out; }
+  @keyframes slash { to { left:120%; } }
+
+  .tabs { display:flex; padding:12px 8px 28px; background:rgba(0,0,0,.3); backdrop-filter:blur(8px); position:relative; z-index:2; }
+  .tab { flex:1; text-align:center; font-size:9.5px; letter-spacing:2px; color:var(--text); opacity:.5; text-transform:uppercase; transition:color 1.6s ease; }
+  .tab.on { opacity:1; }
+  .tab span { display:block; font-size:15px; margin-bottom:3px; }
+  .label { position:fixed; bottom:18px; width:100%; left:0; text-align:center; font-size:13px; color:#B8A8A0; }
+</style>
+</head>
+<body>
+  <div class="phone" id="phone">
+    <div class="sun"></div>
+    <div class="range far"></div>
+    <div class="range mid"></div>
+    <div class="range near"></div>
+
+    <div class="setpiece pine">
+      <svg width="90" height="120" viewBox="0 0 90 120">
+        <path d="M44 118 L46 118 L46 66 L44 66 Z"/>
+        <path d="M45 8 L20 40 L34 38 L12 62 L30 60 L8 84 L45 74 L82 84 L60 60 L78 62 L56 38 L70 40 Z"/>
+      </svg>
+    </div>
+    <div class="setpiece walker">
+      <svg width="34" height="52" viewBox="0 0 34 52">
+        <circle cx="17" cy="7" r="5"/>
+        <path d="M13 13 L21 13 L24 34 L20 34 L22 50 L18 50 L16 36 L14 50 L10 50 L12 34 L8 34 Z"/>
+        <path d="M21 15 L32 26 L30 29 L20 20 Z"/>
+      </svg>
+    </div>
+
+    <div class="caption" id="caption"></div>
+
+    <div class="screen">
+      <div class="ep">Chapter VII · The Long Road</div>
+      <h1>The traveler <b>pauses</b></h1>
+      <div class="sub">…and listens to the breath before walking on.</div>
+
+      <div class="blades">
+        <div class="duo">
+          <button onclick="scene(this,'night')">Left <span class="tr">Ida · night wind</span></button>
+          <button onclick="scene(this,'dusk')">Right <span class="tr">Pingala · dusk fire</span></button>
+        </div>
+        <button onclick="scene(this,'dawn')">Both <span class="tr">Sushumna · first light</span></button>
+      </div>
+    </div>
+    <div class="tabs">
+      <div class="tab on"><span>⛩</span>Road</div>
+      <div class="tab"><span>◐</span>Today</div>
+      <div class="tab"><span>△</span>Ranges</div>
+      <div class="tab"><span>≡</span>Chronicle</div>
+      <div class="tab"><span>◦</span>Pack</div>
+    </div>
+  </div>
+  <div class="label">Design 18 · Rōnin — flat cinematic scenography: each log recolors the whole world (night · dusk · dawn).</div>
+<script>
+  const CAPTION={night:"the moon keeps the cool watch — walk gently",
+                 dusk:"the sun burns low — finish what the day began",
+                 dawn:"both winds meet — the road is quiet and new"};
+  const phone=document.getElementById("phone");
+  let t=null;
+  function scene(btn, mood){
+    btn.classList.remove("slash"); void btn.offsetWidth; btn.classList.add("slash");
+    clearTimeout(t);
+    phone.classList.remove("night","dawn");
+    if(mood==="night") phone.classList.add("night");
+    if(mood==="dawn") phone.classList.add("dawn");
+    // petals drift on any log
+    for(let i=0;i<6;i++){
+      const p=document.createElement("div");
+      p.className="petal";
+      p.style.right=(20+Math.random()*40)+"px";
+      p.style.top=(120+Math.random()*160)+"px";
+      p.style.animationDelay=(Math.random()*.8)+"s";
+      phone.appendChild(p);
+      requestAnimationFrame(()=>p.classList.add("fly"));
+      setTimeout(()=>p.remove(),5600);
+    }
+    const c=document.getElementById("caption");
+    c.textContent=CAPTION[mood]; c.classList.add("show");
+    t=setTimeout(()=>{ phone.classList.remove("night","dawn"); c.classList.remove("show"); }, 3600);
+  }
+</script>
+</body>
+</html>

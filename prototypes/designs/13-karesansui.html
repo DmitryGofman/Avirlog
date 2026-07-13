@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AvirLog Design 13 — Karesansui</title>
+<style>
+  /* DIRECTION 13: "Karesansui" — the raked sand garden. The screen is sand;
+     logging rakes a ripple around a stone. Even quieter than Sumi-e:
+     no words louder than a whisper, interaction as gardening. */
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    min-height:100vh; display:flex; align-items:center; justify-content:center;
+    background:#A9A294; padding:24px;
+    font-family:-apple-system,"Segoe UI",system-ui,sans-serif;
+  }
+  .phone {
+    width:390px; height:800px; border-radius:40px; overflow:hidden; position:relative;
+    background:
+      repeating-linear-gradient(0deg, rgba(120,110,92,.06) 0 2px, transparent 2px 9px),
+      linear-gradient(180deg,#EFE9DA,#E6DEC9);
+    box-shadow:0 30px 75px rgba(60,54,40,.5);
+    display:flex; flex-direction:column;
+  }
+
+  .screen { flex:1; display:flex; flex-direction:column; padding:64px 26px 0; position:relative; z-index:2; }
+  .date { text-align:center; font-size:10.5px; letter-spacing:4px; text-transform:uppercase; color:#A79C82; }
+  h1 { text-align:center; font-family:Georgia,serif; font-weight:400; font-size:21px; color:#4A4436; margin:14px 0 2px; letter-spacing:.5px; }
+  .sub { text-align:center; font-size:12px; color:#A79C82; font-style:italic; }
+
+  /* the garden */
+  .garden { flex:1; position:relative; margin:8px -26px 0; }
+  button { border:none; background:none; cursor:pointer; font-family:inherit; -webkit-tap-highlight-color:transparent; }
+
+  .stone-btn {
+    position:absolute; width:150px; height:170px;
+    display:flex; flex-direction:column; align-items:center; gap:12px;
+    transition:transform .2s ease;
+  }
+  .stone-btn:active { transform:scale(.96); }
+  #stone-left  { left:20px;  top:16%; }
+  #stone-right { right:20px; top:42%; }
+  #stone-both  { left:50%; transform:translateX(-50%); bottom:4%; }
+  #stone-both:active { transform:translateX(-50%) scale(.96); }
+
+  .stone { position:relative; }
+  .stone svg { display:block; }
+  /* concentric raked rings around each stone */
+  .rings { position:absolute; inset:-46px; pointer-events:none; }
+  .rings circle { fill:none; stroke:#C9BFA4; stroke-width:1.5; opacity:.9; }
+  .ripple { fill:none; stroke:#8F8468; stroke-width:1.5; opacity:0; }
+  .ripple.go { animation:rake 2.2s ease-out forwards; }
+  @keyframes rake {
+    0% { opacity:.8; transform:scale(.55); }
+    100% { opacity:0; transform:scale(1.5); }
+  }
+  .stone-name { font-size:12.5px; letter-spacing:3px; text-transform:uppercase; color:#6E654F; }
+  .stone-sub { font-size:10px; letter-spacing:2px; color:#A79C82; margin-top:-8px; }
+
+  .whisper {
+    position:absolute; left:0; right:0; top:2%; text-align:center; pointer-events:none;
+    font-family:Georgia,serif; font-style:italic; font-size:13px; color:#8F8468;
+    opacity:0; transition:opacity 1s ease;
+  }
+  .whisper.show { opacity:1; }
+
+  .tabs { display:flex; border-top:1px solid #D9D0B8; background:rgba(239,233,218,.9); padding:12px 8px 28px; position:relative; z-index:2; }
+  .tab { flex:1; text-align:center; font-size:9.5px; letter-spacing:2px; color:#B0A78D; text-transform:uppercase; }
+  .tab.on { color:#4A4436; }
+  .tab span { display:block; font-size:15px; margin-bottom:4px; }
+  .label { position:fixed; bottom:18px; width:100%; left:0; text-align:center; font-size:13px; color:#5E5744; }
+</style>
+</head>
+<body>
+  <div class="phone">
+    <div class="screen">
+      <div class="date">11 July</div>
+      <h1>Tend the garden</h1>
+      <div class="sub">touch the stone where breath gathers</div>
+
+      <div class="garden">
+        <div class="whisper" id="whisper"></div>
+
+        <button class="stone-btn" id="stone-left" onclick="rake(this,'left')">
+          <div class="stone">
+            <svg class="rings" viewBox="0 0 200 200">
+              <circle cx="100" cy="100" r="62"/>
+              <circle cx="100" cy="100" r="76"/>
+              <circle cx="100" cy="100" r="90"/>
+              <circle class="ripple" cx="100" cy="100" r="70"/>
+            </svg>
+            <svg width="108" height="84" viewBox="0 0 108 84">
+              <path d="M14 66 Q6 42 26 26 Q48 8 74 16 Q98 24 100 46 Q102 64 84 72 Q50 84 14 66 Z"
+                fill="#7E8B7A" stroke="#5C6858" stroke-width="2"/>
+              <path d="M30 34 Q50 22 72 28" fill="none" stroke="#98A594" stroke-width="2" opacity=".7"/>
+            </svg>
+          </div>
+          <span class="stone-name">Left</span>
+          <span class="stone-sub">ida · moon stone</span>
+        </button>
+
+        <button class="stone-btn" id="stone-right" onclick="rake(this,'right')">
+          <div class="stone">
+            <svg class="rings" viewBox="0 0 200 200">
+              <circle cx="100" cy="100" r="62"/>
+              <circle cx="100" cy="100" r="76"/>
+              <circle cx="100" cy="100" r="90"/>
+              <circle class="ripple" cx="100" cy="100" r="70"/>
+            </svg>
+            <svg width="104" height="88" viewBox="0 0 104 88">
+              <path d="M20 70 Q4 48 18 28 Q34 6 62 10 Q92 14 98 40 Q102 62 82 74 Q50 90 20 70 Z"
+                fill="#A98D74" stroke="#846952" stroke-width="2"/>
+              <path d="M28 40 Q52 26 78 34" fill="none" stroke="#C2AA92" stroke-width="2" opacity=".7"/>
+            </svg>
+          </div>
+          <span class="stone-name">Right</span>
+          <span class="stone-sub">pingala · sun stone</span>
+        </button>
+
+        <button class="stone-btn" id="stone-both" onclick="rake(this,'both')">
+          <div class="stone">
+            <svg class="rings" viewBox="0 0 200 200">
+              <circle cx="100" cy="100" r="62"/>
+              <circle cx="100" cy="100" r="76"/>
+              <circle class="ripple" cx="100" cy="100" r="70"/>
+            </svg>
+            <svg width="88" height="72" viewBox="0 0 88 72">
+              <path d="M16 56 Q6 36 22 20 Q40 4 62 12 Q84 20 82 40 Q80 58 60 64 Q36 70 16 56 Z"
+                fill="#9C9C94" stroke="#75756D" stroke-width="2"/>
+            </svg>
+          </div>
+          <span class="stone-name">Both</span>
+          <span class="stone-sub">sushumna · still stone</span>
+        </button>
+      </div>
+    </div>
+    <div class="tabs">
+      <div class="tab on"><span>◌</span>Garden</div>
+      <div class="tab"><span>☼</span>Today</div>
+      <div class="tab"><span>≀</span>Patterns</div>
+      <div class="tab"><span>▤</span>Seasons</div>
+      <div class="tab"><span>⚙</span>Tools</div>
+    </div>
+  </div>
+  <div class="label">Design 13 · Karesansui — a raked sand garden: each log rakes a fresh ripple around its stone.</div>
+<script>
+  const WHISPER={left:"the moon stone answers — a cool hour",
+                 right:"the sun stone answers — an hour for doing",
+                 both:"the garden is still — rare, and kind"};
+  let t=null;
+  function rake(btn,state){
+    const r=btn.querySelector(".ripple");
+    r.classList.remove("go"); void r.getBoundingClientRect(); r.classList.add("go");
+    const w=document.getElementById("whisper");
+    w.textContent=WHISPER[state];
+    w.classList.add("show");
+    clearTimeout(t); t=setTimeout(()=>w.classList.remove("show"), 2600);
+  }
+</script>
+</body>
+</html>

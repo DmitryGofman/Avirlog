@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AvirLog Design 3 — Instrument</title>
+<style>
+  /* DIRECTION 3: "Instrument" — Swiss-grid precision tool. Monochrome,
+     hairline rules, tabular numerals, square corners, zero decoration.
+     The app as a scientific measurement device for your breath data. */
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    min-height:100vh; display:flex; align-items:center; justify-content:center;
+    background:#C8C8C6; padding:24px;
+    font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  }
+  .phone {
+    width:390px; height:800px; background:#FAFAF8; overflow:hidden;
+    box-shadow:0 30px 70px rgba(0,0,0,.4); display:flex; flex-direction:column;
+    border:1px solid #111;
+  }
+  .screen { flex:1; display:flex; flex-direction:column; }
+
+  .masthead {
+    padding:58px 20px 14px; border-bottom:1px solid #111;
+    display:flex; justify-content:space-between; align-items:flex-end;
+  }
+  .masthead .app { font-size:13px; font-weight:700; letter-spacing:1px; }
+  .masthead .meta { font-size:10px; color:#666; text-align:right; line-height:1.5; }
+
+  .readout {
+    display:flex; border-bottom:1px solid #111;
+  }
+  .cell { flex:1; padding:12px 14px; border-right:1px solid #111; }
+  .cell:last-child { border-right:none; }
+  .cell .k { font-size:9px; letter-spacing:1.5px; color:#666; text-transform:uppercase; }
+  .cell .v { font-size:20px; font-weight:700; margin-top:2px; font-variant-numeric:tabular-nums; }
+
+  .prompt { padding:26px 20px 10px; }
+  .prompt h1 { font-family:Helvetica,Arial,sans-serif; font-size:26px; font-weight:700; letter-spacing:-.8px; text-transform:uppercase; color:#111; }
+  .prompt p { font-size:11px; color:#666; margin-top:6px; }
+
+  .grid { flex:1; display:flex; flex-direction:column; padding:14px 20px 20px; gap:0; min-height:0; }
+  button {
+    border:1px solid #111; background:#FAFAF8; cursor:pointer; font-family:inherit;
+    -webkit-tap-highlight-color:transparent; transition:background .12s ease, color .12s ease;
+    text-align:left;
+  }
+  button:active { background:#111 !important; color:#FAFAF8 !important; }
+
+  .pair { flex:1; display:flex; min-height:0; }
+  .nostril { flex:1; padding:18px; display:flex; flex-direction:column; justify-content:space-between; position:relative; }
+  .nostril:first-child { border-right:none; }
+  .nostril .idx { font-size:10px; color:#666; }
+  .nostril .name { font-family:Helvetica,Arial,sans-serif; font-size:34px; font-weight:700; letter-spacing:-1px; text-transform:uppercase; }
+  .nostril .bar { height:4px; background:#111; width:0%; transition:width .6s ease; }
+  #left:hover .bar { width:60%; }
+  #right:hover .bar { width:60%; }
+  .nostril .trad { font-size:9.5px; letter-spacing:1.5px; text-transform:uppercase; color:#666; }
+
+  .both { border-top:none; height:58px; padding:0 18px; display:flex; align-items:center; justify-content:space-between; }
+  .both .name { font-family:Helvetica,Arial,sans-serif; font-size:16px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; }
+  .both .trad { font-size:9.5px; letter-spacing:1.5px; color:#666; text-transform:uppercase; }
+
+  .ticker {
+    border-top:1px solid #111; padding:10px 20px; font-size:10px; color:#444;
+    display:flex; justify-content:space-between; font-variant-numeric:tabular-nums;
+  }
+
+  .tabs { display:flex; border-top:1px solid #111; background:#FAFAF8; }
+  .tab {
+    flex:1; text-align:center; padding:14px 0 30px; font-size:9px; letter-spacing:1.5px;
+    text-transform:uppercase; color:#999; border-right:1px solid #E0E0DC;
+  }
+  .tab:last-child { border-right:none; }
+  .tab.on { color:#111; font-weight:700; background:#F0F0EC; }
+
+  .flash {
+    position:fixed; inset:0; background:#111; opacity:0; pointer-events:none; transition:opacity .1s;
+  }
+  .label { position:fixed; bottom:18px; width:100%; left:0; text-align:center; font-size:12px; color:#555; font-family:Helvetica,Arial,sans-serif; }
+</style>
+</head>
+<body>
+  <div class="flash" id="flash"></div>
+  <div class="phone">
+    <div class="screen">
+      <div class="masthead">
+        <div class="app">AVIRLOG/01</div>
+        <div class="meta">SAT 11 JUL<br><span id="clock">14:32:08</span></div>
+      </div>
+      <div class="readout">
+        <div class="cell"><div class="k">Today</div><div class="v" id="count">07</div></div>
+        <div class="cell"><div class="k">Dominant</div><div class="v">L 58%</div></div>
+        <div class="cell"><div class="k">Last</div><div class="v">R -42m</div></div>
+      </div>
+      <div class="prompt">
+        <h1>Record state</h1>
+        <p>SELECT ACTIVE CHANNEL // ONE KEYPRESS = ONE SAMPLE</p>
+      </div>
+      <div class="grid">
+        <div class="pair">
+          <button class="nostril" id="left" onclick="log('L')">
+            <span class="idx">01</span>
+            <span class="name">Left</span>
+            <div>
+              <div class="bar"></div>
+              <span class="trad">IDA / PARASYMPATHETIC</span>
+            </div>
+          </button>
+          <button class="nostril" id="right" onclick="log('R')">
+            <span class="idx">02</span>
+            <span class="name">Right</span>
+            <div>
+              <div class="bar"></div>
+              <span class="trad">PINGALA / SYMPATHETIC</span>
+            </div>
+          </button>
+        </div>
+        <button class="both" onclick="log('B')">
+          <span class="name">Both</span>
+          <span class="trad">03 · SUSHUMNA / BALANCED</span>
+        </button>
+      </div>
+      <div class="ticker">
+        <span id="log-line">14:32 R · 13:05 L · 11:48 L · 10:36 B</span>
+        <span>▮</span>
+      </div>
+      <div class="tabs">
+        <div class="tab on">Log</div>
+        <div class="tab">Today</div>
+        <div class="tab">Insight</div>
+        <div class="tab">History</div>
+        <div class="tab">Config</div>
+      </div>
+    </div>
+  </div>
+  <div class="label">Design 3 · Instrument — Swiss monochrome precision: hairlines, mono data, zero ornament.</div>
+<script>
+  // live clock
+  setInterval(()=> {
+    document.getElementById("clock").textContent = new Date().toTimeString().slice(0,8);
+  }, 1000);
+
+  let n=7;
+  function log(ch){
+    n++;
+    document.getElementById("count").textContent = String(n).padStart(2,"0");
+    const t = new Date().toTimeString().slice(0,5);
+    const line = document.getElementById("log-line");
+    line.textContent = `${t} ${ch} · ` + line.textContent;
+    // camera-shutter flash
+    const f=document.getElementById("flash");
+    f.style.opacity=.9;
+    setTimeout(()=>f.style.opacity=0, 90);
+  }
+</script>
+</body>
+</html>

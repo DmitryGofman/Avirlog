@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AvirLog Design 6 — Terminal</title>
+<style>
+  /* DIRECTION 6: "Terminal" — green phosphor CRT. The breath log as a
+     command-line session: scanlines, blinking cursor, ASCII charts.
+     For the user who lives in a shell. */
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    min-height:100vh; display:flex; align-items:center; justify-content:center;
+    background:#1A1D1A; padding:24px;
+    font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  }
+  .phone {
+    width:390px; height:800px; border-radius:24px; overflow:hidden; position:relative;
+    background:#050A05;
+    box-shadow:0 30px 80px rgba(0,0,0,.8), inset 0 0 0 2px #101810, inset 0 0 60px rgba(40,255,90,.05);
+    display:flex; flex-direction:column;
+  }
+  /* CRT scanlines + vignette */
+  .phone::before {
+    content:""; position:absolute; inset:0; z-index:5; pointer-events:none;
+    background:repeating-linear-gradient(0deg, rgba(0,0,0,.22) 0 1px, transparent 1px 3px);
+  }
+  .phone::after {
+    content:""; position:absolute; inset:0; z-index:5; pointer-events:none;
+    background:radial-gradient(110% 110% at 50% 50%, transparent 60%, rgba(0,0,0,.55));
+  }
+
+  .screen { flex:1; padding:56px 20px 0; display:flex; flex-direction:column; color:#39FF6E; text-shadow:0 0 6px rgba(57,255,110,.5); font-size:13px; line-height:1.65; position:relative; z-index:2; }
+
+  .dim { color:#1E8C42; text-shadow:0 0 4px rgba(30,140,66,.4); }
+  .head { margin-bottom:14px; }
+  .bar { color:#1E8C42; }
+
+  .out { white-space:pre; font-size:12.5px; margin-bottom:14px; }
+
+  .prompt-line { margin-bottom:10px; }
+  .cursor { display:inline-block; width:8px; height:14px; background:#39FF6E; vertical-align:-2px; animation:blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity:0; } }
+
+  .menu { display:flex; flex-direction:column; gap:10px; margin:4px 0 14px; }
+  button {
+    font-family:inherit; font-size:14px; text-align:left; cursor:pointer;
+    background:transparent; color:#39FF6E; text-shadow:0 0 6px rgba(57,255,110,.5);
+    border:1px solid #1E8C42; padding:14px 16px; border-radius:2px;
+    transition:background .1s ease; -webkit-tap-highlight-color:transparent;
+  }
+  button:hover { background:rgba(57,255,110,.08); }
+  button:active, button.hit { background:#39FF6E; color:#050A05; text-shadow:none; }
+  button .key { display:inline-block; border:1px solid currentColor; padding:0 6px; margin-right:12px; border-radius:2px; font-size:12px; }
+  button small { float:right; color:#1E8C42; font-size:11px; margin-top:2px; }
+  button:active small, button.hit small { color:#050A05; }
+
+  .both-row { display:flex; gap:10px; }
+  .both-row button { flex:1; }
+
+  .log { flex:1; overflow:hidden; font-size:12px; color:#2AAE55; }
+  .log .new { color:#8CFFB0; }
+
+  .tabs {
+    display:flex; padding:10px 12px 26px; gap:4px; border-top:1px solid #103818;
+    position:relative; z-index:2;
+  }
+  .tab { flex:1; text-align:center; font-size:10px; color:#1E8C42; padding:6px 0; letter-spacing:1px; }
+  .tab.on { color:#050A05; background:#39FF6E; border-radius:2px; text-shadow:none; }
+  .label { position:fixed; bottom:18px; width:100%; left:0; text-align:center; font-size:13px; color:#7A857A; font-family:-apple-system,system-ui,sans-serif; }
+</style>
+</head>
+<body>
+  <div class="phone">
+    <div class="screen">
+      <div class="head">
+        <div>AVIRLOG v1.0.0 <span class="dim">— breath monitor daemon</span></div>
+        <div class="dim">sat jul 11 14:32:08 · uptime 6d · 7 samples today</div>
+        <div class="bar">────────────────────────────────────</div>
+      </div>
+
+      <div class="out"><span class="dim">$ avirlog stats --today</span>
+ L ██████████████░░░░░░░░  58%
+ R ███████░░░░░░░░░░░░░░░  29%
+ B ███░░░░░░░░░░░░░░░░░░░  13%</div>
+
+      <div class="prompt-line"><span class="dim">$</span> avirlog log <span class="cursor"></span></div>
+
+      <div class="menu">
+        <button onclick="log(this,'left','ida')"><span class="key">←</span>left <small>ida / cooling</small></button>
+        <button onclick="log(this,'right','pingala')"><span class="key">→</span>right <small>pingala / heating</small></button>
+        <div class="both-row">
+          <button onclick="log(this,'both','sushumna')"><span class="key">↓</span>both <small>sushumna</small></button>
+        </div>
+      </div>
+
+      <div class="log" id="log"><span class="dim">// recent</span>
+14:32 logged right
+13:05 logged left
+11:48 logged left
+10:36 logged both</div>
+    </div>
+    <div class="tabs">
+      <div class="tab on">LOG</div>
+      <div class="tab">TODAY</div>
+      <div class="tab">STATS</div>
+      <div class="tab">HIST</div>
+      <div class="tab">CONF</div>
+    </div>
+  </div>
+  <div class="label">Design 6 · Terminal — phosphor CRT: the breath log as a shell session, ASCII stats, keyboard-first.</div>
+<script>
+  function log(btn, state){
+    btn.classList.add("hit");
+    setTimeout(()=>btn.classList.remove("hit"), 180);
+    const t=new Date().toTimeString().slice(0,5);
+    const el=document.getElementById("log");
+    el.innerHTML='<span class="dim">// recent</span>\n<span class="new">'+t+' logged '+state+' ✓</span>\n'+el.innerHTML.split("\n").slice(1,5).join("\n");
+  }
+  addEventListener("keydown", e=>{
+    const btns=document.querySelectorAll(".menu button");
+    if(e.key==="ArrowLeft") btns[0].click();
+    else if(e.key==="ArrowRight") btns[1].click();
+    else if(e.key==="ArrowDown"||e.key===" "){ e.preventDefault(); btns[2].click(); }
+  });
+</script>
+</body>
+</html>

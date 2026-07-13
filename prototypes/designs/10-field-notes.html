@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AvirLog Design 10 — Field Notes</title>
+<style>
+  /* DIRECTION 10: "Field Notes" — the naturalist's notebook. You are a
+     scientist observing yourself: dot-grid paper, typewriter annotations,
+     rubber-stamp logging. Scientific romanticism — rigor with warmth. */
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    min-height:100vh; display:flex; align-items:center; justify-content:center;
+    background:#9E9282; padding:24px;
+    font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  }
+  .phone {
+    width:390px; height:800px; border-radius:38px; overflow:hidden; position:relative;
+    background:#FBF8F0;
+    background-image:radial-gradient(#D8D2C2 1px, transparent 1px);
+    background-size:22px 22px;
+    box-shadow:0 30px 75px rgba(60,52,40,.5);
+    display:flex; flex-direction:column;
+  }
+  .screen { flex:1; padding:58px 26px 0; display:flex; flex-direction:column; min-height:0; }
+
+  .cover-line { display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #33302A; padding-bottom:10px; }
+  .cover-line .title { font-size:14px; font-weight:700; letter-spacing:1px; color:#33302A; }
+  .cover-line .no { font-size:11px; color:#8F877A; }
+
+  .obs-head { margin:16px 0 4px; font-size:11px; color:#8F877A; }
+  h1 { font-family:Georgia,serif; font-style:italic; font-weight:400; font-size:24px; color:#33302A; margin-bottom:16px; }
+
+  /* specimen cards */
+  .specimens { flex:1; display:flex; gap:14px; min-height:0; }
+  button { cursor:pointer; font-family:inherit; -webkit-tap-highlight-color:transparent; transition:transform .15s ease; background:none; }
+  button:active { transform:scale(.97) rotate(-.5deg); }
+  .specimen {
+    flex:1; background:#FFFEFA; border:1px solid #C9C2B0;
+    box-shadow:2px 3px 0 rgba(60,52,40,.15);
+    padding:16px 14px; display:flex; flex-direction:column; text-align:left; position:relative;
+  }
+  .specimen .fig { font-size:10px; color:#8F877A; letter-spacing:1px; }
+  .specimen .drawing { flex:1; display:flex; align-items:center; justify-content:center; font-size:46px; }
+  .specimen .nm { font-family:Georgia,serif; font-size:19px; color:#33302A; }
+  .specimen .latin { font-family:Georgia,serif; font-style:italic; font-size:12px; color:#8F877A; margin-top:2px; }
+  .specimen .tape {
+    position:absolute; top:-8px; left:50%; transform:translateX(-50%) rotate(-2deg);
+    width:64px; height:18px; background:rgba(210,200,170,.6); border:1px dashed rgba(140,130,105,.35);
+  }
+  #left .drawing { color:#5C7360; }
+  #right .drawing { color:#A65E3F; }
+
+  .both {
+    margin-top:14px; width:100%; height:56px; background:#FFFEFA; border:1px solid #C9C2B0;
+    box-shadow:2px 3px 0 rgba(60,52,40,.15);
+    display:flex; align-items:center; justify-content:center; gap:12px;
+    font-size:13px; color:#33302A;
+  }
+  .both .latin { font-family:Georgia,serif; font-style:italic; color:#8F877A; }
+
+  .fieldlog { margin:18px 0 0; font-size:11.5px; line-height:2; color:#4E4A40; padding-bottom:12px; }
+  .fieldlog .hand { font-family:Georgia,serif; font-style:italic; color:#7A6B50; }
+  .fieldlog .entry-new { color:#A6431F; }
+
+  .tabs { display:flex; border-top:2px solid #33302A; background:#FBF8F0; padding:12px 8px 28px; }
+  .tab { flex:1; text-align:center; font-size:9.5px; letter-spacing:1.5px; color:#9A9182; text-transform:uppercase; }
+  .tab.on { color:#33302A; font-weight:700; }
+  .tab span { display:block; font-size:15px; margin-bottom:4px; }
+
+  /* rubber stamp feedback */
+  .stamp {
+    position:absolute; z-index:6; pointer-events:none;
+    border:3px double #A6431F; color:#A6431F; border-radius:6px;
+    font-size:15px; font-weight:700; letter-spacing:2px; padding:5px 12px;
+    transform:rotate(-8deg) scale(2.2); opacity:0;
+    animation:slam .45s cubic-bezier(.22,1.2,.36,1) forwards;
+    background:rgba(251,248,240,.7);
+  }
+  @keyframes slam {
+    0% { transform:rotate(-8deg) scale(2.2); opacity:0; }
+    60% { transform:rotate(-8deg) scale(.95); opacity:1; }
+    100% { transform:rotate(-8deg) scale(1); opacity:.9; }
+  }
+  .stamp.fade { animation:fadeout .6s ease forwards; }
+  @keyframes fadeout { to { opacity:0; } }
+  .label { position:fixed; bottom:18px; width:100%; left:0; text-align:center; font-size:13px; color:#57503F; font-family:-apple-system,system-ui,sans-serif; }
+</style>
+</head>
+<body>
+  <div class="phone" id="phone">
+    <div class="screen">
+      <div class="cover-line">
+        <span class="title">FIELD NOTES — BREATH</span>
+        <span class="no">Vol. 1 · p. 42</span>
+      </div>
+      <div class="obs-head">OBSERVATION № 8 · SAT 11 JUL · 14:32 · overcast, calm</div>
+      <h1>Which specimen presents?</h1>
+
+      <div class="specimens">
+        <button class="specimen" id="left" onclick="stamp(event,'LEFT')">
+          <span class="tape"></span>
+          <span class="fig">FIG. A</span>
+          <span class="drawing">☾</span>
+          <span class="nm">Left nostril</span>
+          <span class="latin">Ida — the cooling current</span>
+        </button>
+        <button class="specimen" id="right" onclick="stamp(event,'RIGHT')">
+          <span class="tape"></span>
+          <span class="fig">FIG. B</span>
+          <span class="drawing">☀</span>
+          <span class="nm">Right nostril</span>
+          <span class="latin">Pingala — the heating current</span>
+        </button>
+      </div>
+      <button class="both" onclick="stamp(event,'BOTH')">
+        FIG. C — Both <span class="latin">Sushumna, in equilibrium</span>
+      </button>
+
+      <div class="fieldlog" id="fieldlog">
+        13:05 — left dominant. <span class="hand">felt settled, read for an hour</span><br>
+        11:48 — left again. <span class="hand">cycle running long today?</span><br>
+        10:36 — both open. <span class="hand">good sit this morning.</span>
+      </div>
+    </div>
+    <div class="tabs">
+      <div class="tab on"><span>✎</span>Observe</div>
+      <div class="tab"><span>☼</span>Today</div>
+      <div class="tab"><span>◫</span>Plates</div>
+      <div class="tab"><span>❡</span>Journal</div>
+      <div class="tab"><span>⚙</span>Kit</div>
+    </div>
+  </div>
+  <div class="label">Design 10 · Field Notes — the naturalist's notebook: specimen cards, rubber-stamp logging, margin notes.</div>
+<script>
+  function stamp(e, what){
+    const phone=document.getElementById("phone");
+    const pr=phone.getBoundingClientRect();
+    const s=document.createElement("div");
+    s.className="stamp";
+    s.textContent="LOGGED · "+what;
+    phone.appendChild(s);
+    const w=140;
+    s.style.left=Math.min(Math.max(e.clientX-pr.left-w/2, 12), 390-w-12)+"px";
+    s.style.top=(e.clientY-pr.top-20)+"px";
+    setTimeout(()=>s.classList.add("fade"), 1200);
+    setTimeout(()=>s.remove(), 1900);
+    const t=new Date().toTimeString().slice(0,5);
+    const log=document.getElementById("fieldlog");
+    log.innerHTML='<span class="entry-new">'+t+" — "+what.toLowerCase()+' recorded.</span><br>'+log.innerHTML;
+  }
+</script>
+</body>
+</html>

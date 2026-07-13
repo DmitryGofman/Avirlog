@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AvirLog Design 5 — Sumi-e</title>
+<style>
+  /* DIRECTION 5: "Sumi-e" — Japanese ink-wash. Washi paper, black brush
+     strokes, one red hanko seal, an enso circle for Both. Almost no color;
+     the interface is calligraphy. */
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    min-height:100vh; display:flex; align-items:center; justify-content:center;
+    background:#B8B2A6; padding:24px;
+    font-family:Georgia,"Times New Roman",serif;
+  }
+  .phone {
+    width:390px; height:800px; border-radius:6px; overflow:hidden; position:relative;
+    background:
+      radial-gradient(140% 90% at 20% 10%, rgba(0,0,0,.035), transparent 55%),
+      radial-gradient(120% 80% at 85% 90%, rgba(0,0,0,.045), transparent 50%),
+      #F5F1E6;
+    box-shadow:0 30px 70px rgba(40,36,28,.5);
+    display:flex; flex-direction:column;
+  }
+  /* faint mountain wash in the distance */
+  .wash {
+    position:absolute; left:0; right:0; top:34%; height:22%; pointer-events:none; opacity:.1;
+    background:
+      radial-gradient(45% 100% at 30% 100%, #1B1B1B, transparent 70%),
+      radial-gradient(35% 80% at 62% 100%, #1B1B1B, transparent 70%),
+      radial-gradient(28% 60% at 85% 100%, #1B1B1B, transparent 70%);
+    filter:blur(3px);
+  }
+
+  .screen { flex:1; padding:62px 30px 0; display:flex; flex-direction:column; position:relative; z-index:2; }
+  .kanji-date { display:flex; justify-content:space-between; align-items:flex-start; }
+  .date { font-size:12px; letter-spacing:3px; color:#8A8272; text-transform:uppercase; font-family:-apple-system,system-ui,sans-serif; }
+  .seal {
+    width:38px; height:38px; background:#B3402E; color:#F5F1E6; border-radius:5px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:17px; line-height:1; box-shadow:0 1px 0 rgba(0,0,0,.2);
+  }
+  h1 { font-size:30px; font-weight:400; color:#1B1B1B; margin:22px 0 6px; letter-spacing:.5px; }
+  .sub { font-size:14px; color:#8A8272; font-style:italic; margin-bottom:30px; }
+
+  button { border:none; background:none; cursor:pointer; font-family:inherit; -webkit-tap-highlight-color:transparent; transition:transform .2s ease; }
+  button:active { transform:scale(.97); }
+
+  .strokes { flex:1; display:flex; gap:18px; min-height:0; }
+  .stroke {
+    flex:1; position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px;
+  }
+  /* the button IS a brush stroke */
+  .stroke .ink {
+    width:82%; height:72%; position:relative;
+  }
+  .stroke .ink::before {
+    content:""; position:absolute; inset:0;
+    background:#1B1B1B;
+    border-radius:46% 54% 52% 48% / 58% 44% 56% 42%;
+    transform:rotate(-3deg);
+  }
+  .stroke .ink::after {
+    content:""; position:absolute; left:8%; bottom:-4%; width:60%; height:12%;
+    background:#1B1B1B; opacity:.5; filter:blur(1px);
+    border-radius:50% 50% 60% 40% / 70% 60% 40% 30%;
+    transform:rotate(-6deg);
+  }
+  #right .ink::before { border-radius:54% 46% 48% 52% / 44% 58% 42% 56%; transform:rotate(3deg); }
+  .stroke .glyph {
+    position:absolute; top:50%; left:50%; transform:translate(-50%,-58%);
+    color:#F5F1E6; font-size:44px; z-index:2;
+  }
+  .stroke .name { font-size:17px; color:#1B1B1B; letter-spacing:1px; }
+  .stroke .trad { font-size:11px; color:#8A8272; letter-spacing:2.5px; text-transform:uppercase; font-family:-apple-system,system-ui,sans-serif; margin-top:-10px; }
+
+  /* enso circle for Both */
+  .enso-btn { margin:8px auto 26px; display:flex; flex-direction:column; align-items:center; gap:8px; }
+  .enso {
+    width:74px; height:74px; border-radius:50%; position:relative;
+    border:5px solid #1B1B1B;
+    border-left-color:transparent;
+    transform:rotate(-40deg);
+  }
+  .enso::after {
+    content:""; position:absolute; top:-7px; right:2px; width:9px; height:9px;
+    background:#1B1B1B; border-radius:50%; filter:blur(.5px);
+  }
+  .enso-btn .name { font-size:15px; color:#1B1B1B; letter-spacing:1px; transform:none; }
+  .enso-btn .trad { font-size:10.5px; color:#8A8272; letter-spacing:2.5px; text-transform:uppercase; font-family:-apple-system,system-ui,sans-serif; }
+
+  .haiku {
+    text-align:center; font-style:italic; font-size:13.5px; line-height:1.7; color:#5A5346;
+    padding-bottom:18px;
+  }
+
+  .tabs {
+    display:flex; border-top:1px solid #DCD5C2; background:#F5F1E6;
+    padding:12px 8px 28px;
+  }
+  .tab { flex:1; text-align:center; font-size:10px; letter-spacing:2px; color:#A89F8A; text-transform:uppercase; font-family:-apple-system,system-ui,sans-serif; }
+  .tab.on { color:#B3402E; }
+  .tab span { display:block; font-size:16px; margin-bottom:4px; }
+
+  /* ink drop feedback */
+  .drop {
+    position:absolute; width:10px; height:10px; border-radius:50%; background:#1B1B1B;
+    pointer-events:none; z-index:6; animation:blot 1s ease-out forwards;
+  }
+  @keyframes blot {
+    0% { transform:scale(.4); opacity:.85; }
+    100% { transform:scale(7); opacity:0; }
+  }
+  .label { position:fixed; bottom:18px; width:100%; left:0; text-align:center; font-size:13px; color:#6E6656; font-family:-apple-system,system-ui,sans-serif; }
+</style>
+</head>
+<body>
+  <div class="phone" id="phone">
+    <div class="wash"></div>
+    <div class="screen">
+      <div class="kanji-date">
+        <div class="date">July · Eleventh</div>
+        <div class="seal">息</div>
+      </div>
+      <h1>The breath, observed</h1>
+      <div class="sub">left — moon · right — sun</div>
+
+      <div class="strokes">
+        <button class="stroke" id="left" onclick="log(event)">
+          <div class="ink"><span class="glyph">月</span></div>
+          <span class="name">Left</span>
+          <span class="trad">Ida</span>
+        </button>
+        <button class="stroke" id="right" onclick="log(event)">
+          <div class="ink"><span class="glyph">日</span></div>
+          <span class="name">Right</span>
+          <span class="trad">Pingala</span>
+        </button>
+      </div>
+
+      <button class="enso-btn" onclick="log(event)">
+        <div class="enso"></div>
+        <span class="name">Both</span>
+        <span class="trad">Sushumna</span>
+      </button>
+
+      <div class="haiku">
+        one nostril, then two —<br>
+        the tide inside the body<br>
+        keeps its own seasons
+      </div>
+    </div>
+    <div class="tabs">
+      <div class="tab on"><span>筆</span>Log</div>
+      <div class="tab"><span>今</span>Today</div>
+      <div class="tab"><span>流</span>Insights</div>
+      <div class="tab"><span>巻</span>History</div>
+      <div class="tab"><span>整</span>Settings</div>
+    </div>
+  </div>
+  <div class="label">Design 5 · Sumi-e — ink-wash minimalism: brush-stroke buttons, enso for balance, one red seal.</div>
+<script>
+  function log(e){
+    const phone=document.getElementById("phone");
+    const pr=phone.getBoundingClientRect();
+    const d=document.createElement("div");
+    d.className="drop";
+    d.style.left=(e.clientX-pr.left-5)+"px";
+    d.style.top=(e.clientY-pr.top-5)+"px";
+    phone.appendChild(d);
+    setTimeout(()=>d.remove(),1100);
+  }
+</script>
+</body>
+</html>

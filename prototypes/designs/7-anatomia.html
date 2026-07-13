@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AvirLog Design 7 — Anatomia</title>
+<style>
+  /* DIRECTION 7: "Anatomia" — diagrammatic clinical-modern. You don't tap
+     abstract buttons: you tap the actual side of a face diagram where you
+     feel the flow. Clean mint/ink medical palette, annotated like a
+     textbook figure. A different interaction model, not just a new skin. */
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    min-height:100vh; display:flex; align-items:center; justify-content:center;
+    background:#D7E2DE; padding:24px;
+    font-family:-apple-system,"Segoe UI",system-ui,sans-serif;
+  }
+  .phone {
+    width:390px; height:800px; border-radius:40px; overflow:hidden; position:relative;
+    background:#F2F7F5; box-shadow:0 30px 70px rgba(30,60,50,.35);
+    display:flex; flex-direction:column;
+  }
+  .screen { flex:1; padding:60px 24px 0; display:flex; flex-direction:column; }
+
+  .kicker { font-size:11px; letter-spacing:2.5px; text-transform:uppercase; color:#6C8A80; }
+  h1 { font-size:26px; font-weight:700; letter-spacing:-.4px; color:#12332A; margin:8px 0 2px; }
+  .sub { font-size:13.5px; color:#6C8A80; }
+
+  .fig { flex:1; position:relative; margin:10px 0 6px; min-height:0; }
+  .fig svg { width:100%; height:100%; }
+
+  .figcaption {
+    display:flex; justify-content:space-between; font-size:10.5px; color:#6C8A80;
+    border-top:1px solid #CBDCD5; padding-top:8px; letter-spacing:1px; text-transform:uppercase;
+  }
+
+  .both-btn {
+    margin:14px 0 18px; height:58px; border-radius:16px; width:100%;
+    background:#12332A; color:#DFF2EB; border:none; cursor:pointer; font-family:inherit;
+    display:flex; align-items:center; justify-content:center; gap:12px; font-size:15px; font-weight:600;
+    transition:transform .15s ease; -webkit-tap-highlight-color:transparent;
+  }
+  .both-btn:active { transform:scale(.97); }
+  .both-btn small { font-weight:400; font-size:11px; letter-spacing:1.5px; text-transform:uppercase; color:#7FB3A2; }
+
+  .status {
+    text-align:center; font-size:12.5px; color:#3E6B5D; min-height:18px; margin-bottom:14px;
+    font-variant-numeric:tabular-nums;
+  }
+
+  .tabs { display:flex; border-top:1px solid #CBDCD5; background:#F7FBF9; padding:12px 8px 28px; }
+  .tab { flex:1; text-align:center; font-size:10px; letter-spacing:.5px; color:#8FA79E; text-transform:uppercase; }
+  .tab.on { color:#12332A; font-weight:700; }
+  .tab span { display:block; font-size:17px; margin-bottom:3px; }
+
+  .nostril-zone { cursor:pointer; }
+  .nostril-zone .fill { transition:opacity .3s ease; opacity:0; }
+  .nostril-zone:hover .fill { opacity:.35; }
+  .nostril-zone.active .fill { opacity:.8; }
+  .flow { opacity:0; }
+  .flow.go { animation:flow 2s ease-out forwards; }
+  @keyframes flow {
+    0% { opacity:0; transform:translateY(0); }
+    15% { opacity:1; }
+    100% { opacity:0; transform:translateY(-46px); }
+  }
+  .label { position:fixed; bottom:18px; width:100%; left:0; text-align:center; font-size:13px; color:#557066; }
+</style>
+</head>
+<body>
+  <div class="phone">
+    <div class="screen">
+      <div class="kicker">Fig. 01 — Nasal cycle</div>
+      <h1>Tap where it flows</h1>
+      <div class="sub">Touch the side of the nose where breath moves freely.</div>
+
+      <div class="fig">
+        <svg viewBox="0 0 390 420">
+          <!-- face outline, front view, minimal line art -->
+          <g fill="none" stroke="#12332A" stroke-width="2.5" stroke-linecap="round">
+            <!-- head -->
+            <path d="M115 60 Q195 18 275 60 Q305 96 300 170 Q297 240 268 300 Q235 362 195 372 Q155 362 122 300 Q93 240 90 170 Q85 96 115 60 Z" opacity=".8"/>
+            <!-- brows -->
+            <path d="M135 165 Q160 152 185 163" opacity=".55"/>
+            <path d="M205 163 Q230 152 255 165" opacity=".55"/>
+            <!-- nose bridge + tip -->
+            <path d="M195 175 L192 245 Q180 268 186 278 Q195 287 204 278 Q210 268 198 245 L195 175" opacity=".9"/>
+            <!-- nostril arcs -->
+            <path d="M172 272 Q178 284 188 284" opacity=".9"/>
+            <path d="M218 272 Q212 284 202 284" opacity=".9"/>
+            <!-- mouth -->
+            <path d="M165 322 Q195 334 225 322" opacity=".5"/>
+          </g>
+
+          <!-- annotation lines -->
+          <g stroke="#6C8A80" stroke-width="1" stroke-dasharray="3 3">
+            <path d="M150 280 L60 280"/>
+            <path d="M240 280 L330 280"/>
+          </g>
+          <g font-size="11" fill="#3E6B5D" font-family="ui-monospace,Menlo,monospace">
+            <text x="18" y="270">LEFT</text>
+            <text x="18" y="296">ida · ☾</text>
+            <text x="332" y="270">RIGHT</text>
+            <text x="332" y="296">pingala ☀</text>
+          </g>
+
+          <!-- tappable halos over each nostril -->
+          <g class="nostril-zone" id="zone-left" onclick="pick('left')">
+            <circle class="fill" cx="176" cy="276" r="34" fill="#4FA3D9"/>
+            <circle cx="176" cy="276" r="34" fill="transparent" stroke="#4FA3D9" stroke-width="1.5" stroke-dasharray="4 4"/>
+            <g class="flow" id="flow-left" stroke="#4FA3D9" stroke-width="2.5" fill="none" stroke-linecap="round">
+              <path d="M170 262 Q166 244 172 228"/>
+              <path d="M180 262 Q178 240 184 224"/>
+            </g>
+          </g>
+          <g class="nostril-zone" id="zone-right" onclick="pick('right')">
+            <circle class="fill" cx="214" cy="276" r="34" fill="#E0764A"/>
+            <circle cx="214" cy="276" r="34" fill="transparent" stroke="#E0764A" stroke-width="1.5" stroke-dasharray="4 4"/>
+            <g class="flow" id="flow-right" stroke="#E0764A" stroke-width="2.5" fill="none" stroke-linecap="round">
+              <path d="M208 262 Q204 244 210 228"/>
+              <path d="M220 262 Q218 240 224 224"/>
+            </g>
+          </g>
+        </svg>
+      </div>
+
+      <div class="figcaption"><span>Subject: you</span><span>Samples today: <b id="n">7</b></span></div>
+
+      <button class="both-btn" onclick="pick('both')">
+        Both open <small>sushumna · balanced</small>
+      </button>
+      <div class="status" id="status">Awaiting sample…</div>
+    </div>
+    <div class="tabs">
+      <div class="tab on"><span>✚</span>Log</div>
+      <div class="tab"><span>◷</span>Today</div>
+      <div class="tab"><span>∿</span>Insights</div>
+      <div class="tab"><span>▤</span>History</div>
+      <div class="tab"><span>⚙</span>Settings</div>
+    </div>
+  </div>
+  <div class="label">Design 7 · Anatomia — diagrammatic: tap the actual nostril on a textbook figure; breath lines animate.</div>
+<script>
+  let n=7, t=null;
+  function pick(state){
+    n++;
+    document.getElementById("n").textContent=n;
+    document.querySelectorAll(".nostril-zone").forEach(z=>z.classList.remove("active"));
+    const time=new Date().toTimeString().slice(0,5);
+    if(state==="both"){
+      ["left","right"].forEach(s=>{
+        document.getElementById("zone-"+s).classList.add("active");
+        replay("flow-"+s);
+      });
+      setStatus(time+" — both channels open · sushumna");
+    } else {
+      document.getElementById("zone-"+state).classList.add("active");
+      replay("flow-"+state);
+      setStatus(time+" — "+state+" channel recorded");
+    }
+    clearTimeout(t);
+    t=setTimeout(()=>{
+      document.querySelectorAll(".nostril-zone").forEach(z=>z.classList.remove("active"));
+      setStatus("Awaiting sample…");
+    }, 2600);
+  }
+  function replay(id){
+    const el=document.getElementById(id);
+    el.classList.remove("go"); void el.getBoundingClientRect(); el.classList.add("go");
+  }
+  function setStatus(s){ document.getElementById("status").textContent=s; }
+</script>
+</body>
+</html>
