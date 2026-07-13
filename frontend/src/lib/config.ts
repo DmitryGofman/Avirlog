@@ -10,7 +10,7 @@ export const ACCOUNTS_ENABLED = false;
 // ---- Skins ----
 // The Log screen ships with two skins; the registry is the seed of a future
 // skin library (planned as a premium feature — more worlds uploaded later).
-export type SkinId = "classic" | "banners";
+export type SkinId = "classic" | "banners" | "instrument";
 
 export interface SkinMeta {
   id: SkinId;
@@ -28,6 +28,11 @@ export const SKINS: SkinMeta[] = [
     id: "banners",
     name: "Living Banners",
     description: "A valley on your real clock: day-cycle sky, true moon phase, cloth banners.",
+  },
+  {
+    id: "instrument",
+    name: "Instrument",
+    description: "Swiss monochrome precision: live clock, data readout, one keypress = one sample.",
   },
 ];
 
