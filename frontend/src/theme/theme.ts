@@ -67,6 +67,42 @@ export const palettes = {
 
 export type Palette = typeof palettes.light;
 
+// App-wide palette for the "Instrument" skin: paper, ink, hairlines. States
+// stay distinguishable in monochrome (left mid-grey, right near-black, both
+// light grey). Fixed look — the dark-mode toggle has no effect on it.
+export const instrumentPalette: Palette = {
+  surface: "#FAFAF8",
+  onSurface: "#111111",
+  surfaceSecondary: "#FFFFFF",
+  onSurfaceSecondary: "#222220",
+  surfaceTertiary: "#F0F0EC",
+  onSurfaceTertiary: "#666666",
+  surfaceInverse: "#111111",
+  onSurfaceInverse: "#FAFAF8",
+  brand: "#111111",
+  brandPrimary: "#111111",
+  onBrandPrimary: "#FAFAF8",
+  brandSecondary: "#E8E8E4",
+  onBrandSecondary: "#111111",
+  brandTertiary: "#F0F0EC",
+  onBrandTertiary: "#111111",
+  stateLeft: "#9A9A94",
+  onStateLeft: "#111111",
+  stateRight: "#3A3A38",
+  onStateRight: "#FAFAF8",
+  stateBoth: "#C9C9C4",
+  onStateBoth: "#111111",
+  success: "#3E4E3E",
+  onSuccess: "#FAFAF8",
+  warning: "#8A6A2A",
+  onWarning: "#FAFAF8",
+  error: "#8A2F1E",
+  onError: "#FAFAF8",
+  border: "#111111",
+  borderStrong: "#111111",
+  divider: "#E0E0DC",
+};
+
 export const spacing = {
   xs: 4,
   sm: 8,
