@@ -5,6 +5,7 @@ import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View }
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { LogRow } from "@/src/components/LogRow";
+import { MONO, ScreenHeader, useSkinUi } from "@/src/components/ScreenHeader";
 import { useTheme } from "@/src/context/ThemeContext";
 import { api, todayStr } from "@/src/lib/api";
 import { BreathLog, fonts, NostrilState, radius, spacing, STATE_META } from "@/src/theme/theme";
@@ -20,6 +21,7 @@ function avg(values: (number | null)[]): number | null {
 
 export default function TodayScreen() {
   const { colors } = useTheme();
+  const ui = useSkinUi();
   const insets = useSafeAreaInsets();
   const [logs, setLogs] = useState<BreathLog[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -63,12 +65,7 @@ export default function TodayScreen() {
 
   return (
     <View style={[styles.root, { backgroundColor: colors.surface }]}>
-      <View style={[styles.header, { paddingTop: insets.top + spacing.lg }]}>
-        <Text style={[styles.title, { color: colors.onSurface }]}>Today</Text>
-        <Text style={[styles.subtitle, { color: colors.onSurfaceTertiary }]}>
-          Today’s breath map
-        </Text>
-      </View>
+      <ScreenHeader index="02" title="Today" subtitle="Today’s breath map" topInset={insets.top} />
 
       <ScrollView
         contentContainerStyle={styles.scroll}
@@ -94,7 +91,15 @@ export default function TodayScreen() {
 
         {logs !== null && !error && total === 0 && (
           <View testID="today-empty-state" style={styles.center}>
-            <Image source={{ uri: EMPTY_IMG }} style={styles.emptyImage} contentFit="cover" />
+            {ui.instrument ? (
+              <View style={[styles.emptyBox, { borderColor: colors.border }]}>
+                <Text style={{ fontFamily: MONO, fontSize: 11, letterSpacing: 2, color: colors.onSurfaceTertiary }}>
+                  — NO SAMPLES —
+                </Text>
+              </View>
+            ) : (
+              <Image source={{ uri: EMPTY_IMG }} style={styles.emptyImage} contentFit="cover" />
+            )}
             <Text style={[styles.emptyTitle, { color: colors.onSurface }]}>No logs yet today</Text>
             <Text style={[styles.emptyText, { color: colors.onSurfaceTertiary }]}>
               Tap Left, Right, or Both to begin.
@@ -106,15 +111,15 @@ export default function TodayScreen() {
           <>
             <View
               testID="today-summary-card"
-              style={[styles.card, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}
+              style={[styles.card, ui.sq, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}
             >
               <View style={styles.summaryTop}>
-                <Text style={[styles.summaryCount, { color: colors.onSurface }]}>{total}</Text>
+                <Text style={[styles.summaryCount, ui.mono, { color: colors.onSurface }]}>{total}</Text>
                 <Text style={[styles.summaryCountLabel, { color: colors.onSurfaceTertiary }]}>
                   {total === 1 ? "log" : "logs"} today
                 </Text>
               </View>
-              <View style={styles.distBar}>
+              <View style={[styles.distBar, ui.sq]}>
                 {(Object.keys(STATE_META) as NostrilState[]).map((s) =>
                   counts[s] > 0 ? (
                     <View
@@ -131,7 +136,7 @@ export default function TodayScreen() {
                 {(Object.keys(STATE_META) as NostrilState[]).map((s) => (
                   <View key={s} style={styles.legendItem}>
                     <View style={[styles.legendDot, { backgroundColor: colors[STATE_META[s].colorKey] }]} />
-                    <Text style={[styles.legendText, { color: colors.onSurfaceTertiary }]}>
+                    <Text style={[styles.legendText, ui.mono, { color: colors.onSurfaceTertiary }]}>
                       {STATE_META[s].label} {pct(counts[s])}%
                     </Text>
                   </View>
@@ -147,9 +152,9 @@ export default function TodayScreen() {
               ].map((s) => (
                 <View
                   key={s.label}
-                  style={[styles.statCard, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}
+                  style={[styles.statCard, ui.sq, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}
                 >
-                  <Text style={[styles.statValue, { color: s.value != null ? colors.onSurface : colors.onSurfaceTertiary }]}>
+                  <Text style={[styles.statValue, ui.mono, { color: s.value != null ? colors.onSurface : colors.onSurfaceTertiary }]}>
                     {s.value ?? "—"}
                   </Text>
                   <Text style={[styles.statLabel, { color: colors.onSurfaceTertiary }]}>
@@ -160,14 +165,14 @@ export default function TodayScreen() {
             </View>
 
             {topTag && (
-              <View style={[styles.topTagRow, { backgroundColor: colors.surfaceTertiary }]}>
+              <View style={[styles.topTagRow, ui.sq, { backgroundColor: colors.surfaceTertiary }]}>
                 <Text style={[styles.topTagText, { color: colors.onSurfaceTertiary }]}>
                   Most common tag · {topTag}
                 </Text>
               </View>
             )}
 
-            <Text style={[styles.sectionTitle, { color: colors.onSurfaceTertiary }]}>Timeline</Text>
+            <Text style={[styles.sectionTitle, ui.monoLabel, { color: colors.onSurfaceTertiary }]}>Timeline</Text>
             {logs.map((log) => (
               <LogRow key={log.id} log={log} />
             ))}
@@ -188,6 +193,14 @@ const styles = StyleSheet.create({
   errorText: { fontFamily: fonts.medium, fontSize: 14 },
   retry: { fontFamily: fonts.medium, fontSize: 14, marginTop: spacing.sm },
   emptyImage: { width: 160, height: 120, borderRadius: radius.md, marginBottom: spacing.lg },
+  emptyBox: {
+    width: 200,
+    height: 90,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: spacing.lg,
+  },
   emptyTitle: { fontFamily: fonts.semibold, fontSize: 17 },
   emptyText: { fontFamily: fonts.regular, fontSize: 14, marginTop: spacing.xs },
   card: {

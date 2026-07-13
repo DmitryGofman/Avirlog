@@ -13,6 +13,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { LogForm, LogFormPayload } from "@/src/components/LogForm";
+import { ScreenHeader, useSkinUi } from "@/src/components/ScreenHeader";
 import { LogRow } from "@/src/components/LogRow";
 import { Sheet } from "@/src/components/Sheet";
 import { useToast } from "@/src/components/Toast";
@@ -39,6 +40,7 @@ function formatDate(d: string): string {
 
 export default function HistoryScreen() {
   const { colors } = useTheme();
+  const ui = useSkinUi();
   const { showToast } = useToast();
   const insets = useSafeAreaInsets();
 
@@ -126,30 +128,28 @@ export default function HistoryScreen() {
 
   return (
     <View style={[styles.root, { backgroundColor: colors.surface }]}>
-      <View style={[styles.header, { paddingTop: insets.top + spacing.lg }]}>
-        {selectedDate ? (
-          <Pressable
-            testID="history-back-button"
-            onPress={() => {
-              setSelectedDate(null);
-              setDayLogs(null);
-            }}
-            style={styles.backRow}
-            hitSlop={8}
-          >
-            <Ionicons name="chevron-back" size={20} color={colors.onSurface} />
-            <Text style={[styles.backText, { color: colors.onSurface }]}>All dates</Text>
-          </Pressable>
-        ) : null}
-        <Text style={[styles.title, { color: colors.onSurface }]}>
-          {selectedDate ? formatDate(selectedDate) : "History"}
-        </Text>
-        {!selectedDate && (
-          <Text style={[styles.subtitle, { color: colors.onSurfaceTertiary }]}>
-            Logs by date
-          </Text>
-        )}
-      </View>
+      <ScreenHeader
+        index="04"
+        title={selectedDate ? formatDate(selectedDate) : "History"}
+        subtitle={selectedDate ? undefined : "Logs by date"}
+        topInset={insets.top}
+        above={
+          selectedDate ? (
+            <Pressable
+              testID="history-back-button"
+              onPress={() => {
+                setSelectedDate(null);
+                setDayLogs(null);
+              }}
+              style={styles.backRow}
+              hitSlop={8}
+            >
+              <Ionicons name="chevron-back" size={20} color={colors.onSurface} />
+              <Text style={[styles.backText, { color: colors.onSurface }]}>All dates</Text>
+            </Pressable>
+          ) : null
+        }
+      />
 
       <ScrollView
         contentContainerStyle={styles.scroll}
@@ -195,6 +195,7 @@ export default function HistoryScreen() {
                   onPress={() => openDate(d.date)}
                   style={({ pressed }) => [
                     styles.dateCard,
+                    ui.sq,
                     {
                       backgroundColor: colors.surfaceSecondary,
                       borderColor: colors.border,
@@ -206,10 +207,10 @@ export default function HistoryScreen() {
                     <Text style={[styles.dateLabel, { color: colors.onSurface }]}>
                       {formatDate(d.date)}
                     </Text>
-                    <Text style={[styles.dateCount, { color: colors.onSurfaceTertiary }]}>
+                    <Text style={[styles.dateCount, ui.mono, { color: colors.onSurfaceTertiary }]}>
                       {total} {total === 1 ? "log" : "logs"}
                     </Text>
-                    <View style={styles.miniBar}>
+                    <View style={[styles.miniBar, ui.sq]}>
                       {(["left", "right", "both"] as NostrilState[]).map((s) =>
                         d[s] > 0 ? (
                           <View
@@ -274,7 +275,7 @@ export default function HistoryScreen() {
           testID="confirm-delete-button"
           onPress={confirmDelete}
           disabled={saving}
-          style={[styles.deleteBtn, { backgroundColor: colors.error, opacity: saving ? 0.7 : 1 }]}
+          style={[styles.deleteBtn, ui.sq, { backgroundColor: colors.error, opacity: saving ? 0.7 : 1 }]}
         >
           {saving ? (
             <ActivityIndicator color={colors.onError} />
