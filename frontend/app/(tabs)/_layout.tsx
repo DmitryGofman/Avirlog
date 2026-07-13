@@ -8,10 +8,13 @@ import { useAuth } from "@/src/context/AuthContext";
 import { useTheme } from "@/src/context/ThemeContext";
 import { fonts } from "@/src/theme/theme";
 
+const MONO = Platform.select({ ios: "Menlo", default: "monospace" });
+
 export default function TabsLayout() {
   const { loading } = useAuth();
-  const { colors } = useTheme();
+  const { colors, skin } = useTheme();
   const insets = useSafeAreaInsets();
+  const instrument = skin === "instrument";
 
   // No login gate: guests use the app locally (data stored on-device).
   // Signing in to sync is offered from Settings.
@@ -30,8 +33,8 @@ export default function TabsLayout() {
         tabBarActiveTintColor: colors.onSurface,
         tabBarInactiveTintColor: colors.onSurfaceTertiary,
         tabBarStyle: {
-          backgroundColor: colors.surfaceSecondary,
-          borderTopColor: colors.divider,
+          backgroundColor: instrument ? colors.surface : colors.surfaceSecondary,
+          borderTopColor: instrument ? colors.border : colors.divider,
           borderTopWidth: 1,
           // Web fallback fonts render taller than Geist — give the labels
           // extra room there so they don't clip against the bar's bottom.
@@ -39,7 +42,9 @@ export default function TabsLayout() {
           paddingBottom: insets.bottom > 0 ? insets.bottom : Platform.OS === "web" ? 10 : 6,
           paddingTop: 6,
         },
-        tabBarLabelStyle: { fontFamily: fonts.medium, fontSize: 11 },
+        tabBarLabelStyle: instrument
+          ? { fontFamily: MONO, fontSize: 9, letterSpacing: 1.5, textTransform: "uppercase" as const }
+          : { fontFamily: fonts.medium, fontSize: 11 },
         sceneStyle: { backgroundColor: colors.surface },
       }}
     >

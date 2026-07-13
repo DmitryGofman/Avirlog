@@ -39,7 +39,7 @@ const INTERVALS = [
 ];
 
 export default function SettingsScreen() {
-  const { colors, mode, setMode } = useTheme();
+  const { colors, mode, setMode, setSkin } = useTheme();
   const { user, signOut, deleteAccount } = useAuth();
   const { showToast } = useToast();
   const insets = useSafeAreaInsets();
@@ -240,6 +240,7 @@ export default function SettingsScreen() {
                 testID={`settings-skin-${s.id}`}
                 onPress={() => {
                   if (settings) persist({ ...settings, skin: s.id });
+                  setSkin(s.id);
                 }}
                 right={
                   settings?.skin === s.id ? (

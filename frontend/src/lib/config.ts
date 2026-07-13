@@ -36,4 +36,4 @@ export const SKINS: SkinMeta[] = [
   },
 ];
 
-export const DEFAULT_SKIN: SkinId = "banners";
+export const DEFAULT_SKIN: SkinId = "instrument";

@@ -21,7 +21,8 @@ export interface LocalSettings {
 }
 
 const LOGS_KEY = "avirlog_local_logs";
-const SETTINGS_KEY = "avirlog_local_settings";
+export const LOCAL_SETTINGS_KEY = "avirlog_local_settings";
+const SETTINGS_KEY = LOCAL_SETTINGS_KEY;
 
 const DEFAULT_SETTINGS: LocalSettings = {
   reminder_enabled: false,

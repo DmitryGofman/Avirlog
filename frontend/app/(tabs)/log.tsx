@@ -14,7 +14,6 @@ import { Sheet } from "@/src/components/Sheet";
 import { useToast } from "@/src/components/Toast";
 import { useTheme } from "@/src/context/ThemeContext";
 import { api, todayStr } from "@/src/lib/api";
-import { DEFAULT_SKIN, SkinId } from "@/src/lib/config";
 import { pickMessage, SWARA } from "@/src/lib/swara";
 import { BreathLog, fonts, NostrilState, radius, spacing, STATE_META } from "@/src/theme/theme";
 
@@ -29,7 +28,7 @@ function formatDateHeading(): string {
 }
 
 export default function QuickLogScreen() {
-  const { colors } = useTheme();
+  const { colors, skin } = useTheme();
   const { showToast } = useToast();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -38,7 +37,6 @@ export default function QuickLogScreen() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [moodJournaling, setMoodJournaling] = useState(true);
-  const [skin, setSkin] = useState<SkinId>(DEFAULT_SKIN);
   const [logVersion, setLogVersion] = useState(0);
   const [guidance, setGuidance] = useState<{ state: NostrilState; message: string } | null>(null);
 
@@ -81,11 +79,8 @@ export default function QuickLogScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      api<{ mood_journaling?: boolean; skin?: SkinId }>("/settings")
-        .then((s) => {
-          setMoodJournaling(s.mood_journaling ?? true);
-          setSkin(s.skin ?? DEFAULT_SKIN);
-        })
+      api<{ mood_journaling?: boolean }>("/settings")
+        .then((s) => setMoodJournaling(s.mood_journaling ?? true))
         .catch(() => {});
     }, []),
   );
