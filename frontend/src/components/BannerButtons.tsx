@@ -5,7 +5,7 @@
 // Balanced). Cloth physics = a slow sway from the rod plus a faster ripple;
 // pressing kicks a wave through the fabric and glows blue / red / white.
 import React, { useEffect, useRef, useState } from "react";
-import { Animated, Easing, Platform, Pressable, StyleSheet, View } from "react-native";
+import { Animated, Easing, Pressable, StyleSheet, View } from "react-native";
 import Svg, {
   Circle,
   Defs,
@@ -19,7 +19,11 @@ import Svg, {
 
 import { NostrilState } from "@/src/theme/theme";
 
-const USE_NATIVE = Platform.OS !== "web";
+// JS driver on every platform: these transforms animate skewX, whose native
+// animated-driver support is inconsistent across RN versions/architectures,
+// and all values in one transform array must share a driver. The three loops
+// are tiny — the JS driver costs nothing perceptible here.
+const USE_NATIVE = false;
 
 interface BannerProps {
   state: NostrilState;
