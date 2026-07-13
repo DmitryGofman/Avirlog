@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
+import { useSkinUi } from "@/src/components/ScreenHeader";
 import { useTheme } from "@/src/context/ThemeContext";
 import { BreathLog, fonts, radius, spacing, STATE_META } from "@/src/theme/theme";
 
@@ -22,6 +23,7 @@ export function formatTime(iso: string): string {
 
 export function LogRow({ log, onEdit, onDelete }: LogRowProps) {
   const { colors } = useTheme();
+  const ui = useSkinUi();
   const meta = STATE_META[log.nostril_state];
   const scores: string[] = [];
   if (log.mood_score != null) scores.push(`Mood ${log.mood_score}`);
@@ -31,13 +33,13 @@ export function LogRow({ log, onEdit, onDelete }: LogRowProps) {
   return (
     <View
       testID={`log-row-${log.id}`}
-      style={[styles.row, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}
+      style={[styles.row, ui.sq, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}
     >
       <View style={[styles.stateDot, { backgroundColor: colors[meta.colorKey] }]} />
       <View style={styles.body}>
         <View style={styles.topLine}>
           <Text style={[styles.stateLabel, { color: colors.onSurface }]}>{meta.label}</Text>
-          <Text style={[styles.time, { color: colors.onSurfaceTertiary }]}>{formatTime(log.created_at)}</Text>
+          <Text style={[styles.time, ui.mono, { color: colors.onSurfaceTertiary }]}>{formatTime(log.created_at)}</Text>
         </View>
         {scores.length > 0 && (
           <Text style={[styles.scores, { color: colors.onSurfaceTertiary }]}>{scores.join(" · ")}</Text>
@@ -45,7 +47,7 @@ export function LogRow({ log, onEdit, onDelete }: LogRowProps) {
         {log.tags.length > 0 && (
           <View style={styles.tagsWrap}>
             {log.tags.map((tag) => (
-              <View key={tag} style={[styles.tag, { backgroundColor: colors.surfaceTertiary }]}>
+              <View key={tag} style={[styles.tag, ui.sq, { backgroundColor: colors.surfaceTertiary }]}>
                 <Text style={[styles.tagText, { color: colors.onSurfaceTertiary }]}>{tag}</Text>
               </View>
             ))}
@@ -63,7 +65,7 @@ export function LogRow({ log, onEdit, onDelete }: LogRowProps) {
                 testID={`log-edit-button-${log.id}`}
                 onPress={() => onEdit(log)}
                 hitSlop={8}
-                style={[styles.actionBtn, { backgroundColor: colors.surfaceTertiary }]}
+                style={[styles.actionBtn, ui.sq, { backgroundColor: colors.surfaceTertiary }]}
               >
                 <Ionicons name="pencil-outline" size={15} color={colors.onSurfaceTertiary} />
                 <Text style={[styles.actionText, { color: colors.onSurfaceTertiary }]}>Edit</Text>
@@ -74,7 +76,7 @@ export function LogRow({ log, onEdit, onDelete }: LogRowProps) {
                 testID={`log-delete-button-${log.id}`}
                 onPress={() => onDelete(log)}
                 hitSlop={8}
-                style={[styles.actionBtn, { backgroundColor: colors.surfaceTertiary }]}
+                style={[styles.actionBtn, ui.sq, { backgroundColor: colors.surfaceTertiary }]}
               >
                 <Ionicons name="trash-outline" size={15} color={colors.error} />
                 <Text style={[styles.actionText, { color: colors.error }]}>Delete</Text>

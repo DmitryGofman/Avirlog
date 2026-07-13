@@ -4,6 +4,7 @@ import React, { useCallback, useState } from "react";
 import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { MONO, ScreenHeader, useSkinUi } from "@/src/components/ScreenHeader";
 import { useTheme } from "@/src/context/ThemeContext";
 import { api, daysAgoStr, todayStr } from "@/src/lib/api";
 import { BreathLog, fonts, NostrilState, radius, spacing, STATE_META } from "@/src/theme/theme";
@@ -27,6 +28,7 @@ function timeBucket(hour: number): string {
 
 export default function InsightsScreen() {
   const { colors } = useTheme();
+  const ui = useSkinUi();
   const insets = useSafeAreaInsets();
   const [logs, setLogs] = useState<BreathLog[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -136,9 +138,9 @@ export default function InsightsScreen() {
     return (
       <View
         key={key}
-        style={[styles.card, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}
+        style={[styles.card, ui.sq, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}
       >
-        <Text style={[styles.cardTitle, { color: colors.onSurface }]}>{title}</Text>
+        <Text style={[styles.cardTitle, ui.monoLabel, { color: colors.onSurface }]}>{title}</Text>
         {hasAny ? (
           <View style={styles.chartRow}>
             {bars.map((b) => (
@@ -147,6 +149,7 @@ export default function InsightsScreen() {
                   <View
                     style={[
                       styles.metricBar,
+                      ui.sq,
                       {
                         height: b.avg != null ? Math.max(4, (b.avg / 10) * 72) : 2,
                         backgroundColor: b.avg != null ? colors.brand : colors.border,
@@ -154,7 +157,7 @@ export default function InsightsScreen() {
                     ]}
                   />
                 </View>
-                <Text style={[styles.chartDayLabel, { color: colors.onSurfaceTertiary }]}>
+                <Text style={[styles.chartDayLabel, ui.mono, { color: colors.onSurfaceTertiary }]}>
                   {dayInitial(b.date)}
                 </Text>
               </View>
@@ -171,10 +174,7 @@ export default function InsightsScreen() {
 
   return (
     <View style={[styles.root, { backgroundColor: colors.surface }]}>
-      <View style={[styles.header, { paddingTop: insets.top + spacing.lg }]}>
-        <Text style={[styles.title, { color: colors.onSurface }]}>Insights</Text>
-        <Text style={[styles.subtitle, { color: colors.onSurfaceTertiary }]}>Last 7 days</Text>
-      </View>
+      <ScreenHeader index="03" title="Insights" subtitle="Last 7 days" topInset={insets.top} />
 
       <ScrollView
         contentContainerStyle={styles.scroll}
@@ -200,7 +200,15 @@ export default function InsightsScreen() {
 
         {logs !== null && !error && totalLogs === 0 && (
           <View testID="insights-empty-state" style={styles.center}>
-            <Image source={{ uri: EMPTY_IMG }} style={styles.emptyImage} contentFit="cover" />
+            {ui.instrument ? (
+              <View style={[styles.emptyBox, { borderColor: colors.border }]}>
+                <Text style={{ fontFamily: MONO, fontSize: 11, letterSpacing: 2, color: colors.onSurfaceTertiary }}>
+                  — AWAITING DATA —
+                </Text>
+              </View>
+            ) : (
+              <Image source={{ uri: EMPTY_IMG }} style={styles.emptyImage} contentFit="cover" />
+            )}
             <Text style={[styles.emptyTitle, { color: colors.onSurface }]}>Keep tracking</Text>
             <Text style={[styles.muted, { color: colors.onSurfaceTertiary }]}>
               Pattern will appear after more logs.
@@ -212,14 +220,14 @@ export default function InsightsScreen() {
           <>
             <View
               testID="insights-dominance-chart"
-              style={[styles.card, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}
+              style={[styles.card, ui.sq, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}
             >
-              <Text style={[styles.cardTitle, { color: colors.onSurface }]}>Nostril dominance</Text>
+              <Text style={[styles.cardTitle, ui.monoLabel, { color: colors.onSurface }]}>Nostril dominance</Text>
               <View style={styles.chartRow}>
                 {dayBars.map((b) => (
                   <View key={b.date} style={styles.chartCol}>
                     <View style={styles.chartColBarArea}>
-                      <View style={styles.stackedBar}>
+                      <View style={[styles.stackedBar, ui.sq]}>
                         {STATE_KEYS.map((s) =>
                           b.counts[s] > 0 ? (
                             <View
@@ -234,7 +242,7 @@ export default function InsightsScreen() {
                         )}
                       </View>
                     </View>
-                    <Text style={[styles.chartDayLabel, { color: colors.onSurfaceTertiary }]}>
+                    <Text style={[styles.chartDayLabel, ui.mono, { color: colors.onSurfaceTertiary }]}>
                       {dayInitial(b.date)}
                     </Text>
                   </View>
@@ -258,16 +266,17 @@ export default function InsightsScreen() {
 
             <View
               testID="insights-timeofday-card"
-              style={[styles.card, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}
+              style={[styles.card, ui.sq, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}
             >
-              <Text style={[styles.cardTitle, { color: colors.onSurface }]}>Time of day</Text>
+              <Text style={[styles.cardTitle, ui.monoLabel, { color: colors.onSurface }]}>Time of day</Text>
               {buckets.map((b) => (
                 <View key={b} style={styles.bucketRow}>
                   <Text style={[styles.bucketLabel, { color: colors.onSurfaceTertiary }]}>{b}</Text>
-                  <View style={[styles.bucketTrack, { backgroundColor: colors.surfaceTertiary }]}>
+                  <View style={[styles.bucketTrack, ui.sq, { backgroundColor: colors.surfaceTertiary }]}>
                     <View
                       style={[
                         styles.bucketFill,
+                        ui.sq,
                         {
                           width: `${(bucketCounts[b] / maxBucket) * 100}%`,
                           backgroundColor: colors.brand,
@@ -275,20 +284,20 @@ export default function InsightsScreen() {
                       ]}
                     />
                   </View>
-                  <Text style={[styles.bucketCount, { color: colors.onSurfaceSecondary }]}>
+                  <Text style={[styles.bucketCount, ui.mono, { color: colors.onSurfaceSecondary }]}>
                     {bucketCounts[b]}
                   </Text>
                 </View>
               ))}
             </View>
 
-            <Text style={[styles.sectionTitle, { color: colors.onSurfaceTertiary }]}>Patterns</Text>
+            <Text style={[styles.sectionTitle, ui.monoLabel, { color: colors.onSurfaceTertiary }]}>Patterns</Text>
             {enoughData && shownCorrelations.length > 0 ? (
               shownCorrelations.map((c, i) => (
                 <View
                   key={i}
                   testID={`insights-pattern-card-${i}`}
-                  style={[styles.patternCard, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}
+                  style={[styles.patternCard, ui.sq, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}
                 >
                   <View style={[styles.patternDot, { backgroundColor: colors.brand }]} />
                   <Text style={[styles.patternText, { color: colors.onSurfaceSecondary }]}>{c}</Text>
@@ -297,7 +306,7 @@ export default function InsightsScreen() {
             ) : (
               <View
                 testID="insights-patterns-locked"
-                style={[styles.patternCard, { backgroundColor: colors.surfaceTertiary, borderColor: colors.border }]}
+                style={[styles.patternCard, ui.sq, { backgroundColor: colors.surfaceTertiary, borderColor: colors.border }]}
               >
                 <Text style={[styles.patternText, { color: colors.onSurfaceTertiary }]}>
                   Log for a few more days to unlock useful patterns.
@@ -319,6 +328,14 @@ const styles = StyleSheet.create({
   scroll: { paddingHorizontal: spacing.xl, paddingBottom: spacing.xxl },
   center: { alignItems: "center", paddingVertical: spacing.xxxl },
   emptyImage: { width: 160, height: 120, borderRadius: radius.md, marginBottom: spacing.lg },
+  emptyBox: {
+    width: 200,
+    height: 90,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: spacing.lg,
+  },
   emptyTitle: { fontFamily: fonts.semibold, fontSize: 17, marginBottom: spacing.xs },
   muted: { fontFamily: fonts.regular, fontSize: 14, textAlign: "center" },
   retry: { fontFamily: fonts.medium, fontSize: 14, marginTop: spacing.sm },

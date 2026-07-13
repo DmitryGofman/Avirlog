@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { ScreenHeader, useSkinUi } from "@/src/components/ScreenHeader";
 import { Sheet } from "@/src/components/Sheet";
 import { useToast } from "@/src/components/Toast";
 import { useAuth } from "@/src/context/AuthContext";
@@ -40,6 +41,7 @@ const INTERVALS = [
 
 export default function SettingsScreen() {
   const { colors, mode, setMode, setSkin } = useTheme();
+  const ui = useSkinUi();
   const { user, signOut, deleteAccount } = useAuth();
   const { showToast } = useToast();
   const insets = useSafeAreaInsets();
@@ -167,7 +169,7 @@ export default function SettingsScreen() {
       disabled={!onPress}
       style={({ pressed }) => [styles.row, { opacity: pressed && onPress ? 0.7 : 1 }]}
     >
-      <View style={[styles.rowIcon, { backgroundColor: colors.brandTertiary }]}>
+      <View style={[styles.rowIcon, ui.sq, { backgroundColor: colors.brandTertiary }]}>
         <Ionicons name={icon} size={16} color={danger ? colors.error : colors.onBrandTertiary} />
       </View>
       <Text style={[styles.rowLabel, { color: danger ? colors.error : colors.onSurface }]}>
@@ -179,8 +181,8 @@ export default function SettingsScreen() {
 
   const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
     <View style={styles.section}>
-      <Text style={[styles.sectionTitle, { color: colors.onSurfaceTertiary }]}>{title}</Text>
-      <View style={[styles.sectionCard, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}>
+      <Text style={[styles.sectionTitle, ui.monoLabel, { color: colors.onSurfaceTertiary }]}>{title}</Text>
+      <View style={[styles.sectionCard, ui.sq, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}>
         {children}
       </View>
     </View>
@@ -188,9 +190,7 @@ export default function SettingsScreen() {
 
   return (
     <View style={[styles.root, { backgroundColor: colors.surface }]}>
-      <View style={[styles.header, { paddingTop: insets.top + spacing.lg }]}>
-        <Text style={[styles.title, { color: colors.onSurface }]}>Settings</Text>
-      </View>
+      <ScreenHeader index="05" title="Settings" subtitle="Configuration" topInset={insets.top} />
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <Section title="Account">
