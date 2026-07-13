@@ -48,6 +48,24 @@ jobs:
           cp dist/index.html dist/404.html
           touch dist/.nojekyll
 
+      # A real static /privacy/ page (HTTP 200) generated from PRIVACY.md —
+      # App Store Connect validates the privacy policy URL server-side, and
+      # the SPA fallback alone answers it with a 404 status.
+      - name: Generate static privacy page
+        working-directory: ${{ github.workspace }}
+        run: |
+          mkdir -p frontend/dist/privacy
+          npx --yes marked --gfm < PRIVACY.md > /tmp/privacy-body.html
+          {
+            echo '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">'
+            echo '<meta name="viewport" content="width=device-width, initial-scale=1">'
+            echo '<title>AvirLog — Privacy Policy</title>'
+            echo '<style>body{max-width:680px;margin:0 auto;padding:32px 20px 64px;font:16px/1.65 -apple-system,"Segoe UI",system-ui,sans-serif;color:#1C1C1C;background:#F7F7F5}h1,h2{letter-spacing:-.3px}a{color:#4A5E98}@media (prefers-color-scheme:dark){body{color:#E6E6E6;background:#121212}a{color:#7EA8D9}}</style>'
+            echo '</head><body>'
+            cat /tmp/privacy-body.html
+            echo '</body></html>'
+          } > frontend/dist/privacy/index.html
+
       - uses: actions/configure-pages@v5
 
       - uses: actions/upload-pages-artifact@v3
