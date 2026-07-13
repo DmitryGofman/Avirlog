@@ -64,8 +64,8 @@ function Banner({ state, disabled, onPress, swayDelay, children, thin }: BannerP
     onPress(state);
   };
 
-  const rotate = sway.interpolate({ inputRange: [0, 1], outputRange: ["-0.7deg", "0.8deg"] });
-  const rippleSkew = ripple.interpolate({ inputRange: [0, 1], outputRange: ["-1.4deg", "2deg"] });
+  const rotate = sway.interpolate({ inputRange: [0, 1], outputRange: ["-0.45deg", "0.5deg"] });
+  const rippleSkew = ripple.interpolate({ inputRange: [0, 1], outputRange: ["-0.8deg", "1.1deg"] });
   const waveSkew = wave.interpolate({
     inputRange: [0, 0.14, 0.38, 0.62, 0.82, 1],
     outputRange: ["0deg", "5deg", "-4deg", "2.4deg", "-1.1deg", "0deg"],
@@ -90,10 +90,10 @@ function Banner({ state, disabled, onPress, swayDelay, children, thin }: BannerP
       accessibilityLabel={`Log ${state === "both" ? "both nostrils" : state + " nostril"}`}
       onPress={press}
       disabled={disabled}
-      style={({ pressed }) => [
-        thin ? styles.thinSlot : styles.slot,
-        { transform: [{ scale: pressed ? 0.96 : 1 }, { translateY: pressed ? 3 : 0 }] },
-      ]}
+      // No pressed-state transform: scaling or shifting the banner would pull
+      // its straps off the rod (visible on long-press). The wave through the
+      // cloth is the press feedback.
+      style={thin ? styles.thinSlot : styles.slot}
     >
       <Animated.View
         onLayout={(e) => setClothHeight(e.nativeEvent.layout.height)}
