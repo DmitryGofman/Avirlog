@@ -41,6 +41,10 @@ jobs:
       - name: Export static web build
         env:
           EXPO_PUBLIC_BACKEND_URL: ${{ secrets.EXPO_PUBLIC_BACKEND_URL }}
+          # Serves the web app from the /Avirlog subpath on GitHub Pages.
+          # app.config.js only applies baseUrl when this is set, so native
+          # store builds stay clean.
+          EXPO_WEB_BASE_URL: /Avirlog
         run: npx expo export --platform web
 
       - name: Add SPA fallback + bypass Jekyll
