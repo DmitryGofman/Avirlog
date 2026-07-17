@@ -22,22 +22,39 @@ import { useAuth } from "@/src/context/AuthContext";
 import { useTheme } from "@/src/context/ThemeContext";
 import { api } from "@/src/lib/api";
 import { ACCOUNTS_ENABLED, DEFAULT_SKIN, SKINS, SkinId } from "@/src/lib/config";
-import { cancelReminders, ensurePermission, scheduleReminders } from "@/src/lib/notifications";
+import { cancelReminders, ensurePermission, scheduleNextReminder } from "@/src/lib/notifications";
 import { fonts, radius, spacing } from "@/src/theme/theme";
 
 interface Settings {
   reminder_enabled: boolean;
-  reminder_interval_minutes: number;
+  reminder_interval_seconds: number;
+  quiet_hours_enabled: boolean;
+  quiet_start_minutes: number;
+  quiet_end_minutes: number;
   theme: "light" | "dark";
   mood_journaling: boolean;
   skin: SkinId;
 }
 
 const INTERVALS = [
-  { label: "30 min", value: 30 },
-  { label: "1 hour", value: 60 },
-  { label: "2 hours", value: 120 },
+  { label: "30 sec", value: 30 },
+  { label: "1 min", value: 60 },
+  { label: "5 min", value: 300 },
+  { label: "15 min", value: 900 },
+  { label: "1 hour", value: 3600 },
 ];
+
+function fmtInterval(sec: number): string {
+  if (sec < 60) return `${sec} sec`;
+  if (sec < 3600) return `${Math.round(sec / 60)} min`;
+  return `${Math.round(sec / 3600)} hr`;
+}
+
+function fmtClock(minutes: number): string {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
 
 export default function SettingsScreen() {
   const { colors, mode, setMode, setSkin } = useTheme();
@@ -50,6 +67,8 @@ export default function SettingsScreen() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [customOpen, setCustomOpen] = useState(false);
   const [customValue, setCustomValue] = useState("");
+  const [quietEdit, setQuietEdit] = useState<null | "start" | "end">(null);
+  const [quietValue, setQuietValue] = useState("");
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -62,6 +81,13 @@ export default function SettingsScreen() {
       .catch(() => showToast("Could not load settings", "error"));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Re-arm the chained reminder whenever a relevant setting changes.
+  const rearm = (s: Settings) => {
+    if (s.reminder_enabled && Platform.OS !== "web") {
+      scheduleNextReminder(s).catch(() => {});
+    }
+  };
 
   const persist = async (next: Settings) => {
     setSettings(next);
@@ -86,12 +112,15 @@ export default function SettingsScreen() {
         showToast("Allow notifications in system settings to get reminders", "error");
         return;
       }
-      await scheduleReminders(settings.reminder_interval_minutes);
-      showToast(`Reminders every ${settings.reminder_interval_minutes} min`);
-    } else if (!enabled) {
+    }
+    const next = { ...settings, reminder_enabled: enabled };
+    if (enabled) {
+      await scheduleNextReminder(next);
+      showToast(`Reminders every ${fmtInterval(next.reminder_interval_seconds)}`);
+    } else {
       await cancelReminders();
     }
-    persist({ ...settings, reminder_enabled: enabled });
+    persist(next);
   };
 
   const toggleMoodJournaling = (enabled: boolean) => {
@@ -99,23 +128,45 @@ export default function SettingsScreen() {
     persist({ ...settings, mood_journaling: enabled });
   };
 
-  const setInterval = (minutes: number) => {
+  const setInterval = (seconds: number) => {
     if (!settings) return;
-    if (settings.reminder_enabled && Platform.OS !== "web") {
-      scheduleReminders(minutes).catch(() => {});
-    }
-    persist({ ...settings, reminder_interval_minutes: minutes });
+    const next = { ...settings, reminder_interval_seconds: seconds };
+    rearm(next);
+    persist(next);
   };
 
   const saveCustom = () => {
     const v = parseInt(customValue, 10);
-    if (isNaN(v) || v < 5 || v > 1440) {
-      showToast("Enter minutes between 5 and 1440", "error");
+    if (isNaN(v) || v < 5 || v > 86400) {
+      showToast("Enter seconds between 5 and 86400", "error");
       return;
     }
     setInterval(v);
     setCustomOpen(false);
     showToast("Reminder interval saved");
+  };
+
+  const toggleQuiet = (enabled: boolean) => {
+    if (!settings) return;
+    const next = { ...settings, quiet_hours_enabled: enabled };
+    rearm(next);
+    persist(next);
+  };
+
+  const saveQuiet = () => {
+    if (!settings || !quietEdit) return;
+    const h = parseInt(quietValue, 10);
+    if (isNaN(h) || h < 0 || h > 23) {
+      showToast("Enter an hour between 0 and 23", "error");
+      return;
+    }
+    const next =
+      quietEdit === "start"
+        ? { ...settings, quiet_start_minutes: h * 60 }
+        : { ...settings, quiet_end_minutes: h * 60 };
+    rearm(next);
+    persist(next);
+    setQuietEdit(null);
   };
 
   const exportData = async () => {
@@ -146,7 +197,7 @@ export default function SettingsScreen() {
     }
   };
 
-  const isPresetInterval = INTERVALS.some((i) => i.value === settings?.reminder_interval_minutes);
+  const isPresetInterval = INTERVALS.some((i) => i.value === settings?.reminder_interval_seconds);
 
   const Row = ({
     icon,
@@ -331,9 +382,10 @@ export default function SettingsScreen() {
           />
           {settings?.reminder_enabled && (
             <View style={styles.intervalWrap}>
+              <Text style={[styles.reminderSub, { color: colors.onSurfaceTertiary }]}>Every</Text>
               <View style={styles.intervalRow}>
                 {INTERVALS.map((i) => {
-                  const selected = settings.reminder_interval_minutes === i.value;
+                  const selected = settings.reminder_interval_seconds === i.value;
                   return (
                     <Pressable
                       key={i.value}
@@ -361,7 +413,7 @@ export default function SettingsScreen() {
                 <Pressable
                   testID="settings-interval-custom"
                   onPress={() => {
-                    setCustomValue(String(settings.reminder_interval_minutes));
+                    setCustomValue(String(settings.reminder_interval_seconds));
                     setCustomOpen(true);
                   }}
                   style={[
@@ -378,13 +430,55 @@ export default function SettingsScreen() {
                       { color: !isPresetInterval ? colors.onSurfaceInverse : colors.onSurfaceTertiary },
                     ]}
                   >
-                    {!isPresetInterval ? `${settings.reminder_interval_minutes} min` : "Custom"}
+                    {!isPresetInterval ? fmtInterval(settings.reminder_interval_seconds) : "Custom"}
                   </Text>
                 </Pressable>
               </View>
+
+              {/* Sleep time — no reminders inside this window */}
+              <View style={styles.quietHeader}>
+                <Text style={[styles.reminderSub, { color: colors.onSurfaceTertiary }]}>Sleep time</Text>
+                <Switch
+                  testID="settings-quiet-switch"
+                  value={settings.quiet_hours_enabled}
+                  onValueChange={toggleQuiet}
+                  trackColor={{ false: colors.border, true: colors.brand }}
+                  thumbColor="#FFFFFF"
+                />
+              </View>
+              {settings.quiet_hours_enabled && (
+                <View style={styles.intervalRow}>
+                  <Pressable
+                    testID="settings-quiet-start"
+                    onPress={() => {
+                      setQuietValue(String(Math.floor(settings.quiet_start_minutes / 60)));
+                      setQuietEdit("start");
+                    }}
+                    style={[styles.intervalPill, { backgroundColor: colors.surfaceTertiary, borderColor: colors.border }]}
+                  >
+                    <Text style={[styles.intervalText, { color: colors.onSurfaceTertiary }]}>
+                      From {fmtClock(settings.quiet_start_minutes)}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    testID="settings-quiet-end"
+                    onPress={() => {
+                      setQuietValue(String(Math.floor(settings.quiet_end_minutes / 60)));
+                      setQuietEdit("end");
+                    }}
+                    style={[styles.intervalPill, { backgroundColor: colors.surfaceTertiary, borderColor: colors.border }]}
+                  >
+                    <Text style={[styles.intervalText, { color: colors.onSurfaceTertiary }]}>
+                      To {fmtClock(settings.quiet_end_minutes)}
+                    </Text>
+                  </Pressable>
+                </View>
+              )}
+
               <Text style={[styles.reminderHint, { color: colors.onSurfaceTertiary }]}>
-                A repeating reminder with Left / Right / Both buttons lets you log in one tap from the
-                notification. Delivered on the installed app (iOS/Android), not the web preview.
+                One reminder at a time — the next is armed after you respond to it (or reopen the app).
+                Hold the notification to reveal the Left / Right / Both buttons. Delivered on the
+                installed app, not the web preview.
               </Text>
             </View>
           )}
@@ -437,7 +531,7 @@ export default function SettingsScreen() {
 
       <Sheet visible={customOpen} onClose={() => setCustomOpen(false)} title="Custom interval">
         <Text style={[styles.sheetLabel, { color: colors.onSurfaceTertiary }]}>
-          Minutes between reminders (5–1440)
+          Seconds between reminders (5–86400)
         </Text>
         <TextInput
           testID="settings-custom-interval-input"
@@ -448,12 +542,39 @@ export default function SettingsScreen() {
           keyboardType="number-pad"
           value={customValue}
           onChangeText={setCustomValue}
-          placeholder="45"
+          placeholder="120"
           placeholderTextColor={colors.onSurfaceTertiary}
         />
         <Pressable
           testID="settings-custom-interval-save"
           onPress={saveCustom}
+          style={[styles.primaryBtn, { backgroundColor: colors.brandPrimary }]}
+        >
+          <Text style={[styles.primaryBtnText, { color: colors.onBrandPrimary }]}>Save</Text>
+        </Pressable>
+      </Sheet>
+
+      <Sheet
+        visible={!!quietEdit}
+        onClose={() => setQuietEdit(null)}
+        title={quietEdit === "start" ? "Sleep starts at" : "Sleep ends at"}
+      >
+        <Text style={[styles.sheetLabel, { color: colors.onSurfaceTertiary }]}>Hour of day (0–23)</Text>
+        <TextInput
+          testID="settings-quiet-input"
+          style={[
+            styles.customInput,
+            { backgroundColor: colors.surfaceTertiary, color: colors.onSurface, borderColor: colors.border },
+          ]}
+          keyboardType="number-pad"
+          value={quietValue}
+          onChangeText={setQuietValue}
+          placeholder="22"
+          placeholderTextColor={colors.onSurfaceTertiary}
+        />
+        <Pressable
+          testID="settings-quiet-save"
+          onPress={saveQuiet}
           style={[styles.primaryBtn, { backgroundColor: colors.brandPrimary }]}
         >
           <Text style={[styles.primaryBtnText, { color: colors.onBrandPrimary }]}>Save</Text>
@@ -525,6 +646,20 @@ const styles = StyleSheet.create({
   divider: { height: 1, marginLeft: 40 },
   intervalWrap: { paddingBottom: spacing.lg },
   intervalRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  reminderSub: {
+    fontFamily: fonts.medium,
+    fontSize: 12,
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+    marginBottom: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  quietHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: spacing.md,
+  },
   intervalPill: {
     paddingHorizontal: spacing.lg,
     height: 36,
