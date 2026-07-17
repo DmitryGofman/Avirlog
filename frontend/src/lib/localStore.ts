@@ -14,7 +14,13 @@ interface LocalApiOptions {
 
 export interface LocalSettings {
   reminder_enabled: boolean;
-  reminder_interval_minutes: number;
+  // Reminder cadence is stored in seconds so short test intervals are possible.
+  reminder_interval_seconds: number;
+  // Sleep window: no reminders fire between quiet_start and quiet_end (minutes
+  // since local midnight; the window may wrap past midnight).
+  quiet_hours_enabled: boolean;
+  quiet_start_minutes: number;
+  quiet_end_minutes: number;
   theme: "light" | "dark";
   mood_journaling: boolean;
   skin: SkinId;
@@ -26,7 +32,10 @@ const SETTINGS_KEY = LOCAL_SETTINGS_KEY;
 
 const DEFAULT_SETTINGS: LocalSettings = {
   reminder_enabled: false,
-  reminder_interval_minutes: 60,
+  reminder_interval_seconds: 3600,
+  quiet_hours_enabled: false,
+  quiet_start_minutes: 22 * 60, // 22:00
+  quiet_end_minutes: 7 * 60, // 07:00
   theme: "light",
   mood_journaling: true,
   skin: DEFAULT_SKIN,
@@ -72,7 +81,13 @@ async function readSettings(): Promise<LocalSettings> {
   const raw = await storage.getItem<string>(SETTINGS_KEY, "");
   if (!raw) return { ...DEFAULT_SETTINGS };
   try {
-    return { ...DEFAULT_SETTINGS, ...(JSON.parse(raw) as Partial<LocalSettings>) };
+    const stored = JSON.parse(raw) as Partial<LocalSettings> & { reminder_interval_minutes?: number };
+    // Migrate the old minutes-based interval to seconds.
+    if (stored.reminder_interval_seconds == null && stored.reminder_interval_minutes != null) {
+      stored.reminder_interval_seconds = Math.round(stored.reminder_interval_minutes * 60);
+    }
+    delete stored.reminder_interval_minutes;
+    return { ...DEFAULT_SETTINGS, ...stored };
   } catch {
     return { ...DEFAULT_SETTINGS };
   }
