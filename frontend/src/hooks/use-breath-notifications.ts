@@ -6,7 +6,7 @@
 // Native only.
 import { router } from "expo-router";
 import * as Notifications from "expo-notifications";
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { AppState, Platform } from "react-native";
 
 import { useToast } from "@/src/components/Toast";
@@ -32,7 +32,6 @@ async function getReminderConfig(): Promise<ReminderConfig | null> {
 
 export function useBreathNotifications() {
   const { showToast } = useToast();
-  const handledRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (Platform.OS === "web") return;
@@ -45,12 +44,13 @@ export function useBreathNotifications() {
       const state = actionToState(actionId);
 
       if (state) {
-        // Quick-log button.
-        const key = `${response.notification.request.identifier}:${actionId}`;
-        if (handledRef.current.has(key)) return;
-        handledRef.current.add(key);
+        // Quick-log button. Use the notification id + action as a stable
+        // idempotency key: if iOS suspended a background write before it
+        // flushed, this same response is replayed on next open and the store
+        // upserts the same row — so the log is never lost or duplicated.
+        const key = `notif_${response.notification.request.identifier}_${actionId}`;
         try {
-          await createBreathLog(state);
+          await createBreathLog(state, key);
           await presentLogConfirmation(state);
           showToast(`Logged · ${STATE_META[state].label}`);
         } catch {

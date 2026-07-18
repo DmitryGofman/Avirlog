@@ -77,6 +77,20 @@ async function writeLogs(logs: BreathLog[]): Promise<void> {
   await storage.setItem(LOGS_KEY, JSON.stringify(logs));
 }
 
+// Serialize read-modify-write sequences on the logs array. Notification
+// quick-logs and in-app taps can fire near-simultaneously; without this, two
+// overlapping POSTs both read the same array, both push, and the second write
+// clobbers the first (a lost log). Every mutating log op runs through here.
+let logWriteChain: Promise<unknown> = Promise.resolve();
+function withLogLock<T>(fn: () => Promise<T>): Promise<T> {
+  const run = logWriteChain.then(fn, fn);
+  logWriteChain = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  return run;
+}
+
 async function readSettings(): Promise<LocalSettings> {
   const raw = await storage.getItem<string>(SETTINGS_KEY, "");
   if (!raw) return { ...DEFAULT_SETTINGS };
@@ -148,44 +162,59 @@ export async function localApi<T = any>(path: string, options: LocalApiOptions =
     }
     if (method === "POST") {
       const body = options.body ?? {};
-      const now = new Date().toISOString();
-      const log: BreathLog = {
-        id: genId(),
-        user_id: "local",
-        nostril_state: body.nostril_state as NostrilState,
-        mood_score: body.mood_score ?? null,
-        energy_score: body.energy_score ?? null,
-        focus_score: body.focus_score ?? null,
-        note: body.note ?? null,
-        tags: body.tags ?? [],
-        local_date: body.local_date,
-        local_hour: body.local_hour ?? new Date().getHours(),
-        created_at: now,
-        updated_at: now,
-      };
-      const logs = await readLogs();
-      logs.push(log);
-      await writeLogs(logs);
-      return log as T;
+      return withLogLock(async () => {
+        const logs = await readLogs();
+        // Idempotent create: if the caller supplied an id (notification
+        // quick-logs do, to survive retried deliveries) and a log with that id
+        // already exists, return it unchanged instead of adding a duplicate.
+        if (body.id) {
+          const existing = logs.find((l) => l.id === body.id);
+          if (existing) return existing as T;
+        }
+        const now = new Date().toISOString();
+        const log: BreathLog = {
+          id: body.id ?? genId(),
+          user_id: "local",
+          nostril_state: body.nostril_state as NostrilState,
+          mood_score: body.mood_score ?? null,
+          energy_score: body.energy_score ?? null,
+          focus_score: body.focus_score ?? null,
+          note: body.note ?? null,
+          tags: body.tags ?? [],
+          local_date: body.local_date,
+          local_hour: body.local_hour ?? new Date().getHours(),
+          created_at: now,
+          updated_at: now,
+        };
+        logs.push(log);
+        await writeLogs(logs);
+        return log as T;
+      });
     }
   }
 
   // ----- /logs/:id (item) -----
   if (segments[0] === "logs" && segments.length === 2) {
     const id = segments[1];
-    const logs = await readLogs();
-    const idx = logs.findIndex((l) => l.id === id);
     if (method === "PATCH") {
-      if (idx === -1) throw notFound();
-      logs[idx] = { ...logs[idx], ...(options.body ?? {}), updated_at: new Date().toISOString() };
-      await writeLogs(logs);
-      return logs[idx] as T;
+      return withLogLock(async () => {
+        const logs = await readLogs();
+        const idx = logs.findIndex((l) => l.id === id);
+        if (idx === -1) throw notFound();
+        logs[idx] = { ...logs[idx], ...(options.body ?? {}), updated_at: new Date().toISOString() };
+        await writeLogs(logs);
+        return logs[idx] as T;
+      });
     }
     if (method === "DELETE") {
-      if (idx === -1) throw notFound();
-      logs.splice(idx, 1);
-      await writeLogs(logs);
-      return { ok: true } as T;
+      return withLogLock(async () => {
+        const logs = await readLogs();
+        const idx = logs.findIndex((l) => l.id === id);
+        if (idx === -1) throw notFound();
+        logs.splice(idx, 1);
+        await writeLogs(logs);
+        return { ok: true } as T;
+      });
     }
   }
 
