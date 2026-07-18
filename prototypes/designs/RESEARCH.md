@@ -183,6 +183,80 @@ Every citation below was checked against PubMed / publisher pages. Grades:
 
 ---
 
+## From the owner's deep-research report (verified, 3rd pass)
+
+All independently confirmed on PubMed/publisher pages. The report's two metadata
+slips are corrected here (Telles vigilance = 2017 not 2014; Kalaivani journal).
+
+### Nasal vs oral route — Established/Emerging
+
+- **Watso, J.C. et al. (2023).** *Acute nasal breathing lowers diastolic blood
+  pressure and increases parasympathetic contributions to HRV in young adults.*
+  Am. J. Physiol. Regul. Integr. Comp. Physiol. **PMID 37867476** ·
+  DOI 10.1152/ajpregu.00148.2023. 20 adults; nasal (vs oral) lowered
+  diastolic/mean BP and raised HF-HRV. **Isolates the nasal route cleanly.**
+- **Fan et al. (2011).** *Response of nasal airway and HRV to controlled nasal
+  breathing.* Eur. Arch. Otorhinolaryngol. **PMID 20978779.** n=10; unilateral
+  vs bilateral at 0.25 Hz — HR fell, sympathetic modulation dropped. Small.
+
+### Alternate-nostril breathing & blood pressure — Emerging
+
+- **Kalaivani, S. et al. (2019).** *Effect of alternate nostril breathing on BP,
+  heart rate and rate-pressure product among patients with hypertension.* J.
+  Educ. Health Promot. 8:145. **PMID 31463330.** RCT (170/85); 5 days ANB
+  lowered SBP/DBP/HR/RPP (P<0.0001). **A real RCT — adjunct, not replacement.**
+- **Telles, S. et al. (2017).** *Alternate-Nostril Yoga Breathing Reduced Blood
+  Pressure While Increasing Performance in a Vigilance Test.* Med. Sci. Monit.
+  Basic Res. **PMID 29284770.** 15 males; ANYB reduced SBP/MAP, improved
+  vigilance time.
+
+### The honesty anchor — laterality is weaker than it looks
+
+- **Telles, S. et al. (2024).** *Heart Rate Variability during Nostril-Regulated
+  Yoga Breathing: A Randomized Crossover Study.* Int. J. Yoga 17(3):203–210.
+  **PMID 39959514.** 47 men; right- vs left-nostril breathing produced **common,
+  not distinct** changes — driven by slower respiration, not opposite autonomic
+  poles. **Key: undercuts the strong "right=sympathetic/left=parasympathetic" law.**
+- **Gholamrezaei, A. et al. (2021).** *Psychophysiological responses to various
+  slow, deep breathing techniques.* Psychophysiology 58(2):e13712.
+  **PMID 33111377.** RSA was **higher** during loaded and pursed-lips breathing
+  than during left-unilateral nostril breathing — i.e. much of the benefit is
+  slow breathing itself, not the nostril. **Second key skeptic.**
+- **Dane, Ş. et al. (2002).** *Effects of unilateral nostril breathing on BP and
+  HR in right-handed subjects.* Int. J. Neurosci. **PMID 12152408.** n=129;
+  sex-dependent responses — no simple universal laterality law.
+
+### Nasal cycle — mechanism, sleep, timing — Established
+
+- **Eccles, R. (1978).** *The central rhythm of the nasal cycle.* Acta
+  Otolaryngol. 86(5-6):464–468. **PMID 716867.** Foundational: cyclical nasal
+  resistance attributed to a central autonomic rhythm (n=2).
+- **Kimura, A. et al. (2013).** *Phase of nasal cycle during sleep tends to be
+  associated with sleep stage.* Laryngoscope 123(8):2050–2055. **PMID 23576311.**
+  Cycle in 19/20; phase shifts during sleep (often REM).
+- **Lindemann, J. et al. (2023).** *Continuous investigation of the nasal cycle
+  over 48 hours.* Eur. Arch. Otorhinolaryngol. **PMID 38088419.** 30 adults;
+  cycle detected in 100% over 48 h. *(The "~206 min mean phase" figure the
+  report quotes was not independently confirmed — cite the study, not that number.)*
+
+### Nasal nitric oxide — a new angle worth featuring — Established
+
+- **Lundberg, J.O.N. et al. (1995).** *High nitric oxide production in human
+  paranasal sinuses.* Nat. Med. 1(4):370–373. DOI 10.1038/nm0495-370. Sinuses
+  are the major source of airway NO — nasal breathing carries antimicrobial,
+  vasodilatory NO to the lungs.
+- **Weitzberg, E. & Lundberg, J.O.N. (2002).** *Humming Greatly Increases Nasal
+  Nitric Oxide.* Am. J. Respir. Crit. Care Med. 166(2):144–145. **PMID 12119224.**
+  Nasal NO rose ~15-fold during humming. **A great, surprising "did you know."**
+
+> **Net effect on the reframe:** the external report *strengthens* the honest
+> stance. Its own conclusion — rate effects >> laterality effects, and the nasal
+> cycle is real but not a live autonomic readout — is now backed by two fresh
+> skeptics (Telles 2024, Gholamrezaei 2021) sitting right beside the tradition's
+> claim. That is the difference between confirming a belief and testing it.
+
+---
+
 ## How this maps to the app
 
 | App surface | Backed by |
