@@ -4,10 +4,18 @@
 import { api, todayStr } from "./api";
 import { BreathLog, NostrilState } from "@/src/theme/theme";
 
-export async function createBreathLog(state: NostrilState): Promise<BreathLog> {
+// `idempotencyKey` lets notification quick-logs pass a stable id so that a
+// delivery which is retried (e.g. a background write iOS suspended before it
+// flushed, then replayed via getLastNotificationResponseAsync on next open)
+// upserts the same row instead of dropping or duplicating it.
+export async function createBreathLog(
+  state: NostrilState,
+  idempotencyKey?: string,
+): Promise<BreathLog> {
   return api<BreathLog>("/logs", {
     method: "POST",
     body: {
+      ...(idempotencyKey ? { id: idempotencyKey } : {}),
       nostril_state: state,
       tags: [],
       local_date: todayStr(),
