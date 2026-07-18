@@ -100,6 +100,89 @@ Every citation below was checked against PubMed / publisher pages. Grades:
 
 ---
 
+## Expanded sources (verified, 2nd pass)
+
+### Recent reviews / meta-analyses (2018–2025)
+
+- **Laborde, S. et al. (2022).** *Effects of voluntary slow breathing on heart
+  rate and heart rate variability: a systematic review and meta-analysis.*
+  Neurosci. Biobehav. Rev. 138:104711. **PMID 35623448.** 223 studies — slow
+  breathing reliably raises vagally-mediated HRV. **Established.**
+- **Fincham, G.W. et al. (2023).** *Effect of breathwork on stress and mental
+  health: a meta-analysis of RCTs.* Sci. Rep. 13:432. **PMID 36624160.** 12
+  RCTs; small–medium reductions in stress/anxiety/depression, moderate bias
+  risk. **Emerging (cite with caveats).**
+- **Nam, T.G. et al. (2024).** *Effectiveness of Alternate Nostril Breathing on
+  Blood Pressure: a systematic review and meta-analysis of RCTs.* Complement.
+  Med. Res. 31(5):449–460. **PMID 39008954.** 6 RCTs (525 pp): ANB lowered
+  systolic ~7.2 / diastolic ~5.2 mmHg, but heterogeneity >75%. **Emerging.**
+
+### Nasal breathing & the brain (mechanism / neuroscience)
+
+- **Zelano, C. et al. (2016).** *Nasal Respiration Entrains Human Limbic
+  Oscillations and Modulates Cognitive Function.* J. Neurosci.
+  36(49):12448–12467. **PMID 27927961.** Intracranial EEG: nasal (not oral)
+  breathing entrains piriform/amygdala/hippocampus oscillations; nasal-inhale
+  timing improves fear discrimination and memory. **Established — landmark, the
+  best hard-neuroscience anchor.**
+- **Williams, M. & Eccles, R. (2016).** *A model for the central control of
+  airflow patterns within the human nasal cycle.* J. Laryngol. Otol.
+  130(1):82–88. **PMID 26482243.** Hypothalamic + brainstem half-centre model.
+  **Emerging (mechanistic model).**
+- **Niazi, I.K. et al. (2022).** *EEG signatures change during unilateral Yogi
+  nasal breathing.* Sci. Rep. 12:522. **PMID 35017606.** Forced unilateral
+  breathing → lateralized, frequency-specific EEG changes. **Emerging.**
+- **Frohlich, A.B. et al. (2025).** *Neuronal oscillations and functional
+  connectivity of paced nostril breathing: a high-density EEG study.* PLOS ONE
+  20(1):e0316125. Paced/alternate nostril breathing shifts alpha-mu & theta.
+  **Preliminary (single recent study).**
+- **Pendolino, A.L. et al. (2018).** *The nasal cycle: a comprehensive review.*
+  Rhinology Online 1:67–76. Prevalence ~70–80%, period 25–>200 min, autonomic
+  drivers. *Legit journal, not PubMed-indexed (no PMID).* **Established (review).**
+
+### Alternate-nostril breathing (nadi shodhana) specifics — Preliminary
+
+- **Raghuraj, P. & Telles, S. (2008).** *Immediate effect of specific nostril
+  manipulating yoga breathing practices on autonomic and respiratory variables.*
+  Appl. Psychophysiol. Biofeedback 33(2):65–75. **PMID 18347974.** Right-nostril
+  breathing raised BP (sympathetic-like).
+- **Ghiya, S. & Lee, C.M. (2012).** *Influence of alternate nostril breathing on
+  HRV in non-practitioners.* Int. J. Yoga 5(1):66–69. **PMID 22346069.**
+- **Sinha, A.N. et al. (2013).** *Assessment of the effects of pranayama /
+  alternate nostril breathing on the parasympathetic nervous system in young
+  adults.* J. Clin. Diagn. Res. 7(5):821–823. **PMID 23814719.**
+
+### Slow breathing / HRV biofeedback — mechanism
+
+- **Lehrer, P.M. & Gevirtz, R. (2014).** *Heart rate variability biofeedback:
+  how and why does it work?* Front. Psychol. 5:756. **PMC4104929.** Resonance-
+  frequency breathing (~6/min) maximizes RSA and baroreflex gain. **Established.**
+
+### More critical / null results (for balance)
+
+- **Samantaray, S. & Telles, S. (2008).** *Nostril dominance at rest associated
+  with performance of a left-hemisphere-specific cancellation task.* Int. J.
+  Yoga 1(2):56–59. **PMID 21829285.** Found **no** significant right-vs-left
+  difference on the task — a second null against nostril-dominance/hemisphere
+  claims. Pairs with Larson 1993.
+
+### Chronobiology / ultradian rhythms
+
+- **Kleitman, N. (1982).** *Basic rest-activity cycle — 22 years later.* Sleep
+  5(4):311–317. **PMID 6819628.** Kleitman's own restatement of the ~90-min BRAC.
+  **Established** (BRAC as a universal *waking* rhythm remains debated).
+- **Shannahoff-Khalsa, D. (1991).** *Lateralized rhythms of the central and
+  autonomic nervous systems.* Int. J. Psychophysiol. 11(3):225–251.
+  **PMID 1797757.** Frames the nasal cycle as a peripheral marker of a coupled
+  ultradian CNS/ANS lateralization rhythm. **Emerging (hypothesis-heavy).**
+
+> **New anchors worth featuring in-app:** Zelano 2016 (nasal breathing → brain,
+> hard evidence) and Laborde 2022 (slow breathing → HRV, 223 studies) are the two
+> strongest additions. The meta-analyses (Fincham, Nam) are positive but flag
+> high bias/heterogeneity — cite with those caveats, never as settled proof.
+
+---
+
 ## How this maps to the app
 
 | App surface | Backed by |
