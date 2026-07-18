@@ -20,6 +20,7 @@ import {
   ReminderConfig,
   scheduleNextReminder,
 } from "@/src/lib/notifications";
+import { importWidgetLogs } from "@/src/lib/widgetBridge";
 import { STATE_META } from "@/src/theme/theme";
 
 async function getReminderConfig(): Promise<ReminderConfig | null> {
@@ -69,13 +70,17 @@ export function useBreathNotifications() {
     Notifications.getLastNotificationResponseAsync().then(handle).catch(() => {});
     const sub = Notifications.addNotificationResponseReceivedListener(handle);
 
-    // Re-arm the chain whenever the app becomes active (covers ignored/swiped
-    // reminders and app restarts).
-    const appSub = AppState.addEventListener("change", (s) => {
-      if (s !== "active") return;
+    // On foreground: import any logs made on the widget, then re-arm the chain
+    // (covers ignored/swiped reminders and app restarts).
+    const onActive = () => {
+      importWidgetLogs().catch(() => {});
       getReminderConfig().then((cfg) => {
         if (cfg?.reminder_enabled) ensureReminderArmed(cfg).catch(() => {});
       });
+    };
+    onActive();
+    const appSub = AppState.addEventListener("change", (s) => {
+      if (s === "active") onActive();
     });
 
     return () => {

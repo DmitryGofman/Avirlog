@@ -16,5 +16,16 @@ module.exports = ({ config }) => {
   } else {
     delete config.experiments.baseUrl;
   }
+
+  // Widget target (native). @bacons/apple-targets compiles targets/widget/
+  // into a WidgetKit extension; the App Group lets the app and widget share
+  // the reminder state and the logs made on the widget.
+  config.plugins = [...(config.plugins || []), "@bacons/apple-targets"];
+  config.ios = config.ios || {};
+  config.ios.entitlements = {
+    ...(config.ios.entitlements || {}),
+    "com.apple.security.application-groups": ["group.com.avirlog.app"],
+  };
+
   return config;
 };

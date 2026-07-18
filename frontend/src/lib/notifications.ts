@@ -9,6 +9,7 @@ import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 
 import { pickMessage, SWARA } from "@/src/lib/swara";
+import { clearWidgetDue, setWidgetDue } from "@/src/lib/widgetBridge";
 import { NostrilState, STATE_META } from "@/src/theme/theme";
 
 export const BREATH_CATEGORY = "breath-log";
@@ -103,11 +104,13 @@ function nextDelaySeconds(cfg: ReminderConfig): number {
   return Math.max(5, Math.round((target.getTime() - Date.now()) / 1000));
 }
 
-// Cancel any pending reminder and arm exactly one for the next tick.
+// Cancel any pending reminder and arm exactly one for the next tick. The
+// widget is lit at the same moment (shared "due" time).
 export async function scheduleNextReminder(cfg: ReminderConfig): Promise<void> {
   if (Platform.OS === "web" || !cfg.reminder_enabled) return;
   await configureNotifications();
   await cancelReminders();
+  const delay = nextDelaySeconds(cfg);
   await Notifications.scheduleNotificationAsync({
     content: {
       title: "Breath check",
@@ -116,11 +119,12 @@ export async function scheduleNextReminder(cfg: ReminderConfig): Promise<void> {
     },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-      seconds: nextDelaySeconds(cfg),
+      seconds: delay,
       repeats: false,
       channelId: Platform.OS === "android" ? CHANNEL_ID : undefined,
     },
   });
+  setWidgetDue(Date.now() / 1000 + delay, cfg.reminder_interval_seconds);
 }
 
 // Re-arm on app open / after a swipe: only if reminders are on and nothing is
@@ -148,4 +152,5 @@ export async function presentLogConfirmation(state: NostrilState): Promise<void>
 export async function cancelReminders(): Promise<void> {
   if (Platform.OS === "web") return;
   await Notifications.cancelAllScheduledNotificationsAsync();
+  clearWidgetDue();
 }
