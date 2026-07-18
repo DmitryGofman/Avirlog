@@ -50,11 +50,26 @@ export default function TodayScreen() {
   };
 
   const total = logs?.length ?? 0;
+  // Distribution is weighted by *time in each state*, not the number of logs:
+  // each log's state holds until the next log (the newest holds until now), so
+  // a side that dominated for two hours counts as two hours even if you only
+  // logged it once. `counts` here means milliseconds spent in each state.
   const counts: Record<NostrilState, number> = { left: 0, right: 0, both: 0 };
-  logs?.forEach((l) => {
-    counts[l.nostril_state] += 1;
-  });
-  const pct = (n: number) => (total > 0 ? Math.round((n / total) * 100) : 0);
+  if (logs && logs.length > 0) {
+    const sorted = [...logs].sort((a, b) => (a.created_at < b.created_at ? -1 : 1));
+    const now = Date.now();
+    for (let i = 0; i < sorted.length; i++) {
+      const start = new Date(sorted[i].created_at).getTime();
+      const end = i + 1 < sorted.length ? new Date(sorted[i + 1].created_at).getTime() : now;
+      counts[sorted[i].nostril_state] += Math.max(0, end - start);
+    }
+    // Just-logged day (all durations ~0): show the latest state as the current one.
+    if (counts.left + counts.right + counts.both === 0) {
+      counts[sorted[sorted.length - 1].nostril_state] = 1;
+    }
+  }
+  const totalTime = counts.left + counts.right + counts.both;
+  const pct = (n: number) => (totalTime > 0 ? Math.round((n / totalTime) * 100) : 0);
   const avgMood = avg(logs?.map((l) => l.mood_score) ?? []);
   const avgEnergy = avg(logs?.map((l) => l.energy_score) ?? []);
   const avgFocus = avg(logs?.map((l) => l.focus_score) ?? []);
@@ -142,6 +157,9 @@ export default function TodayScreen() {
                   </View>
                 ))}
               </View>
+              <Text style={[styles.distCaption, { color: colors.onSurfaceTertiary }]}>
+                Share of time in each state — each log holds until the next.
+              </Text>
             </View>
 
             <View style={styles.statRow}>
@@ -223,6 +241,7 @@ const styles = StyleSheet.create({
   legendItem: { flexDirection: "row", alignItems: "center", gap: 5 },
   legendDot: { width: 8, height: 8, borderRadius: 4 },
   legendText: { fontFamily: fonts.medium, fontSize: 12 },
+  distCaption: { fontFamily: fonts.regular, fontSize: 11, lineHeight: 15, marginTop: spacing.sm },
   statRow: { flexDirection: "row", gap: spacing.sm, marginBottom: spacing.md },
   statCard: {
     flex: 1,
