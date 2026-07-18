@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AvirLog — Clean Log + Theory tab</title>
+<style>
+  /* CLEAN LOG + THEORY TAB.
+     The Log page stays like the main version: three big buttons and one small
+     suggestion — nothing else. All the science, tradition, evidence and
+     "did you know" moves into its own THEORY tab, where the theory stands.
+     Experiments stays as its own tab. Static, CSS only (no JS). */
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#B9B3A6; padding:28px 16px 60px;
+    font-family:-apple-system,"Segoe UI",system-ui,sans-serif;
+    display:flex; flex-wrap:wrap; gap:26px; justify-content:center;
+  }
+  .phone {
+    width:355px; background:#F7F5F0; border-radius:38px; overflow:hidden;
+    box-shadow:0 24px 60px rgba(55,50,40,.4);
+    display:flex; flex-direction:column; min-height:760px;
+  }
+  .screen { flex:1; padding:32px 22px 18px; display:flex; flex-direction:column; }
+  .cap { text-align:center; width:100%; font-size:12.5px; color:#54503F; margin-top:-14px; }
+
+  .kicker { font-size:10px; letter-spacing:2.4px; text-transform:uppercase; color:#98917E; font-family:ui-monospace,Menlo,monospace; }
+  h1 { font-size:25px; font-weight:700; letter-spacing:-.4px; color:#26241E; margin:8px 0 4px; }
+  .sub { font-size:13px; color:#77715F; line-height:1.45; }
+
+  /* ---------- LOG (clean) ---------- */
+  .bigrow { display:flex; gap:12px; margin-top:26px; }
+  .big {
+    flex:1; height:184px; border-radius:22px; padding:18px;
+    display:flex; flex-direction:column; justify-content:space-between;
+    border:none; cursor:pointer; text-align:left;
+  }
+  .big .n { font-size:23px; font-weight:700; }
+  .big .t { font-size:11px; font-style:italic; opacity:.6; }
+  .bL { background:#8FA28A; color:#1E2A1E; }
+  .bR { background:#C29580; color:#3A1D10; }
+  .bBoth {
+    margin-top:12px; height:66px; border-radius:20px; background:#EDE9DE;
+    border:1px solid #DDD7C6; color:#54503F; width:100%; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; gap:9px;
+    font-size:16px; font-weight:700;
+  }
+  .bBoth .t { font-size:11px; font-weight:400; font-style:italic; opacity:.6; }
+
+  /* the one small suggestion — that's all the text on Log */
+  .suggline {
+    margin-top:26px; display:flex; align-items:center; gap:11px;
+    padding:14px 16px; border-radius:16px; background:#F0EDE4; border:1px solid #E4E0D4;
+  }
+  .suggline .em { font-size:22px; }
+  .suggline .body { flex:1; }
+  .suggline .body .s { font-size:13.5px; color:#26241E; font-weight:600; line-height:1.35; }
+  .suggline .body .s b { color:#7a5a2c; }
+  .suggline .why { font-size:11px; color:#98917E; margin-top:3px; }
+  .spacer { flex:1; }
+  .logfoot { text-align:center; font-size:11px; color:#B0A992; font-style:italic; }
+
+  /* ---------- THEORY ---------- */
+  .lead { font-size:13px; color:#5b5645; line-height:1.55; margin-top:10px; }
+  .lead b { color:#26241E; }
+  .sect { font-size:10px; letter-spacing:1.8px; text-transform:uppercase; color:#98917E; font-family:ui-monospace,Menlo,monospace; margin:20px 0 8px; }
+
+  .map { display:flex; flex-direction:column; gap:7px; }
+  .maprow { display:flex; align-items:center; gap:11px; padding:10px 12px; border-radius:12px; }
+  .maprow .dot { width:12px; height:12px; border-radius:99px; flex:0 0 12px; }
+  .maprow .mn { font-size:12.5px; color:#26241E; font-weight:700; }
+  .maprow .mn small { font-weight:400; font-style:italic; color:#8a8574; }
+  .maprow .md { font-size:11.5px; color:#77715F; margin-left:auto; text-align:right; }
+  .m1 { background:#EAF0E7; } .m1 .dot { background:#8FA28A; }
+  .m2 { background:#F5E7DF; } .m2 .dot { background:#C29580; }
+  .m3 { background:#EDE9DE; } .m3 .dot { background:#B9B3A2; }
+
+  .claim { border:1px solid #DDD7C6; border-radius:14px; padding:13px; margin-top:9px; background:#FDFCF8; }
+  .badge { display:inline-block; font-size:8.5px; font-weight:800; letter-spacing:1.3px; padding:3px 8px; border-radius:99px; text-transform:uppercase; font-family:ui-monospace,Menlo,monospace; }
+  .b-est { background:#DCE8D8; color:#33502E; }
+  .b-eme { background:#F2E4C8; color:#6E5320; }
+  .b-tra { background:#E4DCEC; color:#4E3A66; }
+  .claim h3 { font-size:13.5px; color:#26241E; margin:7px 0 3px; }
+  .claim p { font-size:11.5px; line-height:1.5; color:#77715F; }
+  .claim .src { font-size:9px; color:#98917E; margin-top:5px; font-family:ui-monospace,Menlo,monospace; }
+
+  .dyk { border-left:3px solid #C29580; background:#F5EFE7; border-radius:0 12px 12px 0; padding:11px 14px; margin-top:9px; }
+  .dyk p { font-size:11.5px; line-height:1.55; color:#54503F; }
+  .dyk p b { color:#26241E; }
+
+  /* ---------- EXPERIMENTS ---------- */
+  .exp { border:1px solid #DDD7C6; border-radius:14px; padding:14px; margin-top:12px; background:#FDFCF8; }
+  .exp .h { font-size:10px; letter-spacing:1.6px; color:#98917E; font-family:ui-monospace,Menlo,monospace; }
+  .exp h3 { font-size:14px; color:#26241E; margin:5px 0 8px; }
+  .stat { display:flex; gap:8px; margin:8px 0; }
+  .statbox { flex:1; background:#F0EDE4; border-radius:10px; padding:9px 10px; }
+  .statbox .k { font-size:9px; letter-spacing:1.2px; color:#98917E; text-transform:uppercase; font-family:ui-monospace,Menlo,monospace; }
+  .statbox .v { font-size:15px; font-weight:700; color:#26241E; font-family:ui-monospace,Menlo,monospace; margin-top:2px; }
+  .verdict { font-size:11.5px; line-height:1.5; color:#54503F; }
+  .verdict b { color:#26241E; }
+  .meter { height:6px; border-radius:3px; background:#E4E0D4; margin:8px 0 4px; overflow:hidden; }
+  .meter i { display:block; height:100%; width:38%; background:#8FA28A; }
+  .meter-cap { font-size:9.5px; color:#98917E; font-family:ui-monospace,Menlo,monospace; }
+  .newexp { margin-top:14px; height:44px; border:1.5px dashed #B9B3A2; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:12.5px; color:#77715F; font-weight:600; }
+  .disclaim { font-size:10px; color:#98917E; line-height:1.5; margin-top:14px; font-style:italic; }
+
+  .tabs { display:flex; border-top:1px solid #E4E0D4; background:#FBF9F4; padding:11px 6px 22px; }
+  .tab { flex:1; text-align:center; font-size:9.5px; letter-spacing:.3px; color:#A29B87; }
+  .tab.on { color:#26241E; font-weight:700; }
+  .tab span { display:block; font-size:15px; margin-bottom:2px; }
+</style>
+</head>
+<body>
+
+  <!-- ============ 1 · LOG (clean) ============ -->
+  <div class="phone">
+    <div class="screen">
+      <div class="kicker">AVIRLOG</div>
+      <h1>Which side is open?</h1>
+      <div class="sub">Close one nostril, then the other. Tap what you feel.</div>
+
+      <div class="bigrow">
+        <button class="big bL"><span class="n">Left</span><span class="t">Ida</span></button>
+        <button class="big bR"><span class="n">Right</span><span class="t">Pingala</span></button>
+      </div>
+      <button class="bBoth">Both open <span class="t">· Sushumna</span></button>
+
+      <div class="suggline">
+        <span class="em">☀</span>
+        <span class="body">
+          <span class="s">Right is open — <b>a good window for focus &amp; effort.</b></span>
+          <span class="why">Suggestion from tradition · see the Theory tab</span>
+        </span>
+      </div>
+
+      <div class="spacer"></div>
+      <div class="logfoot">One tap. That's the whole ritual.</div>
+    </div>
+    <div class="tabs">
+      <div class="tab on"><span>◉</span>Log</div>
+      <div class="tab"><span>◷</span>Today</div>
+      <div class="tab"><span>❋</span>Theory</div>
+      <div class="tab"><span>⚗</span>Experiments</div>
+    </div>
+  </div>
+  <div class="cap">1 · Log — clean, like the main version: three big buttons + one small suggestion</div>
+
+  <!-- ============ 2 · THEORY ============ -->
+  <div class="phone">
+    <div class="screen">
+      <div class="kicker">THEORY · WHY THIS APP EXISTS</div>
+      <h1>The theory</h1>
+      <div class="lead">Your nose keeps a real rhythm — airflow alternates between nostrils.
+        <b>Tradition read it first; science can now measure it.</b> What each side <i>means</i>
+        is still partly a hypothesis — which is what you get to test.</div>
+
+      <div class="sect">What tradition says</div>
+      <div class="map">
+        <div class="maprow m1"><span class="dot"></span><span class="mn">Ida <small>left · moon</small></span><span class="md">cooling · rest · reflect</span></div>
+        <div class="maprow m2"><span class="dot"></span><span class="mn">Pingala <small>right · sun</small></span><span class="md">heating · focus · effort</span></div>
+        <div class="maprow m3"><span class="dot"></span><span class="mn">Sushumna <small>both</small></span><span class="md">balance · stillness</span></div>
+      </div>
+
+      <div class="sect">What science knows</div>
+      <div class="claim">
+        <span class="badge b-est">Established</span>
+        <h3>The nasal cycle is real</h3>
+        <p>Airflow alternates between nostrils under autonomic control — seen in ~72% of people,
+          over hours (mean ~2.6 h). Documented since 1895.</p>
+        <div class="src">Kayser 1895 · Hasegawa &amp; Kern 1977 · Eccles 1996</div>
+      </div>
+      <div class="claim">
+        <span class="badge b-est">Established</span>
+        <h3>Slow breathing calms you</h3>
+        <p>Slow, paced breathing raises heart-rate variability and vagal tone — regardless of
+          nostril. The app's firmest ground.</p>
+        <div class="src">Zaccaro 2018 · Russo 2017 (reviews)</div>
+      </div>
+      <div class="claim">
+        <span class="badge b-eme">Emerging / contested</span>
+        <h3>Right = active, left = calm?</h3>
+        <p>Small studies point this way; one controlled study found no effect. A real question,
+          unsettled — so the app treats it as a suggestion to test, not a fact.</p>
+        <div class="src">Werntz 1983 · Telles 1994 · Larson 1993 (null)</div>
+      </div>
+
+      <div class="sect">Did you know</div>
+      <div class="dyk"><p><b>Chronobiology agrees the day isn't flat.</b> Alertness rises and
+        falls in ~90-minute waves (Kleitman's rest-activity cycle) — tradition told you to work
+        <i>with</i> those waves long before we could chart them.</p></div>
+    </div>
+    <div class="tabs">
+      <div class="tab"><span>◉</span>Log</div>
+      <div class="tab"><span>◷</span>Today</div>
+      <div class="tab on"><span>❋</span>Theory</div>
+      <div class="tab"><span>⚗</span>Experiments</div>
+    </div>
+  </div>
+  <div class="cap">2 · Theory — the science + tradition + “did you know” live here, where the theory stands</div>
+
+  <!-- ============ 3 · EXPERIMENTS ============ -->
+  <div class="phone">
+    <div class="screen">
+      <div class="kicker">EXPERIMENTS · N = 1 (YOU)</div>
+      <h1>Test it on yourself</h1>
+      <div class="sub">Turn the tradition's suggestions into hypotheses, checked against your own numbers.</div>
+
+      <div class="exp">
+        <div class="h">H1 · ACTIVE · 12 DAYS</div>
+        <h3>Is my focus higher when right-dominant?</h3>
+        <div class="stat">
+          <div class="statbox"><div class="k">Right avg</div><div class="v">6.3</div></div>
+          <div class="statbox"><div class="k">Left avg</div><div class="v">5.4</div></div>
+          <div class="statbox"><div class="k">Samples</div><div class="v">n=42</div></div>
+        </div>
+        <div class="verdict"><b>Suggestive, not conclusive.</b> +0.9 so far — the “active window”
+          is leaning true for you. Keep logging.</div>
+        <div class="meter"><i></i></div>
+        <div class="meter-cap">38% of samples needed for a stable read</div>
+      </div>
+
+      <div class="exp">
+        <div class="h">H2 · COMPLETE</div>
+        <h3>Does my cycle match the published rhythm?</h3>
+        <div class="stat">
+          <div class="statbox"><div class="k">Your median</div><div class="v">1h 50m</div></div>
+          <div class="statbox"><div class="k">Published</div><div class="v">0.5–4h</div></div>
+        </div>
+        <div class="verdict"><b>Consistent.</b> Your switching sits inside the documented range.</div>
+      </div>
+
+      <div class="newexp">＋ New experiment (e.g. “Am I calmer when left-dominant?”)</div>
+      <div class="disclaim">Personal observations, not medical evidence.</div>
+    </div>
+    <div class="tabs">
+      <div class="tab"><span>◉</span>Log</div>
+      <div class="tab"><span>◷</span>Today</div>
+      <div class="tab"><span>❋</span>Theory</div>
+      <div class="tab on"><span>⚗</span>Experiments</div>
+    </div>
+  </div>
+  <div class="cap">3 · Experiments — the suggestions become tests (optional tab)</div>
+
+</body>
+</html>
