@@ -31,7 +31,7 @@
   .sub { font-size:13px; color:#77715F; line-height:1.45; }
 
   /* header row with book button */
-  .htop { display:flex; align-items:flex-start; justify-content:space-between; }
+  .htop { display:flex; align-items:center; justify-content:space-between; }
   .book {
     width:42px; height:42px; border-radius:13px; border:1px solid #DDD7C6; background:#FDFCF8;
     display:flex; align-items:center; justify-content:center; flex:0 0 42px; margin-top:2px;
@@ -39,34 +39,41 @@
   }
   .book small { position:absolute; }
 
-  /* ---------- LOG (clean) ---------- */
-  .bigrow { display:flex; gap:12px; margin-top:26px; }
+  /* ---------- LOG (matches the real app's proportions) ---------- */
+  /* date + pulse dot row (top-left), book button (top-right) */
+  .drow { display:flex; align-items:center; gap:8px; }
+  .pdot { width:7px; height:7px; border-radius:99px; background:#C29580; box-shadow:0 0 0 4px rgba(194,149,128,.22); }
+  .date { font-size:12px; letter-spacing:.9px; text-transform:uppercase; color:#98917E; font-family:ui-monospace,Menlo,monospace; }
+
+  /* the buttons fill the screen exactly like log.tsx: Left+Right are flex:1
+     (tall, dominant), Both is a short bar, a compact guidance card sits below */
+  .btnwrap { flex:1; display:flex; flex-direction:column; gap:12px; margin-top:22px; }
+  .bigrow { flex:1; display:flex; gap:12px; }
   .big {
-    flex:1; height:184px; border-radius:22px; padding:18px;
-    display:flex; flex-direction:column; justify-content:space-between;
-    border:none; cursor:pointer; text-align:left;
+    flex:1; border-radius:22px; padding:16px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px;
+    border:none; cursor:pointer; text-align:center;
   }
-  .big .n { font-size:23px; font-weight:700; }
-  .big .t { font-size:11px; font-style:italic; opacity:.6; }
+  .big .n { font-size:31px; font-weight:700; letter-spacing:-.6px; }
+  .big .t { font-size:13px; font-style:italic; opacity:.62; }
   .bL { background:#8FA28A; color:#1E2A1E; }
   .bR { background:#C29580; color:#3A1D10; }
   .bBoth {
-    margin-top:12px; height:66px; border-radius:20px; background:#EDE9DE;
+    height:80px; border-radius:20px; background:#EDE9DE;
     border:1px solid #DDD7C6; color:#54503F; width:100%; cursor:pointer;
-    display:flex; align-items:center; justify-content:center; gap:9px;
-    font-size:16px; font-weight:700;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
   }
-  .bBoth .t { font-size:11px; font-weight:400; font-style:italic; opacity:.6; }
-  .suggline {
-    margin-top:26px; display:flex; align-items:center; gap:11px;
-    padding:14px 16px; border-radius:16px; background:#F0EDE4; border:1px solid #E4E0D4;
-  }
-  .suggline .em { font-size:22px; }
-  .suggline .body .s { font-size:13.5px; color:#26241E; font-weight:600; line-height:1.35; }
-  .suggline .body .s b { color:#7a5a2c; }
-  .suggline .why { font-size:11px; color:#98917E; margin-top:3px; }
-  .spacer { flex:1; }
-  .logfoot { text-align:center; font-size:11px; color:#B0A992; font-style:italic; }
+  .bBoth .bn { font-size:20px; font-weight:700; letter-spacing:-.3px; }
+  .bBoth .t { font-size:12px; font-weight:400; font-style:italic; opacity:.6; }
+
+  /* compact guidance card below the buttons — like the app's guidanceCard */
+  .guide { padding:13px 15px; border-radius:16px; background:#F0EDE4; border:1px solid #E4E0D4; }
+  .guide .gh { display:flex; align-items:center; gap:8px; margin-bottom:5px; }
+  .guide .gdot { width:8px; height:8px; border-radius:99px; background:#C29580; }
+  .guide .gstate { font-size:11px; letter-spacing:.7px; text-transform:uppercase; color:#98917E; font-family:ui-monospace,Menlo,monospace; flex:1; }
+  .guide .gchev { font-size:14px; color:#B0A992; }
+  .guide .gmsg { font-size:14px; color:#26241E; font-weight:600; line-height:1.4; }
+  .guide .gmsg b { color:#7a5a2c; }
 
   /* ---------- nav header (pushed screens) ---------- */
   .nav { display:flex; align-items:center; gap:12px; margin-bottom:6px; }
@@ -128,10 +135,7 @@
   <div class="phone">
     <div class="screen">
       <div class="htop">
-        <div>
-          <div class="kicker">AVIRLOG</div>
-          <h1>Which side is open?</h1>
-        </div>
+        <div class="drow"><span class="pdot"></span><span class="date">Sunday · July 19</span></div>
         <div class="book" title="Theory">
           <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#54503F" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
             <path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v15H5.5A1.5 1.5 0 0 0 4 20.5z"/>
@@ -139,24 +143,21 @@
           </svg>
         </div>
       </div>
-      <div class="sub">Close one nostril, then the other. Tap what you feel.</div>
+      <h1>What is dominant now?</h1>
+      <div class="sub">Log current breath state</div>
 
-      <div class="bigrow">
-        <button class="big bL"><span class="n">Left</span><span class="t">Ida</span></button>
-        <button class="big bR"><span class="n">Right</span><span class="t">Pingala</span></button>
+      <div class="btnwrap">
+        <div class="bigrow">
+          <button class="big bL"><span class="n">Left</span><span class="t">Ida</span></button>
+          <button class="big bR"><span class="n">Right</span><span class="t">Pingala</span></button>
+        </div>
+        <button class="bBoth"><span class="bn">Both</span><span class="t">Sushumna</span></button>
+
+        <div class="guide">
+          <div class="gh"><span class="gdot"></span><span class="gstate">Right · Pingala</span><span class="gchev">›</span></div>
+          <div class="gmsg">A good window for <b>focus &amp; effort</b>. Tap the book ↗ to read why.</div>
+        </div>
       </div>
-      <button class="bBoth">Both open <span class="t">· Sushumna</span></button>
-
-      <div class="suggline">
-        <span class="em">☀</span>
-        <span class="body">
-          <span class="s">Right is open — <b>a good window for focus &amp; effort.</b></span>
-          <span class="why">Tap the book ↗ to read why</span>
-        </span>
-      </div>
-
-      <div class="spacer"></div>
-      <div class="logfoot">One tap. That's the whole ritual.</div>
     </div>
     <div class="tabs">
       <div class="tab on"><span>◉</span>Log</div>
