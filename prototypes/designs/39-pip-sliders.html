@@ -1,0 +1,316 @@
+<!-- ARTIFACT SOURCE (content-only; host wraps in <html><head><body>).
+     Variations on Design 04 (segmented pips): the row fills green from the left
+     and terracotta from the right up to a handle. Six pip treatments, each in a
+     widget frame and a notification banner. Drag sets the RIGHT share (left =
+     100 − right, snapped to 5). No number ever sits on the handle. JS-driven. -->
+<style>
+  :root{
+    --ground:#C4BEB0; --paper:#F7F5F0; --panel:#FDFCF8;
+    --ink:#26241E; --muted:#77715F; --faint:#98917E; --border:#DDD7C6; --track:#E7E2D6;
+    --green:#8FA28A; --green-ink:#1E2A1E; --terra:#C29580; --terra-ink:#3A1D10;
+    --mono:ui-monospace,Menlo,"SF Mono",monospace;
+    --sans:-apple-system,"Segoe UI",system-ui,sans-serif;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --ground:#131209; --paper:#201F17; --panel:#26241C;
+      --ink:#EDE9DE; --muted:#B4AE9C; --faint:#8F8974; --border:#3A382E; --track:#2E2C23;
+      --green:#93A98C; --green-ink:#0E140D; --terra:#CF9E86; --terra-ink:#2A140A;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#131209; --paper:#201F17; --panel:#26241C;
+    --ink:#EDE9DE; --muted:#B4AE9C; --faint:#8F8974; --border:#3A382E; --track:#2E2C23;
+    --green:#93A98C; --green-ink:#0E140D; --terra:#CF9E86; --terra-ink:#2A140A;
+  }
+  :root[data-theme="light"]{
+    --ground:#C4BEB0; --paper:#F7F5F0; --panel:#FDFCF8;
+    --ink:#26241E; --muted:#77715F; --faint:#98917E; --border:#DDD7C6; --track:#E7E2D6;
+    --green:#8FA28A; --green-ink:#1E2A1E; --terra:#C29580; --terra-ink:#3A1D10;
+  }
+
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--ground); color:var(--ink); font-family:var(--sans); -webkit-font-smoothing:antialiased; }
+  .wrap{ max-width:760px; margin:0 auto; padding:40px 20px 80px; }
+
+  .eyebrow{ font-family:var(--mono); font-size:11px; letter-spacing:2.4px; text-transform:uppercase; color:var(--faint); }
+  h1{ font-size:30px; letter-spacing:-.6px; margin:10px 0 6px; text-wrap:balance; }
+  .lede{ font-size:15px; line-height:1.5; color:var(--muted); max-width:60ch; }
+  .hint{ margin-top:12px; display:inline-flex; align-items:center; gap:8px; font-size:12.5px; color:var(--terra); font-weight:600; }
+  .hint::before{ content:"↔"; font-size:15px; }
+  .sect{ font-family:var(--mono); font-size:11px; letter-spacing:2px; text-transform:uppercase; color:var(--faint); margin:44px 0 16px; padding-bottom:8px; border-bottom:1px solid var(--border); }
+
+  .cards{ display:flex; flex-direction:column; gap:22px; }
+  .card{ background:var(--paper); border:1px solid var(--border); border-radius:22px; padding:20px; }
+  .card .clab{ font-family:var(--mono); font-size:11px; letter-spacing:1.4px; text-transform:uppercase; color:var(--faint); }
+  .card .cname{ font-size:17px; font-weight:700; margin:4px 0 2px; }
+  .card .cdesc{ font-size:12.5px; color:var(--muted); line-height:1.45; margin-bottom:6px; }
+  .ctxlabel{ font-family:var(--mono); font-size:10px; letter-spacing:1px; text-transform:uppercase; color:var(--faint); margin:16px 0 8px; }
+
+  .widgetframe{ background:var(--ground); border-radius:24px; padding:16px; }
+  .widget{ background:var(--panel); border:1px solid var(--border); border-radius:18px; padding:16px 18px; user-select:none; -webkit-user-select:none; }
+  .notifframe{ background:linear-gradient(160deg,#3a3b44,#191a20); border-radius:24px; padding:16px; }
+  .notif{ background:rgba(255,255,255,.14); backdrop-filter:blur(8px); border:1px solid rgba(255,255,255,.16); border-radius:18px; padding:13px 15px; user-select:none; -webkit-user-select:none; }
+  .notif .ntop{ display:flex; align-items:center; gap:8px; margin-bottom:9px; }
+  .notif .nicon{ width:22px; height:22px; border-radius:6px; background:linear-gradient(150deg,var(--green),var(--terra)); flex:none; }
+  .notif .nmeta{ display:flex; flex-direction:column; line-height:1.2; }
+  .notif .nname{ font-size:11px; font-weight:700; color:#F3F1EA; letter-spacing:.3px; }
+  .notif .nwhen{ font-family:var(--mono); font-size:9.5px; color:rgba(243,241,234,.55); letter-spacing:.5px; }
+
+  .logbtn{ margin-top:14px; height:42px; width:100%; border:1px solid var(--border); border-radius:13px; background:var(--ink); color:var(--paper); font-size:13.5px; font-weight:700; font-family:var(--sans); cursor:pointer; }
+  .logbtn:active{ transform:translateY(1px); }
+  .logbtn:focus-visible{ outline:2px solid var(--terra); outline-offset:2px; }
+  .logchip{ margin-top:12px; align-self:flex-start; border:1px solid rgba(255,255,255,.28); border-radius:99px; background:rgba(255,255,255,.14); color:#F3F1EA; font-size:12px; font-weight:700; font-family:var(--sans); padding:7px 16px; cursor:pointer; }
+  .logchip:active{ transform:translateY(1px); }
+  .logchip:focus-visible{ outline:2px solid #E4B79C; outline-offset:2px; }
+  [data-track]:focus-visible{ outline:2px solid var(--terra); outline-offset:3px; border-radius:8px; }
+  @media (prefers-reduced-motion:no-preference){ .anim{ transition:left .12s ease; } }
+
+  /* shared pip scaffold */
+  .top{ display:flex; align-items:center; margin-bottom:10px; }
+  .top .side{ font-family:var(--mono); font-size:9.5px; letter-spacing:1px; text-transform:uppercase; color:var(--faint); }
+  .top .side.r{ margin-left:auto; }
+  .notif .top .side{ color:rgba(243,241,234,.5); }
+  .segbar{ position:relative; cursor:ew-resize; touch-action:none; }
+  .pips{ position:absolute; inset:0; display:flex; }
+  .pip{ background:var(--track); }
+  .pip.on-l{ background:var(--green); } .pip.on-r{ background:var(--terra); }
+  .notif .pip{ background:rgba(255,255,255,.16); }
+  .notif .pip.on-l{ background:#8FA28A; } .notif .pip.on-r{ background:#C29580; }
+  .handle{ position:absolute; transform:translateX(-50%); background:var(--ink); box-shadow:0 1px 4px rgba(40,35,25,.3); }
+  .notif .handle{ background:#F3F1EA; }
+  .beside{ display:flex; justify-content:space-between; margin-top:10px; font-family:var(--mono); font-size:13px; font-weight:700; font-variant-numeric:tabular-nums; }
+  .beside .bL{ color:var(--green); } .beside .bR{ color:var(--terra); }
+  .notif .beside .bL{ color:#B9CBB2; } .notif .beside .bR{ color:#E4B79C; }
+
+  /* P1 — refined uniform bars */
+  .p1 .segbar{ height:34px; } .p1 .pips{ gap:3px; } .p1 .pip{ flex:1; border-radius:3px; }
+  .p1 .handle{ top:-4px; bottom:-4px; width:4px; border-radius:3px; }
+
+  /* P2 — signal / EQ bars (arch heights, grow from baseline) */
+  .p2 .segbar{ height:44px; } .p2 .pips{ gap:3px; align-items:flex-end; } .p2 .pip{ flex:1; border-radius:2px; align-self:flex-end; }
+  .p2 .handle{ top:0; bottom:0; width:3px; border-radius:2px; }
+  .p2 .baseline{ position:absolute; left:0; right:0; bottom:0; height:1px; background:var(--border); }
+  .notif .p2 .baseline{ background:rgba(255,255,255,.22); }
+
+  /* P3 — dot matrix */
+  .p3 .segbar{ height:26px; } .p3 .pips{ justify-content:space-between; align-items:center; }
+  .p3 .pip{ width:12px; height:12px; border-radius:99px; flex:none; }
+  .p3 .handle{ top:50%; width:4px; height:30px; border-radius:3px; transform:translate(-50%,-50%); }
+
+  /* P4 — chunky lozenges with a center gap */
+  .p4 .segbar{ height:28px; } .p4 .pips{ gap:6px; } .p4 .pip{ flex:1; border-radius:8px; }
+  .p4 .handle{ top:-5px; bottom:-5px; width:6px; border-radius:4px; }
+
+  /* P5 — ruler comb (fine ticks) */
+  .p5 .segbar{ height:30px; } .p5 .pips{ gap:0; justify-content:space-between; align-items:center; }
+  .p5 .pip{ width:2px; height:18px; flex:none; border-radius:1px; }
+  .p5 .rulerline{ position:absolute; left:0; right:0; top:50%; height:1px; transform:translateY(-50%); background:var(--border); }
+  .notif .p5 .rulerline{ background:rgba(255,255,255,.22); }
+  .p5 .handle{ top:50%; width:3px; height:26px; border-radius:2px; transform:translate(-50%,-50%); }
+  .p5 .handle::after{ content:""; position:absolute; top:-6px; left:50%; transform:translateX(-50%); border-left:5px solid transparent; border-right:5px solid transparent; border-top:6px solid var(--ink); }
+  .notif .p5 .handle::after{ border-top-color:#F3F1EA; }
+
+  /* P6 — count pips + numeric badge */
+  .p6 .count{ font-family:var(--mono); font-size:26px; font-weight:700; letter-spacing:-1px; font-variant-numeric:tabular-nums; margin-bottom:2px; }
+  .p6 .count .cL{ color:var(--green); } .p6 .count .cR{ color:var(--terra); } .p6 .count .sl{ color:var(--faint); font-weight:400; }
+  .p6 .clabel{ font-family:var(--mono); font-size:9.5px; letter-spacing:1.5px; text-transform:uppercase; color:var(--faint); margin-bottom:14px; }
+  .notif .p6 .count .cL{ color:#B9CBB2; } .notif .p6 .count .cR{ color:#E4B79C; } .notif .p6 .count .sl{ color:rgba(243,241,234,.4); }
+  .notif .p6 .clabel{ color:rgba(243,241,234,.5); }
+  .p6 .segbar{ height:30px; } .p6 .pips{ gap:2px; } .p6 .pip{ flex:1; border-radius:0; }
+  .p6 .handle{ top:-4px; bottom:-4px; width:3px; }
+
+  footer{ margin-top:44px; font-size:11.5px; color:var(--faint); line-height:1.6; }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">AvirLog · Widget &amp; notification</div>
+    <h1>Segmented blends — variations on the pip slider</h1>
+    <p class="lede">Six takes on Design 04: the segments fill green (Ida) from the left and
+      terracotta (Pingala) from the right, meeting at a handle. Drag to set the blend — the number
+      never rides the handle. Each is shown in a widget and a notification banner.</p>
+    <span class="hint">Drag any slider — it's live</span>
+  </header>
+
+  <div class="sect">Six pip treatments · widget + banner</div>
+  <div class="cards" id="cards"></div>
+
+  <footer>
+    All six share the pip logic: fill green from the left and terracotta from the right up to the
+    handle, snapped to steps of 5, with a neutral remainder in the middle. Both frames of each design
+    move together. Theme follows the system; light and dark match the AvirLog palette.
+  </footer>
+</div>
+
+<template id="tpl">
+  <div class="card">
+    <div class="clab"></div>
+    <div class="cname"></div>
+    <div class="cdesc"></div>
+    <div class="ctxlabel">Home / Lock-Screen widget</div>
+    <div class="widgetframe"><div class="widget inst"></div></div>
+    <div class="ctxlabel">Notification banner</div>
+    <div class="notifframe"><div class="notif inst"></div></div>
+  </div>
+</template>
+
+<script>
+(function(){
+  var STEP = 5;
+  function clamp(p){ return Math.max(0, Math.min(100, Math.round(p/STEP)*STEP)); }
+
+  // The six designs. `body(where)` returns the inner markup for the slider
+  // control; `where` is 'w' (widget) or 'n' (notification). The pip row carries
+  // data-count / data-shape; percentages/counts live in labelled spans, never
+  // on the handle.
+  var pipRow = 'aria-label="Right nostril share" role="slider" aria-valuemin="0" aria-valuemax="100"';
+  function head(w, title){
+    return w === 'n'
+      ? '<div class="ntop"><div class="nicon"></div><div class="nmeta"><span class="nname">AVIRLOG</span><span class="nwhen">now · log your breath</span></div></div>'
+      : '<div class="top" style="margin-bottom:8px"><span class="side">'+title+'</span></div>';
+  }
+  function foot(w){ return w === 'n' ? '<button class="logchip">Log</button>' : '<button class="logbtn">Log blend</button>'; }
+  function sides(){ return '<div class="top"><span class="side">Left · Ida</span><span class="side r">Right · Pingala</span></div>'; }
+  function beside(){ return '<div class="beside"><span class="bL" data-l-text>0%</span><span class="bR" data-r-text>0%</span></div>'; }
+
+  var DESIGNS = [
+    { key:'p1', cls:'p1', num:'01', name:'Refined bars', start:70,
+      desc:'The clean baseline — 20 rounded bars, a slim handle, percentages beside each side.',
+      body:function(w){ return head(w,'Blend')+sides()
+        +'<div class="segbar p1i" data-track tabindex="0" '+pipRow+'><div class="pips" data-pips data-count="20" data-shape="bar"></div><div class="handle anim" data-thumb></div></div>'
+        +beside()+foot(w); } },
+
+    { key:'p2', cls:'p2', num:'02', name:'Signal bars', start:60,
+      desc:'Equalizer-style bars that arch taller toward the centre, so the split reads like a level meter.',
+      body:function(w){ return head(w,'Signal')+sides()
+        +'<div class="segbar" data-track tabindex="0" '+pipRow+'><div class="baseline"></div><div class="pips" data-pips data-count="22" data-shape="arch"></div><div class="handle anim" data-thumb></div></div>'
+        +beside()+foot(w); } },
+
+    { key:'p3', cls:'p3', num:'03', name:'Dot matrix', start:50,
+      desc:'Discrete dots instead of bars — filled green then terracotta, with a bar handle between them.',
+      body:function(w){ return head(w,'Dots')+sides()
+        +'<div class="segbar" data-track tabindex="0" '+pipRow+'><div class="pips" data-pips data-count="15" data-shape="dot"></div><div class="handle anim" data-thumb></div></div>'
+        +beside()+foot(w); } },
+
+    { key:'p4', cls:'p4', num:'04', name:'Lozenge blocks', start:40,
+      desc:'Fewer, chunkier rounded blocks with a wider gap — the unlit middle blocks show the balance point.',
+      body:function(w){ return head(w,'Blocks')+sides()
+        +'<div class="segbar" data-track tabindex="0" '+pipRow+'><div class="pips" data-pips data-count="9" data-shape="loz"></div><div class="handle anim" data-thumb></div></div>'
+        +beside()+foot(w); } },
+
+    { key:'p5', cls:'p5', num:'05', name:'Ruler comb', start:80,
+      desc:'A fine comb of ticks over a hairline, with a pointer handle — precise and instrument-like.',
+      body:function(w){ return head(w,'Scale')+sides()
+        +'<div class="segbar" data-track tabindex="0" '+pipRow+'><div class="rulerline"></div><div class="pips" data-pips data-count="41" data-shape="tick"></div><div class="handle anim" data-thumb></div></div>'
+        +beside()+foot(w); } },
+
+    { key:'p6', cls:'p6', num:'06', name:'Count badge', start:30,
+      desc:'Square segments with a big count readout — think in whole segments (e.g. 6 of 20 right).',
+      body:function(w){ return head(w,'Count')
+        +'<div class="count"><span class="cL" data-seg-l>0</span><span class="sl"> / </span><span class="cR" data-seg-r>0</span></div>'
+        +'<div class="clabel">segments · left / right (of 20)</div>'
+        +'<div class="segbar" data-track tabindex="0" '+pipRow+'><div class="pips" data-pips data-count="20" data-shape="sq"></div><div class="handle anim" data-thumb></div></div>'
+        +beside()+foot(w); } },
+  ];
+
+  var cards = document.getElementById('cards');
+  var tpl = document.getElementById('tpl');
+  DESIGNS.forEach(function(d){
+    var node = tpl.content.cloneNode(true);
+    node.querySelector('.clab').textContent = 'Design ' + d.num;
+    node.querySelector('.cname').textContent = d.name;
+    node.querySelector('.cdesc').textContent = d.desc;
+    var w = node.querySelector('.widget');
+    var n = node.querySelector('.notif');
+    w.className = 'widget inst ' + d.cls; w.setAttribute('data-slider', d.key); w.setAttribute('data-value', d.start);
+    n.className = 'notif inst ' + d.cls; n.setAttribute('data-slider', d.key);
+    w.innerHTML = w.innerHTML + d.body('w');
+    n.innerHTML = n.innerHTML + d.body('n');
+    cards.appendChild(node);
+  });
+
+  // build pip children per shape
+  document.querySelectorAll('[data-pips]').forEach(function(row){
+    var count = parseInt(row.getAttribute('data-count') || '20', 10);
+    var shape = row.getAttribute('data-shape') || 'bar';
+    for(var i=0;i<count;i++){
+      var d = document.createElement('div');
+      d.className = 'pip';
+      if(shape === 'arch'){
+        var f = Math.sin(Math.PI * (i + 0.5) / count);   // 0 at ends, 1 mid
+        d.style.height = (34 + 60 * f).toFixed(1) + '%';
+      }
+      row.appendChild(d);
+    }
+  });
+
+  var groups = {};
+  document.querySelectorAll('[data-slider]').forEach(function(node){
+    var key = node.getAttribute('data-slider');
+    (groups[key] = groups[key] || []).push(node);
+  });
+
+  function renderInstance(node, right){
+    var left = 100 - right;
+    node.querySelectorAll('[data-r-text]').forEach(function(e){ e.textContent = right + '%'; });
+    node.querySelectorAll('[data-l-text]').forEach(function(e){ e.textContent = left + '%'; });
+    node.querySelectorAll('[data-thumb]').forEach(function(e){ e.style.left = right + '%'; });
+
+    var pips = node.querySelectorAll('.pip');
+    var total = pips.length, lCount = 0, rCount = 0;
+    if(total){
+      lCount = Math.round(left / 100 * total);
+      rCount = Math.round(right / 100 * total);
+      pips.forEach(function(p, idx){
+        p.classList.remove('on-l','on-r');
+        if(idx < lCount) p.classList.add('on-l');
+        else if(idx >= total - rCount) p.classList.add('on-r');
+      });
+    }
+    node.querySelectorAll('[data-seg-l]').forEach(function(e){ e.textContent = String(lCount); });
+    node.querySelectorAll('[data-seg-r]').forEach(function(e){ e.textContent = String(rCount); });
+    var track = node.querySelector('[data-track]');
+    if(track) track.setAttribute('aria-valuenow', right);
+  }
+
+  function setGroup(key, right){
+    right = clamp(right);
+    (groups[key] || []).forEach(function(node){ node.dataset.value = right; renderInstance(node, right); });
+  }
+
+  function bind(node){
+    var key = node.getAttribute('data-slider');
+    var track = node.querySelector('[data-track]');
+    if(!track) return;
+    track.style.touchAction = 'none';
+    function fromEvent(e){
+      var rect = track.getBoundingClientRect();
+      setGroup(key, (e.clientX - rect.left) / rect.width * 100);
+    }
+    track.addEventListener('pointerdown', function(e){
+      e.preventDefault(); track.focus();
+      try{ track.setPointerCapture(e.pointerId); }catch(_){}
+      fromEvent(e);
+      var mv = function(ev){ fromEvent(ev); };
+      var up = function(){ track.removeEventListener('pointermove', mv); track.removeEventListener('pointerup', up); track.removeEventListener('pointercancel', up); };
+      track.addEventListener('pointermove', mv);
+      track.addEventListener('pointerup', up);
+      track.addEventListener('pointercancel', up);
+    });
+    track.addEventListener('keydown', function(e){
+      var cur = parseInt(node.dataset.value || '50', 10);
+      if(e.key === 'ArrowRight' || e.key === 'ArrowUp'){ setGroup(key, cur + STEP); e.preventDefault(); }
+      else if(e.key === 'ArrowLeft' || e.key === 'ArrowDown'){ setGroup(key, cur - STEP); e.preventDefault(); }
+      else if(e.key === 'Home'){ setGroup(key, 0); e.preventDefault(); }
+      else if(e.key === 'End'){ setGroup(key, 100); e.preventDefault(); }
+    });
+  }
+
+  Object.keys(groups).forEach(function(key){
+    var nodes = groups[key];
+    nodes.forEach(bind);
+    setGroup(key, parseInt(nodes[0].dataset.value || '50', 10));
+  });
+})();
+</script>
