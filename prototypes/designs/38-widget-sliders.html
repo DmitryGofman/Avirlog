@@ -1,0 +1,480 @@
+<!-- ARTIFACT SOURCE (content-only; the Artifact host wraps this in <html><head><body>).
+     Five distinct horizontal blend sliders for AvirLog widgets & notification banners.
+     Drag sets the RIGHT nostril's share (left = 100 - right), snapped to 5. JS-driven —
+     view it live. Each design appears twice: once in a widget frame, once in a
+     notification banner; both instances of a design share the same live value. -->
+<style>
+  :root{
+    --ground:#C4BEB0; --paper:#F7F5F0; --panel:#FDFCF8;
+    --ink:#26241E; --muted:#77715F; --faint:#98917E; --border:#DDD7C6; --track:#E7E2D6;
+    --green:#8FA28A; --green-ink:#1E2A1E; --terra:#C29580; --terra-ink:#3A1D10;
+    --mono:ui-monospace,Menlo,"SF Mono",monospace;
+    --sans:-apple-system,"Segoe UI",system-ui,sans-serif;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --ground:#131209; --paper:#201F17; --panel:#26241C;
+      --ink:#EDE9DE; --muted:#B4AE9C; --faint:#8F8974; --border:#3A382E; --track:#2E2C23;
+      --green:#93A98C; --green-ink:#0E140D; --terra:#CF9E86; --terra-ink:#2A140A;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#131209; --paper:#201F17; --panel:#26241C;
+    --ink:#EDE9DE; --muted:#B4AE9C; --faint:#8F8974; --border:#3A382E; --track:#2E2C23;
+    --green:#93A98C; --green-ink:#0E140D; --terra:#CF9E86; --terra-ink:#2A140A;
+  }
+  :root[data-theme="light"]{
+    --ground:#C4BEB0; --paper:#F7F5F0; --panel:#FDFCF8;
+    --ink:#26241E; --muted:#77715F; --faint:#98917E; --border:#DDD7C6; --track:#E7E2D6;
+    --green:#8FA28A; --green-ink:#1E2A1E; --terra:#C29580; --terra-ink:#3A1D10;
+  }
+
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--ground); color:var(--ink); font-family:var(--sans); -webkit-font-smoothing:antialiased; }
+  .wrap{ max-width:760px; margin:0 auto; padding:40px 20px 80px; }
+
+  header.top{ margin-bottom:8px; }
+  .eyebrow{ font-family:var(--mono); font-size:11px; letter-spacing:2.4px; text-transform:uppercase; color:var(--faint); }
+  h1{ font-size:30px; letter-spacing:-.6px; margin:10px 0 6px; text-wrap:balance; }
+  .lede{ font-size:15px; line-height:1.5; color:var(--muted); max-width:60ch; }
+  .hint{ margin-top:12px; display:inline-flex; align-items:center; gap:8px; font-size:12.5px; color:var(--terra); font-weight:600; }
+  .hint::before{ content:"↔"; font-size:15px; }
+
+  .sect{ font-family:var(--mono); font-size:11px; letter-spacing:2px; text-transform:uppercase; color:var(--faint); margin:44px 0 16px; padding-bottom:8px; border-bottom:1px solid var(--border); }
+
+  .cards{ display:flex; flex-direction:column; gap:22px; }
+  .card{ background:var(--paper); border:1px solid var(--border); border-radius:22px; padding:20px 20px 20px; }
+  .card .clab{ font-family:var(--mono); font-size:11px; letter-spacing:1.4px; text-transform:uppercase; color:var(--faint); }
+  .card .cname{ font-size:17px; font-weight:700; margin:4px 0 2px; }
+  .card .cdesc{ font-size:12.5px; color:var(--muted); line-height:1.45; margin-bottom:6px; }
+
+  .ctxlabel{ font-family:var(--mono); font-size:10px; letter-spacing:1px; text-transform:uppercase; color:var(--faint); margin:16px 0 8px; }
+
+  /* ---- context frames ---- */
+  .widgetframe{ background:var(--ground); border-radius:24px; padding:16px; }
+  .widget{ background:var(--panel); border:1px solid var(--border); border-radius:18px; padding:16px 18px; user-select:none; -webkit-user-select:none; }
+  .widget .wtop{ display:flex; align-items:baseline; justify-content:space-between; margin-bottom:6px; }
+  .widget .wtitle{ font-size:13px; font-weight:700; }
+  .widget .wsub{ font-family:var(--mono); font-size:10px; letter-spacing:1px; text-transform:uppercase; color:var(--faint); }
+
+  .notifframe{ background:linear-gradient(160deg,#3a3b44,#191a20); border-radius:24px; padding:16px; }
+  .notif{ background:rgba(255,255,255,.14); backdrop-filter:blur(8px); border:1px solid rgba(255,255,255,.16); border-radius:18px; padding:13px 15px; user-select:none; -webkit-user-select:none; }
+  .notif .ntop{ display:flex; align-items:center; gap:8px; margin-bottom:9px; }
+  .notif .nicon{ width:22px; height:22px; border-radius:6px; background:linear-gradient(150deg,var(--green),var(--terra)); flex:none; }
+  .notif .nmeta{ display:flex; flex-direction:column; line-height:1.2; }
+  .notif .nname{ font-size:11px; font-weight:700; color:#F3F1EA; letter-spacing:.3px; }
+  .notif .nwhen{ font-family:var(--mono); font-size:9.5px; color:rgba(243,241,234,.55); letter-spacing:.5px; }
+  .notif .nbody{ font-size:12px; color:rgba(243,241,234,.9); margin-bottom:10px; }
+  /* readouts inside notif use light text */
+  .notif .val{ color:#F3F1EA; }
+  .notif .valL{ color:#B9CBB2; } .notif .valR{ color:#E4B79C; }
+
+  .logbtn{ margin-top:14px; height:42px; width:100%; border:1px solid var(--border); border-radius:13px; background:var(--ink); color:var(--paper); font-size:13.5px; font-weight:700; font-family:var(--sans); cursor:pointer; }
+  .logbtn:active{ transform:translateY(1px); }
+  .logbtn:focus-visible{ outline:2px solid var(--terra); outline-offset:2px; }
+  .logchip{ margin-top:12px; align-self:flex-start; border:1px solid rgba(255,255,255,.28); border-radius:99px; background:rgba(255,255,255,.14); color:#F3F1EA; font-size:12px; font-weight:700; font-family:var(--sans); padding:7px 16px; cursor:pointer; }
+  .logchip:active{ transform:translateY(1px); }
+  .logchip:focus-visible{ outline:2px solid #E4B79C; outline-offset:2px; }
+
+  /* shared value line */
+  .vals{ font-family:var(--mono); font-size:12px; font-variant-numeric:tabular-nums; }
+  .vals .vL{ color:var(--green); } .vals .vR{ color:var(--terra); }
+
+  /* focus for tracks */
+  [data-track]:focus-visible{ outline:2px solid var(--terra); outline-offset:3px; border-radius:99px; }
+
+  @media (prefers-reduced-motion:no-preference){
+    .anim{ transition:left .13s ease, width .13s ease; }
+    .animw{ transition:width .13s ease; }
+  }
+
+  /* ============ Design 1 — gradient track + round knob ============ */
+  .d1 .ends{ display:flex; align-items:baseline; justify-content:space-between; margin-bottom:10px; }
+  .d1 .end{ display:flex; flex-direction:column; line-height:1.15; }
+  .d1 .end.r{ text-align:right; }
+  .d1 .end .cap{ font-family:var(--mono); font-size:9.5px; letter-spacing:1px; text-transform:uppercase; color:var(--faint); }
+  .d1 .end .pct{ font-family:var(--mono); font-size:18px; font-weight:700; font-variant-numeric:tabular-nums; }
+  .d1 .end.l .pct{ color:var(--green); } .d1 .end.r .pct{ color:var(--terra); }
+  .d1 .t1{ position:relative; height:24px; border-radius:99px; background:linear-gradient(90deg,var(--green),var(--track) 50%,var(--terra)); cursor:ew-resize; touch-action:none; }
+  .d1 .knob{ position:absolute; top:50%; width:28px; height:28px; border-radius:99px; background:var(--panel); border:2px solid var(--terra); transform:translate(-50%,-50%); box-shadow:0 2px 8px rgba(40,35,25,.28); }
+  .notif .d1 .t1{ background:linear-gradient(90deg,var(--green),rgba(255,255,255,.18) 50%,var(--terra)); }
+  .notif .d1 .knob{ background:#F3F1EA; border-color:#E4B79C; }
+  .notif .d1 .end .cap{ color:rgba(243,241,234,.55); }
+  .notif .d1 .end.l .pct{ color:#B9CBB2; } .notif .d1 .end.r .pct{ color:#E4B79C; }
+
+  /* ============ Design 2 — two-tone split fill + vertical grip ============ */
+  .d2 .ends{ display:flex; justify-content:space-between; margin-bottom:8px; font-family:var(--mono); font-size:14px; font-weight:700; font-variant-numeric:tabular-nums; }
+  .d2 .ends .eL{ color:var(--green); } .d2 .ends .eR{ color:var(--terra); }
+  .d2 .t2{ position:relative; height:30px; border-radius:9px; overflow:hidden; background:var(--track); cursor:ew-resize; touch-action:none; display:flex; }
+  .d2 .segL{ height:100%; background:linear-gradient(180deg,#9aad94,var(--green)); }
+  .d2 .segR{ height:100%; flex:1; background:linear-gradient(180deg,#cfa48f,var(--terra)); }
+  .d2 .grip{ position:absolute; top:0; bottom:0; width:5px; background:var(--panel); border-radius:3px; transform:translateX(-50%); box-shadow:0 0 0 1px rgba(40,35,25,.18); }
+  .d2 .grip::before, .d2 .grip::after{ content:""; position:absolute; left:50%; transform:translateX(-50%); width:1px; height:12px; top:50%; margin-top:-6px; background:var(--faint); }
+  .d2 .grip::before{ margin-left:-1.5px; } .d2 .grip::after{ margin-left:1.5px; }
+  .notif .d2 .t2{ background:rgba(255,255,255,.16); }
+  .notif .d2 .grip{ background:#F3F1EA; }
+  .notif .d2 .ends .eL{ color:#B9CBB2; } .notif .d2 .ends .eR{ color:#E4B79C; }
+
+  /* ============ Design 3 — hairline + diamond thumb + ticks ============ */
+  .d3 .readout{ font-family:var(--mono); font-size:30px; font-weight:700; letter-spacing:-1px; font-variant-numeric:tabular-nums; margin-bottom:2px; }
+  .d3 .readout .nL{ color:var(--green); } .d3 .readout .nR{ color:var(--terra); } .d3 .readout .sl{ color:var(--faint); font-weight:400; }
+  .d3 .rlabel{ font-family:var(--mono); font-size:9.5px; letter-spacing:2px; text-transform:uppercase; color:var(--faint); margin-bottom:16px; }
+  .d3 .t3{ position:relative; height:22px; cursor:ew-resize; touch-action:none; display:flex; align-items:center; }
+  .d3 .line{ position:absolute; left:0; right:0; top:50%; height:2px; transform:translateY(-50%); background:var(--border); }
+  .d3 .linefill{ position:absolute; left:0; top:50%; height:2px; transform:translateY(-50%); background:var(--terra); }
+  .d3 .tick{ position:absolute; top:50%; width:1px; height:9px; transform:translate(-50%,-50%); background:var(--faint); opacity:.7; }
+  .d3 .tick.mid{ height:13px; opacity:1; }
+  .d3 .diamond{ position:absolute; top:50%; width:16px; height:16px; background:var(--panel); border:2px solid var(--terra); transform:translate(-50%,-50%) rotate(45deg); box-shadow:0 1px 4px rgba(40,35,25,.25); }
+  .notif .d3 .readout .nL{ color:#B9CBB2; } .notif .d3 .readout .nR{ color:#E4B79C; } .notif .d3 .readout .sl{ color:rgba(243,241,234,.4); }
+  .notif .d3 .rlabel{ color:rgba(243,241,234,.5); }
+  .notif .d3 .line{ background:rgba(255,255,255,.2); }
+  .notif .d3 .tick{ background:rgba(255,255,255,.4); }
+  .notif .d3 .diamond{ background:#F3F1EA; border-color:#E4B79C; }
+
+  /* ============ Design 4 — segmented pips / dashes ============ */
+  .d4 .top{ display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+  .d4 .top .side{ font-family:var(--mono); font-size:9.5px; letter-spacing:1px; text-transform:uppercase; color:var(--faint); }
+  .d4 .segbar{ position:relative; height:34px; cursor:ew-resize; touch-action:none; }
+  .d4 .pips{ position:absolute; inset:0; display:flex; gap:3px; align-items:stretch; }
+  .d4 .pip{ flex:1; border-radius:3px; background:var(--track); }
+  .d4 .pip.on-l{ background:var(--green); } .d4 .pip.on-r{ background:var(--terra); }
+  .d4 .handle{ position:absolute; top:-4px; bottom:-4px; width:4px; border-radius:3px; background:var(--ink); transform:translateX(-50%); box-shadow:0 1px 4px rgba(40,35,25,.3); }
+  .d4 .beside{ display:flex; justify-content:space-between; margin-top:9px; font-family:var(--mono); font-size:13px; font-weight:700; font-variant-numeric:tabular-nums; }
+  .d4 .beside .bL{ color:var(--green); } .d4 .beside .bR{ color:var(--terra); }
+  .notif .d4 .pip{ background:rgba(255,255,255,.16); }
+  .notif .d4 .handle{ background:#F3F1EA; }
+  .notif .d4 .top .side{ color:rgba(243,241,234,.5); }
+  .notif .d4 .beside .bL{ color:#B9CBB2; } .notif .d4 .beside .bR{ color:#E4B79C; }
+
+  /* ============ Design 5 — bead on a rail with L/R end-caps ============ */
+  .d5 .rail{ position:relative; display:flex; align-items:center; gap:10px; }
+  .d5 .cap5{ width:30px; height:30px; border-radius:11px; flex:none; display:flex; align-items:center; justify-content:center; font-family:var(--mono); font-size:14px; font-weight:700; }
+  .d5 .capL{ background:var(--green); color:var(--green-ink); }
+  .d5 .capR{ background:var(--terra); color:var(--terra-ink); }
+  .d5 .t5{ position:relative; flex:1; height:14px; border-radius:99px; background:var(--track); cursor:ew-resize; touch-action:none; box-shadow:inset 0 1px 2px rgba(40,35,25,.12); }
+  .d5 .trail{ position:absolute; left:0; top:0; bottom:0; border-radius:99px; background:linear-gradient(90deg,var(--green),var(--terra)); opacity:.4; }
+  .d5 .bead{ position:absolute; top:50%; width:24px; height:24px; border-radius:99px; background:radial-gradient(circle at 35% 32%,#fff,var(--terra) 78%); border:2px solid var(--panel); transform:translate(-50%,-50%); box-shadow:0 2px 6px rgba(40,35,25,.32); }
+  .d5 .under{ display:flex; justify-content:space-between; margin-top:9px; padding:0 40px; font-family:var(--mono); font-size:12px; font-variant-numeric:tabular-nums; }
+  .d5 .under .uL{ color:var(--green); } .d5 .under .uR{ color:var(--terra); }
+  .notif .d5 .t5{ background:rgba(255,255,255,.16); }
+  .notif .d5 .bead{ border-color:#e8e5dc; }
+  .notif .d5 .under .uL{ color:#B9CBB2; } .notif .d5 .under .uR{ color:#E4B79C; }
+
+  footer{ margin-top:44px; font-size:11.5px; color:var(--faint); line-height:1.6; }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="eyebrow">AvirLog · Widget &amp; notification</div>
+    <h1>Blend sliders for the widget and the banner</h1>
+    <p class="lede">One horizontal drag sets how open each nostril is — slide right for more right,
+      left is whatever remains. Five treatments, each shown twice: in a Home / Lock-Screen widget and
+      in a notification banner, so you can log without opening the app.</p>
+    <span class="hint">Drag any slider — it's live</span>
+  </header>
+
+  <div class="sect">Five horizontal blends · widget + banner</div>
+  <div class="cards">
+
+    <!-- ===================== Design 1 ===================== -->
+    <div class="card">
+      <div class="clab">Design 01</div>
+      <div class="cname">Gradient track · round knob</div>
+      <div class="cdesc">A green-to-terracotta bar with a clean circular handle. Left and right percentages sit at the two ends.</div>
+
+      <div class="ctxlabel">Home / Lock-Screen widget</div>
+      <div class="widgetframe">
+        <div class="widget d1" data-slider="s1" data-value="70">
+          <div class="wtop"><span class="wtitle">Breath blend</span><span class="wsub">Ida · Pingala</span></div>
+          <div class="ends">
+            <div class="end l"><span class="cap">Left · Ida</span><span class="pct" data-l-text>30%</span></div>
+            <div class="end r"><span class="cap">Right · Pingala</span><span class="pct" data-r-text>70%</span></div>
+          </div>
+          <div class="t1" data-track tabindex="0" role="slider" aria-label="Right nostril share" aria-valuemin="0" aria-valuemax="100" aria-valuenow="70">
+            <div class="knob anim" data-thumb style="left:70%"></div>
+          </div>
+          <button class="logbtn">Log blend</button>
+        </div>
+      </div>
+
+      <div class="ctxlabel">Notification banner</div>
+      <div class="notifframe">
+        <div class="notif d1" data-slider="s1">
+          <div class="ntop"><div class="nicon"></div><div class="nmeta"><span class="nname">AVIRLOG</span><span class="nwhen">now · log your breath</span></div></div>
+          <div class="ends">
+            <div class="end l"><span class="cap">Left · Ida</span><span class="pct" data-l-text>30%</span></div>
+            <div class="end r"><span class="cap">Right · Pingala</span><span class="pct" data-r-text>70%</span></div>
+          </div>
+          <div class="t1" data-track tabindex="0" role="slider" aria-label="Right nostril share" aria-valuemin="0" aria-valuemax="100" aria-valuenow="70">
+            <div class="knob anim" data-thumb style="left:70%"></div>
+          </div>
+          <button class="logchip">Log</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== Design 2 ===================== -->
+    <div class="card">
+      <div class="clab">Design 02</div>
+      <div class="cname">Two-tone split · vertical grip</div>
+      <div class="cdesc">Green left segment and terracotta right segment meet at a thin grip bar. Percentages show above each end.</div>
+
+      <div class="ctxlabel">Home / Lock-Screen widget</div>
+      <div class="widgetframe">
+        <div class="widget d2" data-slider="s2" data-value="60">
+          <div class="wtop"><span class="wtitle">Breath blend</span><span class="wsub">L / R</span></div>
+          <div class="ends"><span class="eL" data-l-text>40%</span><span class="eR" data-r-text>60%</span></div>
+          <div class="t2" data-track tabindex="0" role="slider" aria-label="Right nostril share" aria-valuemin="0" aria-valuemax="100" aria-valuenow="60">
+            <div class="segL animw" data-fill-r style="width:60%"></div>
+            <div class="segR"></div>
+            <div class="grip anim" data-thumb style="left:60%"></div>
+          </div>
+          <button class="logbtn">Log blend</button>
+        </div>
+      </div>
+
+      <div class="ctxlabel">Notification banner</div>
+      <div class="notifframe">
+        <div class="notif d2" data-slider="s2">
+          <div class="ntop"><div class="nicon"></div><div class="nmeta"><span class="nname">AVIRLOG</span><span class="nwhen">now · set your blend</span></div></div>
+          <div class="ends"><span class="eL" data-l-text>40%</span><span class="eR" data-r-text>60%</span></div>
+          <div class="t2" data-track tabindex="0" role="slider" aria-label="Right nostril share" aria-valuemin="0" aria-valuemax="100" aria-valuenow="60">
+            <div class="segL animw" data-fill-r style="width:60%"></div>
+            <div class="segR"></div>
+            <div class="grip anim" data-thumb style="left:60%"></div>
+          </div>
+          <button class="logchip">Log</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== Design 3 ===================== -->
+    <div class="card">
+      <div class="clab">Design 03</div>
+      <div class="cname">Hairline track · diamond thumb</div>
+      <div class="cdesc">An instrument-style hairline with ticks at 25 / 50 / 75 and a small diamond. A big mono readout sits above.</div>
+
+      <div class="ctxlabel">Home / Lock-Screen widget</div>
+      <div class="widgetframe">
+        <div class="widget d3" data-slider="s3" data-value="50">
+          <div class="readout"><span class="nL" data-l-text>50</span><span class="sl"> / </span><span class="nR" data-r-text>50</span></div>
+          <div class="rlabel">Left / Right</div>
+          <div class="t3" data-track tabindex="0" role="slider" aria-label="Right nostril share" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50">
+            <div class="line"></div>
+            <div class="linefill animw" data-fill-r style="width:50%"></div>
+            <div class="tick" style="left:25%"></div>
+            <div class="tick mid" style="left:50%"></div>
+            <div class="tick" style="left:75%"></div>
+            <div class="diamond anim" data-thumb style="left:50%"></div>
+          </div>
+          <button class="logbtn">Log blend</button>
+        </div>
+      </div>
+
+      <div class="ctxlabel">Notification banner</div>
+      <div class="notifframe">
+        <div class="notif d3" data-slider="s3">
+          <div class="ntop"><div class="nicon"></div><div class="nmeta"><span class="nname">AVIRLOG</span><span class="nwhen">now · breath check</span></div></div>
+          <div class="readout"><span class="nL" data-l-text>50</span><span class="sl"> / </span><span class="nR" data-r-text>50</span></div>
+          <div class="rlabel">Left / Right</div>
+          <div class="t3" data-track tabindex="0" role="slider" aria-label="Right nostril share" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50">
+            <div class="line"></div>
+            <div class="linefill animw" data-fill-r style="width:50%"></div>
+            <div class="tick" style="left:25%"></div>
+            <div class="tick mid" style="left:50%"></div>
+            <div class="tick" style="left:75%"></div>
+            <div class="diamond anim" data-thumb style="left:50%"></div>
+          </div>
+          <button class="logchip">Log</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== Design 4 ===================== -->
+    <div class="card">
+      <div class="clab">Design 04</div>
+      <div class="cname">Segmented pips</div>
+      <div class="cdesc">A row of segments fills green from the left and terracotta from the right up to a slim handle. Percentages sit beside each side.</div>
+
+      <div class="ctxlabel">Home / Lock-Screen widget</div>
+      <div class="widgetframe">
+        <div class="widget d4" data-slider="s4" data-value="35">
+          <div class="top"><span class="side">Left</span><span class="side" style="margin-left:auto;">Right</span></div>
+          <div class="segbar" data-track tabindex="0" role="slider" aria-label="Right nostril share" aria-valuemin="0" aria-valuemax="100" aria-valuenow="35">
+            <div class="pips" data-pips></div>
+            <div class="handle anim" data-thumb style="left:35%"></div>
+          </div>
+          <div class="beside"><span class="bL" data-l-text>65%</span><span class="bR" data-r-text>35%</span></div>
+          <button class="logbtn">Log blend</button>
+        </div>
+      </div>
+
+      <div class="ctxlabel">Notification banner</div>
+      <div class="notifframe">
+        <div class="notif d4" data-slider="s4">
+          <div class="ntop"><div class="nicon"></div><div class="nmeta"><span class="nname">AVIRLOG</span><span class="nwhen">now · tap to log</span></div></div>
+          <div class="top"><span class="side">Left</span><span class="side" style="margin-left:auto;">Right</span></div>
+          <div class="segbar" data-track tabindex="0" role="slider" aria-label="Right nostril share" aria-valuemin="0" aria-valuemax="100" aria-valuenow="35">
+            <div class="pips" data-pips></div>
+            <div class="handle anim" data-thumb style="left:35%"></div>
+          </div>
+          <div class="beside"><span class="bL" data-l-text>65%</span><span class="bR" data-r-text>35%</span></div>
+          <button class="logchip">Log</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== Design 5 ===================== -->
+    <div class="card">
+      <div class="clab">Design 05</div>
+      <div class="cname">Bead on a rail · L / R caps</div>
+      <div class="cdesc">A rounded rail with soft end-caps labelled L and R, a bead handle, and a subtle fill trailing behind. Percentages sit under the ends.</div>
+
+      <div class="ctxlabel">Home / Lock-Screen widget</div>
+      <div class="widgetframe">
+        <div class="widget d5" data-slider="s5" data-value="80">
+          <div class="wtop"><span class="wtitle">Breath blend</span><span class="wsub">Ida · Pingala</span></div>
+          <div class="rail">
+            <div class="cap5 capL">L</div>
+            <div class="t5" data-track tabindex="0" role="slider" aria-label="Right nostril share" aria-valuemin="0" aria-valuemax="100" aria-valuenow="80">
+              <div class="trail animw" data-fill-r style="width:80%"></div>
+              <div class="bead anim" data-thumb style="left:80%"></div>
+            </div>
+            <div class="cap5 capR">R</div>
+          </div>
+          <div class="under"><span class="uL" data-l-text>20%</span><span class="uR" data-r-text>80%</span></div>
+          <button class="logbtn">Log blend</button>
+        </div>
+      </div>
+
+      <div class="ctxlabel">Notification banner</div>
+      <div class="notifframe">
+        <div class="notif d5" data-slider="s5">
+          <div class="ntop"><div class="nicon"></div><div class="nmeta"><span class="nname">AVIRLOG</span><span class="nwhen">now · slide the bead</span></div></div>
+          <div class="rail">
+            <div class="cap5 capL">L</div>
+            <div class="t5" data-track tabindex="0" role="slider" aria-label="Right nostril share" aria-valuemin="0" aria-valuemax="100" aria-valuenow="80">
+              <div class="trail animw" data-fill-r style="width:80%"></div>
+              <div class="bead anim" data-thumb style="left:80%"></div>
+            </div>
+            <div class="cap5 capR">R</div>
+          </div>
+          <div class="under"><span class="uL" data-l-text>20%</span><span class="uR" data-r-text>80%</span></div>
+          <button class="logchip">Log</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <footer>
+    Drag sets the right nostril's share (green Ida = left, terracotta Pingala = right); left is always
+    100 − right, snapped to steps of 5. Both instances of each design share one live value, so moving the
+    widget slider moves the banner one too. Theme follows the system, with light and dark tokens matched
+    to the AvirLog palette.
+  </footer>
+</div>
+
+<script>
+(function(){
+  var STEP = 5;
+  function clamp(p){ return Math.max(0, Math.min(100, Math.round(p/STEP)*STEP)); }
+
+  // build pip rows for design 4
+  var PIPS = 20;
+  document.querySelectorAll('[data-pips]').forEach(function(row){
+    for(var i=0;i<PIPS;i++){ var d=document.createElement('div'); d.className='pip'; row.appendChild(d); }
+  });
+
+  // group all slider instances by their data-slider key so both frames stay in sync
+  var groups = {};
+  document.querySelectorAll('[data-slider]').forEach(function(node){
+    var key = node.getAttribute('data-slider');
+    (groups[key] = groups[key] || []).push(node);
+  });
+
+  function renderInstance(node, right){
+    var left = 100 - right;
+    // percentage texts (never on the thumb)
+    node.querySelectorAll('[data-r-text]').forEach(function(e){
+      e.textContent = e.classList.contains('nR') ? String(right) : right + '%';
+    });
+    node.querySelectorAll('[data-l-text]').forEach(function(e){
+      e.textContent = e.classList.contains('nL') ? String(left) : left + '%';
+    });
+    // thumb position (left = right%)
+    node.querySelectorAll('[data-thumb]').forEach(function(e){ e.style.left = right + '%'; });
+    // fills
+    node.querySelectorAll('[data-fill-l]').forEach(function(e){ e.style.width = left + '%'; });
+    node.querySelectorAll('[data-fill-r]').forEach(function(e){ e.style.width = right + '%'; });
+    // design-4 pips: fill green from left up to `left`, terracotta from right up to `right`
+    var pips = node.querySelectorAll('.pip');
+    if(pips.length){
+      var total = pips.length;
+      var lCount = Math.round(left/100*total);
+      var rCount = Math.round(right/100*total);
+      pips.forEach(function(p, idx){
+        p.classList.remove('on-l','on-r');
+        if(idx < lCount){ p.classList.add('on-l'); }
+        else if(idx >= total - rCount){ p.classList.add('on-r'); }
+      });
+    }
+    // aria on track
+    var track = node.querySelector('[data-track]');
+    if(track){ track.setAttribute('aria-valuenow', right); }
+  }
+
+  function setGroup(key, right){
+    right = clamp(right);
+    (groups[key] || []).forEach(function(node){
+      node.dataset.value = right;
+      renderInstance(node, right);
+    });
+  }
+
+  function bind(node){
+    var key = node.getAttribute('data-slider');
+    var track = node.querySelector('[data-track]');
+    if(!track) return;
+    track.style.touchAction = 'none';
+
+    function fromEvent(e){
+      var rect = track.getBoundingClientRect();
+      setGroup(key, (e.clientX - rect.left) / rect.width * 100);
+    }
+
+    track.addEventListener('pointerdown', function(e){
+      e.preventDefault();
+      track.focus();
+      try{ track.setPointerCapture(e.pointerId); }catch(_){}
+      fromEvent(e);
+      var mv = function(ev){ fromEvent(ev); };
+      var up = function(){
+        track.removeEventListener('pointermove', mv);
+        track.removeEventListener('pointerup', up);
+        track.removeEventListener('pointercancel', up);
+      };
+      track.addEventListener('pointermove', mv);
+      track.addEventListener('pointerup', up);
+      track.addEventListener('pointercancel', up);
+    });
+
+    // keyboard support
+    track.addEventListener('keydown', function(e){
+      var cur = parseInt(node.dataset.value || '50', 10);
+      if(e.key === 'ArrowRight' || e.key === 'ArrowUp'){ setGroup(key, cur + STEP); e.preventDefault(); }
+      else if(e.key === 'ArrowLeft' || e.key === 'ArrowDown'){ setGroup(key, cur - STEP); e.preventDefault(); }
+      else if(e.key === 'Home'){ setGroup(key, 0); e.preventDefault(); }
+      else if(e.key === 'End'){ setGroup(key, 100); e.preventDefault(); }
+    });
+  }
+
+  // bind every instance's own track; initialize each group from the first node's data-value
+  Object.keys(groups).forEach(function(key){
+    var nodes = groups[key];
+    nodes.forEach(bind);
+    var start = parseInt(nodes[0].dataset.value || '50', 10);
+    setGroup(key, start);
+  });
+})();
+</script>
