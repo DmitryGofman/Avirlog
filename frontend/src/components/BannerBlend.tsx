@@ -46,7 +46,12 @@ function BlendFlag({
   }, [sway, swayDelay]);
   const rotate = sway.interpolate({ inputRange: [0, 1], outputRange: ["-0.5deg", "0.6deg"] });
 
-  const revealH = Math.max(MIN_REVEAL, (share / 100) * FLAG_H);
+  // The flat (unrolled) part grows from the pole downward; the rest of the cloth
+  // is wound into a roll whose thickness SHRINKS as you unroll — fat and up near
+  // the pole when rolled, thin and low when fully open. That's the "pull the
+  // poster down off the rod" read, with the flag itself never changing size.
+  const revealH = Math.max(MIN_REVEAL, (share / 100) * (FLAG_H - 34));
+  const rollH = Math.round(14 + 26 * (1 - share / 100)); // ~40 rolled → 14 open
 
   return (
     <View style={styles.slot}>
@@ -55,9 +60,15 @@ function BlendFlag({
         <View style={[styles.reveal, { height: revealH }]}>
           <View style={{ width: FLAG_W, height: FLAG_H }}>{children}</View>
         </View>
-        {/* the roll riding the unrolled edge, carrying the % */}
-        <View style={[styles.roll, { top: revealH - ROLL_H, backgroundColor: rollColor }]}>
-          <View style={styles.rollHi} />
+        {/* the rolled cloth cylinder riding the unrolled edge */}
+        <View
+          style={[
+            styles.roll,
+            { top: revealH, height: rollH, borderRadius: rollH / 2, backgroundColor: rollColor },
+          ]}
+        >
+          <View style={[styles.rollShine, { height: Math.max(3, rollH * 0.28), borderRadius: rollH / 2 }]} />
+          <View style={[styles.rollShadow, { height: Math.max(3, rollH * 0.26), borderRadius: rollH / 2 }]} />
           <Text style={styles.rollPct}>{share}%</Text>
         </View>
       </Animated.View>
@@ -128,28 +139,19 @@ const styles = StyleSheet.create({
   reveal: { width: FLAG_W, overflow: "hidden", position: "absolute", top: 0, left: 0 },
   roll: {
     position: "absolute",
-    left: -4,
-    width: FLAG_W + 8,
-    height: ROLL_H,
-    borderRadius: ROLL_H / 2,
+    left: -6,
+    width: FLAG_W + 12,
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#000",
-    shadowOpacity: 0.35,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
+    shadowOpacity: 0.4,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 4,
   },
-  rollHi: {
-    position: "absolute",
-    top: 3,
-    left: 10,
-    right: 10,
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: "rgba(255,255,255,0.28)",
-  },
-  rollPct: { fontFamily: fonts.bold, fontSize: 12, color: "#F2F4FC", letterSpacing: 0.5 },
+  rollShine: { position: "absolute", top: 2, left: 10, right: 10, backgroundColor: "rgba(255,255,255,0.30)" },
+  rollShadow: { position: "absolute", bottom: 2, left: 10, right: 10, backgroundColor: "rgba(0,0,0,0.30)" },
+  rollPct: { fontFamily: fonts.bold, fontSize: 12, color: "#F2F4FC", letterSpacing: 0.5, zIndex: 2 },
   hit: { ...StyleSheet.absoluteFillObject },
   hint: {
     fontFamily: fonts.regular,
