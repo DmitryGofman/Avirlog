@@ -1,0 +1,383 @@
+<!-- ARTIFACT SOURCE (content-only; the Artifact host wraps this in <html><head><body>).
+     Interactive blend sliders — vertical "connected vessels" mechanic (drag one
+     side, the other moves inversely), a horizontal version for widgets / the
+     lock screen, and a static Live Activity flow. JS-driven, so view it live. -->
+<style>
+  :root{
+    --ground:#C4BEB0; --paper:#F7F5F0; --panel:#FDFCF8;
+    --ink:#26241E; --muted:#77715F; --faint:#98917E; --border:#DDD7C6; --track:#E7E2D6;
+    --green:#8FA28A; --green-ink:#1E2A1E; --terra:#C29580; --terra-ink:#3A1D10;
+    --mono:ui-monospace,Menlo,"SF Mono",monospace;
+    --sans:-apple-system,"Segoe UI",system-ui,sans-serif;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --ground:#131209; --paper:#201F17; --panel:#26241C;
+      --ink:#EDE9DE; --muted:#B4AE9C; --faint:#8F8974; --border:#3A382E; --track:#2E2C23;
+      --green:#93A98C; --green-ink:#0E140D; --terra:#CF9E86; --terra-ink:#2A140A;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#131209; --paper:#201F17; --panel:#26241C;
+    --ink:#EDE9DE; --muted:#B4AE9C; --faint:#8F8974; --border:#3A382E; --track:#2E2C23;
+    --green:#93A98C; --green-ink:#0E140D; --terra:#CF9E86; --terra-ink:#2A140A;
+  }
+  :root[data-theme="light"]{
+    --ground:#C4BEB0; --paper:#F7F5F0; --panel:#FDFCF8;
+    --ink:#26241E; --muted:#77715F; --faint:#98917E; --border:#DDD7C6; --track:#E7E2D6;
+    --green:#8FA28A; --green-ink:#1E2A1E; --terra:#C29580; --terra-ink:#3A1D10;
+  }
+
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--ground); color:var(--ink); font-family:var(--sans); -webkit-font-smoothing:antialiased; }
+  .wrap{ max-width:1040px; margin:0 auto; padding:40px 20px 80px; }
+
+  header.top{ margin-bottom:8px; }
+  .eyebrow{ font-family:var(--mono); font-size:11px; letter-spacing:2.4px; text-transform:uppercase; color:var(--faint); }
+  h1{ font-size:30px; letter-spacing:-.6px; margin:10px 0 6px; text-wrap:balance; }
+  .lede{ font-size:15px; line-height:1.5; color:var(--muted); max-width:60ch; }
+  .hint{ margin-top:12px; display:inline-flex; align-items:center; gap:8px; font-size:12.5px; color:var(--terra); font-weight:600; }
+  .hint::before{ content:"↕"; font-size:15px; }
+
+  .sect{ font-family:var(--mono); font-size:11px; letter-spacing:2px; text-transform:uppercase; color:var(--faint); margin:44px 0 16px; padding-bottom:8px; border-bottom:1px solid var(--border); }
+
+  .grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:20px; }
+  @media (max-width:720px){ .grid{ grid-template-columns:1fr; } }
+
+  .card{ background:var(--paper); border:1px solid var(--border); border-radius:22px; padding:20px 20px 18px; display:flex; flex-direction:column; }
+  .card .clab{ font-family:var(--mono); font-size:11px; letter-spacing:1.4px; text-transform:uppercase; color:var(--faint); }
+  .card .cname{ font-size:16px; font-weight:700; margin:4px 0 2px; }
+  .card .cdesc{ font-size:12px; color:var(--muted); line-height:1.45; margin-bottom:6px; }
+
+  .readout{ display:flex; align-items:center; justify-content:center; gap:6px; font-size:13px; color:var(--muted); margin-top:14px; }
+  .readout b{ font-variant-numeric:tabular-nums; }
+  .readout .rL{ color:var(--green); } .readout .rR{ color:var(--terra); }
+  .logbtn{ margin-top:12px; height:46px; border:none; border-radius:14px; background:var(--ink); color:var(--paper); font-size:14px; font-weight:700; font-family:var(--sans); cursor:pointer; }
+  .logbtn:active{ transform:translateY(1px); }
+
+  /* ---- shared vertical widget frame ---- */
+  .vwidget{ user-select:none; -webkit-user-select:none; }
+  .vtrack{ position:relative; height:240px; display:flex; gap:16px; }
+  .grip{ cursor:ns-resize; }
+  @media (prefers-reduced-motion:no-preference){
+    .fillanim{ transition:height .16s ease; }
+    .banner{ transition:height .16s ease; }
+    .pan{ transition:transform .16s ease; }
+    .beam{ transition:transform .16s ease; }
+  }
+
+  /* 01 twin banners */
+  .banners .pole{ flex:1; position:relative; display:flex; flex-direction:column; align-items:center; }
+  .banners .rod{ width:100%; height:8px; border-radius:4px; background:linear-gradient(#8a7a5e,#5f5236); box-shadow:0 1px 2px rgba(0,0,0,.25); }
+  .banners .banner{ width:82%; border-radius:0 0 6px 6px; display:flex; flex-direction:column; align-items:center; justify-content:flex-start; padding-top:14px; color:#fff; position:relative; clip-path:polygon(0 0,100% 0,100% calc(100% - 12px),50% 100%,0 calc(100% - 12px)); }
+  .banners .banner b{ font-size:22px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:-.5px; }
+  .banners .banner em{ font-size:11px; font-style:italic; opacity:.8; margin-top:1px; }
+  .banners .bnL{ background:linear-gradient(#9aad94,#8FA28A); color:var(--green-ink); }
+  .banners .bnR{ background:linear-gradient(#cfa48f,#C29580); color:var(--terra-ink); }
+
+  /* 02 communicating vessels */
+  .vessels .vtrack{ align-items:flex-end; padding-bottom:16px; }
+  .vessels .tube{ flex:1; position:relative; height:210px; border:2px solid var(--border); border-radius:14px 14px 8px 8px; background:var(--panel); overflow:hidden; cursor:ns-resize; }
+  .vessels .liquid{ position:absolute; left:0; right:0; bottom:0; }
+  .vessels .liqL{ background:linear-gradient(var(--green),#7d9077); }
+  .vessels .liqR{ background:linear-gradient(var(--terra),#b0836c); }
+  .vessels .liquid::before{ content:""; position:absolute; top:-5px; left:0; right:0; height:10px; border-radius:50%; background:rgba(255,255,255,.35); }
+  .vessels .pipe{ position:absolute; left:22%; right:22%; bottom:2px; height:12px; background:var(--track); border:2px solid var(--border); border-top:none; border-radius:0 0 8px 8px; z-index:-1; }
+  .vessels .tlabel{ position:absolute; left:0; right:0; bottom:6px; text-align:center; font-size:13px; font-weight:800; font-variant-numeric:tabular-nums; color:#fff; text-shadow:0 1px 2px rgba(0,0,0,.35); }
+
+  /* 03 big buttons */
+  .bigbtns .vtrack{ height:250px; }
+  .bigbtns .bbtn{ flex:1; position:relative; border:1px solid var(--border); border-radius:20px; background:var(--panel); overflow:hidden; cursor:ns-resize; font-family:var(--sans); }
+  .bigbtns .fill{ position:absolute; left:0; right:0; bottom:0; }
+  .bigbtns .fillL{ background:var(--green); }
+  .bigbtns .fillR{ background:var(--terra); }
+  .bigbtns .lbl{ position:absolute; inset:0; z-index:2; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; }
+  .bigbtns .lbl .nm{ font-size:19px; font-weight:700; }
+  .bigbtns .lbl b{ font-size:30px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:-1px; }
+  .bigbtns .lbl em{ font-size:11px; font-style:italic; opacity:.75; }
+  .bbL .lbl{ color:var(--green-ink); } .bbR .lbl{ color:var(--terra-ink); }
+
+  /* 04 seesaw */
+  .seesaw .vtrack{ height:240px; align-items:center; justify-content:center; }
+  .seesaw .rig{ position:relative; width:100%; height:100%; }
+  .seesaw .beam{ position:absolute; left:12%; right:12%; top:50%; height:8px; border-radius:5px; background:linear-gradient(#8a7a5e,#5f5236); transform-origin:center; }
+  .seesaw .pivot{ position:absolute; left:50%; top:calc(50% + 4px); transform:translateX(-50%); width:0; height:0; border-left:20px solid transparent; border-right:20px solid transparent; border-top:64px solid var(--border); }
+  .seesaw .pan{ position:absolute; top:calc(50% - 44px); width:96px; height:78px; border-radius:16px; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:ns-resize; }
+  .seesaw .panL{ left:2%; background:linear-gradient(#9aad94,#8FA28A); color:var(--green-ink); }
+  .seesaw .panR{ right:2%; background:linear-gradient(#cfa48f,#C29580); color:var(--terra-ink); }
+  .seesaw .pan b{ font-size:24px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:-.5px; }
+  .seesaw .pan em{ font-size:11px; font-style:italic; opacity:.8; }
+  .seesaw .balance{ position:absolute; left:0; right:0; bottom:-2px; text-align:center; font-family:var(--mono); font-size:10px; letter-spacing:1px; color:var(--faint); }
+
+  /* ---- horizontal widget ---- */
+  .hcard{ background:var(--paper); border:1px solid var(--border); border-radius:22px; padding:22px; }
+  .hframe{ background:var(--ground); border-radius:20px; padding:20px; }
+  .hwidget{ user-select:none; -webkit-user-select:none; background:var(--panel); border:1px solid var(--border); border-radius:16px; padding:16px 18px; }
+  .hwidget .htop{ display:flex; align-items:baseline; justify-content:space-between; margin-bottom:12px; }
+  .hwidget .htitle{ font-size:13px; font-weight:700; }
+  .hwidget .hval{ font-family:var(--mono); font-size:13px; color:var(--muted); font-variant-numeric:tabular-nums; }
+  .hwidget .hval .rL{ color:var(--green); } .hwidget .hval .rR{ color:var(--terra); }
+  .htrack{ position:relative; height:26px; border-radius:99px; background:linear-gradient(90deg,var(--green),#c3b7a6 50%,var(--terra)); cursor:ew-resize; }
+  .hthumb{ position:absolute; top:50%; width:30px; height:30px; border-radius:99px; background:var(--panel); border:2px solid var(--terra); transform:translate(-50%,-50%); box-shadow:0 2px 7px rgba(40,35,25,.3); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:800; color:var(--terra); font-variant-numeric:tabular-nums; }
+  .hends{ display:flex; justify-content:space-between; font-family:var(--mono); font-size:10px; color:var(--faint); margin-top:10px; }
+  .hcaption{ font-size:12.5px; color:var(--muted); line-height:1.5; margin-top:14px; }
+
+  /* ---- live activity ---- */
+  .laGrid{ display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+  @media (max-width:720px){ .laGrid{ grid-template-columns:1fr; } }
+  .lacol .lacap{ font-family:var(--mono); font-size:10px; letter-spacing:1px; color:var(--faint); text-transform:uppercase; margin-bottom:8px; }
+  .lsframe{ background:linear-gradient(160deg,#2a2b33,#14151b); border-radius:22px; padding:16px; min-height:200px; display:flex; flex-direction:column; }
+  .la{ background:rgba(255,255,255,.1); backdrop-filter:blur(4px); border:1px solid rgba(255,255,255,.14); border-radius:16px; padding:13px; color:#F2F4FC; }
+  .la .lahead{ display:flex; align-items:center; gap:8px; font-size:11px; color:rgba(242,244,252,.7); }
+  .la .lahead .dot{ width:7px; height:7px; border-radius:99px; background:#C29580; }
+  .la .latitle{ font-size:15px; font-weight:700; margin:8px 0 2px; }
+  .la .lacount{ font-family:var(--mono); font-size:26px; font-weight:700; letter-spacing:-1px; font-variant-numeric:tabular-nums; margin:6px 0 2px; }
+  .la .lacd{ font-size:11px; color:rgba(242,244,252,.6); }
+  .la .labar{ height:5px; border-radius:3px; background:rgba(255,255,255,.18); overflow:hidden; margin:10px 0 12px; }
+  .la .labar i{ display:block; height:100%; width:64%; background:#C29580; }
+  .labtns{ display:flex; gap:7px; }
+  .labtns button{ flex:1; border:none; border-radius:10px; padding:9px 0; font-size:12px; font-weight:700; font-family:var(--sans); cursor:pointer; }
+  .labtns .bl{ background:#8FA28A; color:#12200f; }
+  .labtns .br{ background:#C29580; color:#2a1409; }
+  .labtns .bb{ background:rgba(255,255,255,.16); color:#F2F4FC; }
+  .la.small{ background:rgba(0,0,0,.55); }
+  .la .plain{ font-size:12px; color:rgba(242,244,252,.85); line-height:1.5; }
+  .la .hold{ margin-top:8px; font-size:11px; color:rgba(242,244,252,.55); }
+  .island{ align-self:center; margin-top:auto; background:#000; border-radius:99px; padding:8px 16px; display:flex; align-items:center; gap:10px; color:#F2F4FC; }
+  .island .ig{ width:22px; height:22px; border-radius:99px; background:#C29580; display:flex; align-items:center; justify-content:center; font-size:12px; color:#2a1409; font-weight:800; }
+  .island .it{ font-family:var(--mono); font-size:13px; font-variant-numeric:tabular-nums; }
+  .note{ margin-top:20px; background:var(--panel); border:1px solid var(--border); border-left:3px solid var(--green); border-radius:0 14px 14px 0; padding:14px 16px; font-size:12.5px; line-height:1.6; color:var(--muted); }
+  .note b{ color:var(--ink); }
+
+  footer{ margin-top:40px; font-size:11.5px; color:var(--faint); line-height:1.6; }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="eyebrow">AvirLog · Advanced logging</div>
+    <h1>Blend the breath — connected, like water between vessels</h1>
+    <p class="lede">Log <em>how open</em> each nostril is, not just which side. The two are joined:
+      raise one, the other drops, always summing to 100%. Below are four vertical designs, a
+      horizontal version for widgets and the lock screen, and the Live Activity flow.</p>
+    <span class="hint">Drag any slider — it's live</span>
+  </header>
+
+  <div class="sect">Vertical — on the banners / big buttons</div>
+  <div class="grid">
+
+    <!-- 01 twin banners -->
+    <div class="card">
+      <div class="clab">Option 01</div>
+      <div class="cname">Twin banners</div>
+      <div class="cdesc">Two cloth banners on rods. Pull one longer and the other rises — the % is on the cloth.</div>
+      <div class="vwidget banners grip" data-vessel data-value="70" data-invert>
+        <div class="vtrack" data-track>
+          <div class="pole"><div class="rod"></div><div class="banner bnL fillanim" data-grab="left" style="height:30%"><b data-l-text>30%</b><em>Left · Ida</em></div></div>
+          <div class="pole"><div class="rod"></div><div class="banner bnR fillanim" data-grab="right" style="height:70%"><b data-r-text>70%</b><em>Right · Pingala</em></div></div>
+        </div>
+      </div>
+      <div class="readout"><b class="rL" data-l-text>30%</b> Left&nbsp;·&nbsp;<b class="rR" data-r-text>70%</b> Right</div>
+      <button class="logbtn">Log blend</button>
+    </div>
+
+    <!-- 02 vessels -->
+    <div class="card">
+      <div class="clab">Option 02</div>
+      <div class="cname">Communicating vessels</div>
+      <div class="cdesc">Two tubes joined by a pipe. Push the liquid down one side and it rises on the other.</div>
+      <div class="vwidget vessels grip" data-vessel data-value="70">
+        <div class="vtrack" data-track>
+          <div class="tube" data-grab="left"><div class="liquid liqL fillanim" style="height:30%"></div><div class="tlabel" data-l-text>30%</div></div>
+          <div class="tube" data-grab="right"><div class="liquid liqR fillanim" style="height:70%"></div><div class="tlabel" data-r-text>70%</div></div>
+          <div class="pipe"></div>
+        </div>
+      </div>
+      <div class="readout"><b class="rL" data-l-text>30%</b> Left&nbsp;·&nbsp;<b class="rR" data-r-text>70%</b> Right</div>
+      <button class="logbtn">Log blend</button>
+    </div>
+
+    <!-- 03 big buttons -->
+    <div class="card">
+      <div class="clab">Option 03</div>
+      <div class="cname">Big buttons that fill</div>
+      <div class="cdesc">Your two Log buttons, filling from the bottom. Drag to set the level; the % shows inside.</div>
+      <div class="vwidget bigbtns grip" data-vessel data-value="70">
+        <div class="vtrack" data-track>
+          <button class="bbtn bbL" data-grab="left"><span class="fill fillL fillanim" style="height:30%"></span><span class="lbl"><span class="nm">Left</span><b data-l-text>30%</b><em>Ida</em></span></button>
+          <button class="bbtn bbR" data-grab="right"><span class="fill fillR fillanim" style="height:70%"></span><span class="lbl"><span class="nm">Right</span><b data-r-text>70%</b><em>Pingala</em></span></button>
+        </div>
+      </div>
+      <div class="readout"><b class="rL" data-l-text>30%</b> Left&nbsp;·&nbsp;<b class="rR" data-r-text>70%</b> Right</div>
+      <button class="logbtn">Log blend</button>
+    </div>
+
+    <!-- 04 seesaw -->
+    <div class="card">
+      <div class="clab">Option 04</div>
+      <div class="cname">Balance beam</div>
+      <div class="cdesc">A seesaw. Press one pan down, the other lifts. Level in the middle = Sushumna.</div>
+      <div class="vwidget seesaw grip" data-vessel data-value="70">
+        <div class="vtrack" data-track>
+          <div class="rig">
+            <div class="beam"></div>
+            <div class="pivot"></div>
+            <div class="pan panL" data-grab="left"><b data-l-text>30%</b><em>Left</em></div>
+            <div class="pan panR" data-grab="right"><b data-r-text>70%</b><em>Right</em></div>
+            <div class="balance">drag a pan · level = balanced</div>
+          </div>
+        </div>
+      </div>
+      <div class="readout"><b class="rL" data-l-text>30%</b> Left&nbsp;·&nbsp;<b class="rR" data-r-text>70%</b> Right</div>
+      <button class="logbtn">Log blend</button>
+    </div>
+  </div>
+
+  <div class="sect">Horizontal — for widgets &amp; the lock screen</div>
+  <div class="hcard">
+    <div class="hframe">
+      <div class="hwidget" data-hvessel data-value="70">
+        <div class="htop">
+          <span class="htitle">Breath blend</span>
+          <span class="hval"><span class="rL" data-l-text>30%</span> L · <span class="rR" data-r-text>70%</span> R</span>
+        </div>
+        <div class="htrack" data-htrack>
+          <div class="hthumb" data-r-text style="left:70%">70%</div>
+        </div>
+        <div class="hends"><span>Left · Ida</span><span>Right · Pingala</span></div>
+      </div>
+    </div>
+    <p class="hcaption">A single horizontal control that fits a Home-Screen / Lock-Screen widget or a
+      notification banner: one drag sets the blend, then the widget's Log button (or a tap) records it —
+      no need to open the app. Slide right = more right.</p>
+  </div>
+
+  <div class="sect">Live Activity — a window to log, then it steps down</div>
+  <div class="laGrid">
+    <div class="lacol">
+      <div class="lacap">Minutes 0–10 · Live Activity</div>
+      <div class="lsframe">
+        <div class="la">
+          <div class="lahead"><span class="dot"></span> AVIRLOG · LOG YOUR BREATH</div>
+          <div class="lacount">09:41</div>
+          <div class="lacd">left in this logging window</div>
+          <div class="labar"><i></i></div>
+          <div class="labtns"><button class="bl">Left</button><button class="br">Right</button><button class="bb">Both</button></div>
+        </div>
+        <div class="island">
+          <span class="ig">◐</span><span class="it">9:41</span>
+        </div>
+      </div>
+    </div>
+    <div class="lacol">
+      <div class="lacap">After 10 min · normal notification</div>
+      <div class="lsframe">
+        <div class="la small">
+          <div class="lahead"><span class="dot"></span> AVIRLOG</div>
+          <div class="latitle">Breath check</div>
+          <div class="plain">Which nostril is active? Left / Right / Both.</div>
+          <div class="hold">Long-press to reveal the log buttons.</div>
+        </div>
+      </div>
+    </div>
+    <div class="lacol">
+      <div class="lacap">Dynamic Island · at a glance</div>
+      <div class="lsframe" style="justify-content:center;">
+        <div class="island" style="margin:0 auto;">
+          <span class="ig">◐</span><span class="it">7:12 · log</span>
+        </div>
+        <p class="hcaption" style="color:rgba(242,244,252,.7);text-align:center;">Tap to expand back to the buttons while the window is open.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">
+    <b>How it stays within Apple's rules.</b> A Live Activity is meant for a live, time-bound event with
+    a clear start and end — a countdown to “log your breath in the next 10 minutes” fits exactly. Its
+    Left/Right/Both buttons use App Intents (iOS 17+), so a tap logs instantly with no long-press and
+    without opening the app. When the window closes, the Live Activity <b>ends</b> (as required) and a
+    normal reminder takes over — long-press there for the same buttons. Set a 30-min reminder → a 10-min
+    live window, then quiet until the next one. This is native (ActivityKit + WidgetKit), so it's a
+    build-on-device step — the same foundation as the widget.
+  </div>
+
+  <footer>
+    Drag any slider to see the connected-vessels mechanic. Colours: Ida green = left, Pingala terracotta
+    = right. Whatever you log stores as a blend and still resolves to Left / Right / Both (near 50/50 =
+    Sushumna) for every existing view.
+  </footer>
+</div>
+
+<script>
+(function(){
+  var STEP = 5;
+  function clamp(p){ return Math.max(0, Math.min(100, Math.round(p/STEP)*STEP)); }
+
+  function apply(root, right){
+    right = clamp(right);
+    var left = 100 - right;
+    root.dataset.value = right;
+    root.style.setProperty('--r', right);
+    root.style.setProperty('--l', left);
+    root.querySelectorAll('[data-r-text]').forEach(function(e){ e.textContent = right + '%'; });
+    root.querySelectorAll('[data-l-text]').forEach(function(e){ e.textContent = left + '%'; });
+    // direct height sizing (works even before layout vars cascade)
+    root.querySelectorAll('.bnL,.liqL,.fillL').forEach(function(e){ e.style.height = left + '%'; });
+    root.querySelectorAll('.bnR,.liqR,.fillR').forEach(function(e){ e.style.height = right + '%'; });
+    var thumb = root.querySelector('.hthumb'); if(thumb){ thumb.style.left = right + '%'; }
+    if(root._render){ root._render(right); }
+  }
+
+  function drag(surf, onMove){
+    surf.style.touchAction = 'none';
+    surf.addEventListener('pointerdown', function(e){
+      e.preventDefault();
+      try{ surf.setPointerCapture(e.pointerId); }catch(_){}
+      onMove(e);
+      var mv = function(ev){ onMove(ev); };
+      var up = function(){ surf.removeEventListener('pointermove', mv); surf.removeEventListener('pointerup', up); surf.removeEventListener('pointercancel', up); };
+      surf.addEventListener('pointermove', mv);
+      surf.addEventListener('pointerup', up);
+      surf.addEventListener('pointercancel', up);
+    });
+  }
+
+  // vertical vessels
+  document.querySelectorAll('[data-vessel]').forEach(function(root){
+    var track = root.querySelector('[data-track]');
+    var invert = root.hasAttribute('data-invert');
+    // seesaw custom render
+    if(root.classList.contains('seesaw')){
+      var beam = root.querySelector('.beam');
+      var panL = root.querySelector('.panL');
+      var panR = root.querySelector('.panR');
+      root._render = function(right){
+        var dy = (right - 50) * 1.15;
+        panR.style.transform = 'translateY(' + (-dy) + 'px)';
+        panL.style.transform = 'translateY(' + (dy) + 'px)';
+        if(beam){ beam.style.transform = 'rotate(' + (-(right-50)/50*13) + 'deg)'; }
+      };
+    }
+    root.querySelectorAll('[data-grab]').forEach(function(surf){
+      var side = surf.getAttribute('data-grab');
+      drag(surf, function(e){
+        var rect = track.getBoundingClientRect();
+        var frac = 1 - (e.clientY - rect.top) / rect.height;
+        if(invert){ frac = 1 - frac; }
+        var val = clamp(frac * 100);
+        apply(root, side === 'right' ? val : 100 - val);
+      });
+    });
+    apply(root, parseInt(root.dataset.value || '70', 10));
+  });
+
+  // horizontal
+  document.querySelectorAll('[data-hvessel]').forEach(function(root){
+    var track = root.querySelector('[data-htrack]');
+    drag(track, function(e){
+      var rect = track.getBoundingClientRect();
+      apply(root, clamp((e.clientX - rect.left) / rect.width * 100));
+    });
+    apply(root, parseInt(root.dataset.value || '70', 10));
+  });
+})();
+</script>
