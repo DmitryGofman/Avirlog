@@ -5,8 +5,11 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Animated, Easing, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { BannerBlend } from "@/src/components/BannerBlend";
 import { BannerButtons } from "@/src/components/BannerButtons";
+import { ClassicBlend } from "@/src/components/ClassicBlend";
 import { IceFireEffect, IceFireEffectHandle } from "@/src/components/IceFireEffect";
+import { InstrumentBlend } from "@/src/components/InstrumentBlend";
 import { InstrumentLog } from "@/src/components/InstrumentLog";
 import { LivingSky } from "@/src/components/LivingSky";
 import { LogForm, LogFormPayload } from "@/src/components/LogForm";
@@ -14,6 +17,7 @@ import { Sheet } from "@/src/components/Sheet";
 import { useToast } from "@/src/components/Toast";
 import { useTheme } from "@/src/context/ThemeContext";
 import { api, todayStr } from "@/src/lib/api";
+import { blendToState } from "@/src/lib/blend";
 import { pickMessage, SWARA } from "@/src/lib/swara";
 import { BreathLog, fonts, NostrilState, radius, spacing, STATE_META } from "@/src/theme/theme";
 
@@ -37,6 +41,7 @@ export default function QuickLogScreen() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [moodJournaling, setMoodJournaling] = useState(true);
+  const [advanced, setAdvanced] = useState(false);
   const [logVersion, setLogVersion] = useState(0);
   const [guidance, setGuidance] = useState<{ state: NostrilState; message: string } | null>(null);
 
@@ -79,13 +84,16 @@ export default function QuickLogScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      api<{ mood_journaling?: boolean }>("/settings")
-        .then((s) => setMoodJournaling(s.mood_journaling ?? true))
+      api<{ mood_journaling?: boolean; advanced_logging?: boolean }>("/settings")
+        .then((s) => {
+          setMoodJournaling(s.mood_journaling ?? true);
+          setAdvanced(s.advanced_logging ?? false);
+        })
         .catch(() => {});
     }, []),
   );
 
-  const logState = async (state: NostrilState) => {
+  const logState = async (state: NostrilState, blend?: number) => {
     if (creating) return;
     setCreating(state);
     fx.current?.trigger(state);
@@ -97,6 +105,7 @@ export default function QuickLogScreen() {
         method: "POST",
         body: {
           nostril_state: state,
+          ...(blend != null ? { blend } : {}),
           tags: [],
           local_date: todayStr(),
           local_hour: new Date().getHours(),
@@ -178,7 +187,11 @@ export default function QuickLogScreen() {
         testID="quick-log-screen"
         style={[styles.instrumentRoot, { paddingTop: insets.top + spacing.md }]}
       >
-        <InstrumentLog creating={creating} onLog={logState} refreshToken={logVersion} />
+        {advanced ? (
+          <InstrumentBlend disabled={!!creating} onLog={(r) => logState(blendToState(r), r)} />
+        ) : (
+          <InstrumentLog creating={creating} onLog={logState} refreshToken={logVersion} />
+        )}
         <Sheet
           visible={sheetOpen}
           onClose={() => setSheetOpen(false)}
@@ -254,17 +267,27 @@ export default function QuickLogScreen() {
 
       {living ? (
         <Animated.View style={[styles.buttons, { opacity: enter, transform: [{ translateY: enterTranslate }] }]}>
-          <BannerButtons disabled={!!creating} onLog={logState} />
+          {advanced ? (
+            <BannerBlend disabled={!!creating} onLog={(r) => logState(blendToState(r), r)} />
+          ) : (
+            <BannerButtons disabled={!!creating} onLog={logState} />
+          )}
         </Animated.View>
       ) : (
         /* Left + Right are the frequent states, side by side and tall.
            Both (Sushumna) accrues less, so it sits below as a short bar. */
         <Animated.View style={[styles.buttons, { opacity: enter, transform: [{ translateY: enterTranslate }] }]}>
-          <View style={styles.topRow}>
-            {renderState("left")}
-            {renderState("right")}
-          </View>
-          {renderState("both", true)}
+          {advanced ? (
+            <ClassicBlend disabled={!!creating} onLog={(r) => logState(blendToState(r), r)} />
+          ) : (
+            <>
+              <View style={styles.topRow}>
+                {renderState("left")}
+                {renderState("right")}
+              </View>
+              {renderState("both", true)}
+            </>
+          )}
         </Animated.View>
       )}
 
