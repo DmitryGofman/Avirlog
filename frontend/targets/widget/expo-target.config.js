@@ -7,6 +7,7 @@ module.exports = {
   entitlements: {
     "com.apple.security.application-groups": ["group.com.avirlog.app"],
   },
-  // Frameworks the Swift target links against.
-  frameworks: ["WidgetKit", "SwiftUI", "AppIntents", "UserNotifications"],
+  // Frameworks the Swift target links against. ActivityKit powers the
+  // Live Activity (lock-screen logging window + Dynamic Island).
+  frameworks: ["WidgetKit", "SwiftUI", "AppIntents", "UserNotifications", "ActivityKit"],
 };

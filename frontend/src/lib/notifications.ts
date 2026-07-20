@@ -8,9 +8,14 @@
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 
+import { endBreathWindow, startBreathWindow } from "@/src/lib/liveActivityBridge";
 import { pickMessage, SWARA } from "@/src/lib/swara";
 import { clearWidgetDue, setWidgetDue } from "@/src/lib/widgetBridge";
 import { NostrilState, STATE_META } from "@/src/theme/theme";
+
+// The Live Activity logging window stays up for at most this long before it
+// goes stale and the classic notification takes over as the fallback.
+const LIVE_WINDOW_SECONDS = 600;
 
 export const BREATH_CATEGORY = "breath-log";
 const CHANNEL_ID = "reminders";
@@ -125,6 +130,10 @@ export async function scheduleNextReminder(cfg: ReminderConfig): Promise<void> {
     },
   });
   setWidgetDue(Date.now() / 1000 + delay, cfg.reminder_interval_seconds);
+  // Open the interactive Live Activity logging window (no-op if unsupported).
+  // It counts down and offers Left/Right/Both; when it goes stale the
+  // scheduled notification above is the fallback.
+  startBreathWindow(Math.min(delay, LIVE_WINDOW_SECONDS));
 }
 
 // Re-arm on app open / after a swipe: only if reminders are on and nothing is
@@ -153,4 +162,5 @@ export async function cancelReminders(): Promise<void> {
   if (Platform.OS === "web") return;
   await Notifications.cancelAllScheduledNotificationsAsync();
   clearWidgetDue();
+  endBreathWindow();
 }

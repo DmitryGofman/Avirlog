@@ -26,6 +26,12 @@ module.exports = ({ config }) => {
     ...(config.ios.entitlements || {}),
     "com.apple.security.application-groups": ["group.com.avirlog.app"],
   };
+  // Required for the app to run Live Activities (the timed lock-screen
+  // logging window). Without this key ActivityKit requests are rejected.
+  config.ios.infoPlist = {
+    ...(config.ios.infoPlist || {}),
+    NSSupportsLiveActivities: true,
+  };
 
   return config;
 };

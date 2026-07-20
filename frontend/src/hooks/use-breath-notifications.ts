@@ -12,6 +12,7 @@ import { AppState, Platform } from "react-native";
 import { useToast } from "@/src/components/Toast";
 import { api } from "@/src/lib/api";
 import { createBreathLog } from "@/src/lib/breathLog";
+import { endBreathWindow } from "@/src/lib/liveActivityBridge";
 import {
   actionToState,
   configureNotifications,
@@ -52,6 +53,7 @@ export function useBreathNotifications() {
         handledRef.current.add(key);
         try {
           await createBreathLog(state);
+          endBreathWindow(); // close the Live Activity window if one is open
           await presentLogConfirmation(state);
           showToast(`Logged · ${STATE_META[state].label}`);
         } catch {
