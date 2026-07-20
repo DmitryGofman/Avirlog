@@ -109,7 +109,7 @@ function Banner({ state, disabled, onPress, swayDelay, children, thin }: BannerP
   );
 }
 
-function LeftBannerArt() {
+export function LeftBannerArt() {
   return (
     <Svg width="100%" height="100%" viewBox="0 0 146 404" preserveAspectRatio="xMidYMin meet">
       <Defs>
@@ -142,7 +142,7 @@ function LeftBannerArt() {
   );
 }
 
-function RightBannerArt() {
+export function RightBannerArt() {
   return (
     <Svg width="100%" height="100%" viewBox="0 0 146 404" preserveAspectRatio="xMidYMin meet">
       <Defs>

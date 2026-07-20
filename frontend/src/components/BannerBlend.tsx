@@ -1,20 +1,54 @@
-// Banner-skin blend logger (design "Option 01"): two cloth banners hang from
-// rods over the living sky. Each banner's length is that nostril's share; pull
-// one longer and the other shortens (they sum to 100%). Drag a banner down to
-// lengthen it, then Log. Used when Advanced logging is on with the banners skin.
-import React, { useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+// Banner-skin blend logger (design "Option 01"), built on the REAL Living
+// Banners flags — the same LeftBannerArt / RightBannerArt cloth used by the tap
+// buttons, unchanged. Each flag's length on the rod is that nostril's share:
+// drag a banner down to lengthen it (more open) and the other shortens, so they
+// always sum to 100%. Full flag design, top-anchored at the rod, no distortion.
+import React, { useEffect, useRef, useState } from "react";
+import { Animated, Easing, StyleSheet, Text, View } from "react-native";
 
+import { LeftBannerArt, RightBannerArt } from "@/src/components/BannerButtons";
 import { useBlendDrag } from "@/src/hooks/use-blend-drag";
 import { blendToState } from "@/src/lib/blend";
 import { fonts, radius, spacing, STATE_META } from "@/src/theme/theme";
 
-// Fixed cloth colours — the banners read against the dark sky regardless of theme.
-const CLOTH_L = "#8FA28A";
-const CLOTH_R = "#C29580";
-const INK_L = "#172016";
-const INK_R = "#2A1109";
-const ROD = "#6E5F41";
+// A single flag: the real cloth art, its container height driven by `share`
+// (0–100). A gentle sway keeps it alive. Draggable — pull it down to open.
+function BlendFlag({
+  share,
+  swayDelay,
+  drag,
+  children,
+}: {
+  share: number;
+  swayDelay: number;
+  drag: ReturnType<typeof useBlendDrag>;
+  children: React.ReactNode;
+}) {
+  const sway = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.delay(swayDelay),
+        Animated.timing(sway, { toValue: 1, duration: 2600, easing: Easing.out(Easing.sin), useNativeDriver: false }),
+        Animated.timing(sway, { toValue: 0, duration: 3700, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [sway, swayDelay]);
+  const rotate = sway.interpolate({ inputRange: [0, 1], outputRange: ["-0.5deg", "0.6deg"] });
+
+  return (
+    <View ref={drag.ref} {...drag.panHandlers} style={styles.slot}>
+      <Animated.View style={[styles.flag, { height: `${Math.max(6, share)}%`, transform: [{ rotate }] }]}>
+        {children}
+        <View style={styles.chip}>
+          <Text style={styles.chipText}>{share}%</Text>
+        </View>
+      </Animated.View>
+    </View>
+  );
+}
 
 export function BannerBlend({
   disabled,
@@ -35,29 +69,21 @@ export function BannerBlend({
 
   return (
     <View style={styles.wrap}>
-      <View style={styles.poles}>
-        <View style={styles.pole}>
-          <View style={[styles.rod, { backgroundColor: ROD }]} />
-          <View ref={leftDrag.ref} {...leftDrag.panHandlers} style={styles.track}>
-            <View style={[styles.banner, { height: `${left}%`, backgroundColor: CLOTH_L }]}>
-              <Text style={[styles.pct, { color: INK_L }]}>{left}%</Text>
-              <Text style={[styles.name, { color: INK_L }]}>Left · Ida</Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.pole}>
-          <View style={[styles.rod, { backgroundColor: ROD }]} />
-          <View ref={rightDrag.ref} {...rightDrag.panHandlers} style={styles.track}>
-            <View style={[styles.banner, { height: `${right}%`, backgroundColor: CLOTH_R }]}>
-              <Text style={[styles.pct, { color: INK_R }]}>{right}%</Text>
-              <Text style={[styles.name, { color: INK_R }]}>Right · Pingala</Text>
-            </View>
-          </View>
+      <View style={styles.rig}>
+        <View style={styles.rod} />
+        <View style={styles.rodCapL} />
+        <View style={styles.rodCapR} />
+        <View style={styles.row}>
+          <BlendFlag share={left} swayDelay={0} drag={leftDrag}>
+            <LeftBannerArt />
+          </BlendFlag>
+          <BlendFlag share={right} swayDelay={1300} drag={rightDrag}>
+            <RightBannerArt />
+          </BlendFlag>
         </View>
       </View>
 
-      <Text style={styles.hint}>Pull a banner down to open that side.</Text>
+      <Text style={styles.hint}>Pull a banner down to open that side — they stay linked.</Text>
 
       <View
         testID="blend-log-button"
@@ -65,7 +91,7 @@ export function BannerBlend({
         onResponderRelease={() => !disabled && onLog(right)}
         style={[styles.logBtn, { opacity: disabled ? 0.6 : 1 }]}
       >
-        <View style={[styles.logDot, { backgroundColor: state === "left" ? CLOTH_L : state === "right" ? CLOTH_R : "#D9D4C4" }]} />
+        <View style={[styles.logDot, { backgroundColor: state === "left" ? "#8FA28A" : state === "right" ? "#C29580" : "#D9D4C4" }]} />
         <Text style={styles.logText}>
           Log · {meta.label} {right}% R
         </Text>
@@ -76,22 +102,25 @@ export function BannerBlend({
 
 const styles = StyleSheet.create({
   wrap: { flex: 1, gap: spacing.md, paddingBottom: spacing.sm },
-  poles: { flex: 1, flexDirection: "row", gap: spacing.xl, paddingHorizontal: spacing.sm },
-  pole: { flex: 1, alignItems: "center" },
-  rod: { width: "100%", height: 8, borderRadius: 4 },
-  track: { flex: 1, width: "84%", alignItems: "stretch" },
-  banner: {
-    width: "100%",
-    borderBottomLeftRadius: 6,
-    borderBottomRightRadius: 6,
-    alignItems: "center",
-    paddingTop: spacing.md,
-    gap: 2,
-    minHeight: 54,
-    overflow: "hidden",
+  rig: { flex: 1, position: "relative", paddingTop: 8, minHeight: 320 },
+  rod: { position: "absolute", top: 8, left: 2, right: 2, height: 9, borderRadius: 5, backgroundColor: "#5C3D21" },
+  rodCapL: { position: "absolute", top: 4, left: -2, width: 16, height: 16, borderRadius: 8, backgroundColor: "#6E4A2A" },
+  rodCapR: { position: "absolute", top: 4, right: -2, width: 16, height: 16, borderRadius: 8, backgroundColor: "#6E4A2A" },
+  row: { flex: 1, flexDirection: "row", justifyContent: "space-between", paddingTop: 0 },
+  slot: { width: "46%", maxWidth: 200, height: "100%" },
+  flag: { width: "100%", position: "relative" },
+  chip: {
+    position: "absolute",
+    bottom: 6,
+    alignSelf: "center",
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: radius.pill,
+    backgroundColor: "rgba(8,10,20,0.6)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.18)",
   },
-  pct: { fontFamily: fonts.bold, fontSize: 24, letterSpacing: -0.5 },
-  name: { fontFamily: fonts.medium, fontSize: 11, fontStyle: "italic", opacity: 0.85 },
+  chipText: { fontFamily: fonts.bold, fontSize: 13, color: "#F2F4FC", letterSpacing: 0.5 },
   hint: {
     fontFamily: fonts.regular,
     fontSize: 12,
