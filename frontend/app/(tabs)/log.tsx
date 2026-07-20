@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { BannerBlend } from "@/src/components/BannerBlend";
 import { BannerButtons } from "@/src/components/BannerButtons";
-import { ClassicBlend } from "@/src/components/ClassicBlend";
+import { SliderBlend } from "@/src/components/SliderBlend";
 import { IceFireEffect, IceFireEffectHandle } from "@/src/components/IceFireEffect";
 import { InstrumentBlend } from "@/src/components/InstrumentBlend";
 import { InstrumentLog } from "@/src/components/InstrumentLog";
@@ -278,7 +278,7 @@ export default function QuickLogScreen() {
            Both (Sushumna) accrues less, so it sits below as a short bar. */
         <Animated.View style={[styles.buttons, { opacity: enter, transform: [{ translateY: enterTranslate }] }]}>
           {advanced ? (
-            <ClassicBlend disabled={!!creating} onLog={(r) => logState(blendToState(r), r)} />
+            <SliderBlend disabled={!!creating} onLog={(r) => logState(blendToState(r), r)} />
           ) : (
             <>
               <View style={styles.topRow}>
