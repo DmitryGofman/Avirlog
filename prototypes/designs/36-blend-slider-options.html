@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AvirLog — Blend slider · 4 options</title>
+<style>
+  /* ADVANCED LOGGING: a horizontal blend slider that logs *how open* each
+     nostril is, not just which side. Sliding toward Right raises Right's
+     share (70% right = 30% left). Off by default; enabled in Settings.
+     Four distinct slider UIs, all shown at 70% RIGHT / 30% LEFT so they can
+     be compared directly. Static, CSS only (no JS).
+     Colors: Left = Ida green #8FA28A · Right = Pingala terracotta #C29580. */
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#B9B3A6; padding:28px 16px 60px;
+    font-family:-apple-system,"Segoe UI",system-ui,sans-serif;
+    display:flex; flex-wrap:wrap; gap:26px; justify-content:center;
+  }
+  .phone {
+    width:355px; background:#F7F5F0; border-radius:38px; overflow:hidden;
+    box-shadow:0 24px 60px rgba(55,50,40,.4);
+    display:flex; flex-direction:column; min-height:620px;
+  }
+  .screen { flex:1; padding:30px 22px 18px; display:flex; flex-direction:column; }
+  .cap { text-align:center; width:100%; font-size:12.5px; color:#54503F; margin-top:-14px; }
+
+  .kicker { font-size:10px; letter-spacing:2.4px; text-transform:uppercase; color:#98917E; font-family:ui-monospace,Menlo,monospace; }
+  h1 { font-size:23px; font-weight:700; letter-spacing:-.4px; color:#26241E; margin:7px 0 3px; }
+  .sub { font-size:12.5px; color:#77715F; line-height:1.45; }
+  .dtitle { font-size:11px; letter-spacing:1.6px; text-transform:uppercase; color:#98917E; font-family:ui-monospace,Menlo,monospace; margin-top:24px; }
+
+  /* shared readouts */
+  .ends { display:flex; justify-content:space-between; align-items:flex-end; margin:16px 0 10px; }
+  .end .lab { font-size:11px; letter-spacing:.6px; text-transform:uppercase; color:#8a8574; font-family:ui-monospace,Menlo,monospace; }
+  .end .lab i { font-style:italic; text-transform:none; letter-spacing:0; opacity:.8; }
+  .end .val { font-size:30px; font-weight:800; letter-spacing:-1px; }
+  .end.r { text-align:right; }
+  .vL { color:#5f7157; } .vR { color:#a06a52; }
+
+  .logbtn { margin-top:auto; height:52px; border-radius:16px; background:#26241E; color:#F7F5F0; border:none; display:flex; align-items:center; justify-content:center; gap:8px; font-size:15px; font-weight:700; cursor:pointer; }
+  .thumbgrip { display:flex; flex-direction:column; gap:2px; }
+  .thumbgrip span { display:block; width:2px; height:11px; background:rgba(38,36,30,.35); border-radius:2px; }
+
+  /* ---------- A · split balance bar ---------- */
+  .trackA { position:relative; height:56px; border-radius:16px; overflow:hidden; display:flex; border:1px solid #DDD7C6; }
+  .trackA .segL { width:30%; background:#8FA28A; }
+  .trackA .segR { width:70%; background:#C29580; }
+  .trackA .mid { position:absolute; left:50%; top:0; bottom:0; width:1px; background:rgba(38,36,30,.18); }
+  .trackA .midlab { position:absolute; left:50%; transform:translateX(-50%); bottom:4px; font-size:8px; letter-spacing:.8px; color:rgba(38,36,30,.4); font-family:ui-monospace,Menlo,monospace; }
+  .thumbA { position:absolute; left:30%; top:-5px; bottom:-5px; transform:translateX(-50%); width:26px; background:#FBFAF6; border:1px solid #C7BFAD; border-radius:9px; display:flex; align-items:center; justify-content:center; box-shadow:0 3px 8px rgba(40,35,25,.22); }
+
+  /* ---------- B · center pan meter ---------- */
+  .scaleB { display:flex; justify-content:space-between; font-size:9px; letter-spacing:.6px; color:#98917E; font-family:ui-monospace,Menlo,monospace; margin-bottom:6px; }
+  .trackB { position:relative; height:16px; border-radius:99px; background:#E4E0D4; }
+  .trackB .lean { position:absolute; top:0; bottom:0; left:50%; width:20%; background:#C29580; border-radius:99px; } /* center(50%) → thumb(70%) */
+  .trackB .center { position:absolute; left:50%; top:-7px; bottom:-7px; width:2px; background:#B9B3A2; transform:translateX(-50%); }
+  .thumbB { position:absolute; left:70%; top:50%; transform:translate(-50%,-50%); width:30px; height:30px; border-radius:99px; background:#FBFAF6; border:2px solid #C29580; box-shadow:0 3px 8px rgba(40,35,25,.22); }
+  .leanlab { text-align:center; font-size:11.5px; color:#77715F; margin-top:12px; }
+  .leanlab b { color:#a06a52; }
+
+  /* ---------- C · tug of war ---------- */
+  .tug { display:flex; align-items:center; gap:10px; }
+  .noze { flex:0 0 34px; height:34px; border-radius:99px; display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:800; font-family:ui-monospace,Menlo,monospace; }
+  .nozeL { background:#E7EDE4; color:#5f7157; }
+  .nozeR { background:#F3E4DC; color:#a06a52; }
+  .trackC { position:relative; flex:1; height:44px; border-radius:12px; background:#EDE9DE; overflow:hidden; display:flex; border:1px solid #DDD7C6; }
+  .trackC .growL { width:30%; background:#8FA28A; display:flex; align-items:center; padding-left:8px; color:#1E2A1E; font-weight:800; font-size:13px; }
+  .trackC .growR { width:70%; background:#C29580; display:flex; align-items:center; justify-content:flex-end; padding-right:8px; color:#3A1D10; font-weight:800; font-size:13px; }
+  .thumbC { position:absolute; left:30%; top:-4px; bottom:-4px; transform:translateX(-50%); width:20px; background:#FBFAF6; border:1px solid #C7BFAD; border-radius:7px; display:flex; align-items:center; justify-content:center; font-size:11px; color:#8a8574; box-shadow:0 3px 8px rgba(40,35,25,.22); }
+  .tugcap { font-size:11px; color:#98917E; margin-top:10px; text-align:center; }
+
+  /* ---------- D · gradient + big number ---------- */
+  .bignum { text-align:center; margin:6px 0 14px; }
+  .bignum .n { font-size:52px; font-weight:800; letter-spacing:-2px; color:#a06a52; line-height:1; }
+  .bignum .n small { font-size:20px; font-weight:700; }
+  .bignum .cc { font-size:12px; color:#77715F; margin-top:2px; }
+  .trackD { position:relative; height:14px; border-radius:99px; background:linear-gradient(90deg,#8FA28A,#cbb7a4 50%,#C29580); }
+  .trackD .tick { position:absolute; top:-4px; width:1px; height:22px; background:rgba(38,36,30,.16); }
+  .thumbD { position:absolute; left:70%; top:50%; transform:translate(-50%,-50%); width:34px; height:34px; border-radius:99px; background:#FBFAF6; border:2px solid #C29580; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; color:#a06a52; box-shadow:0 3px 9px rgba(40,35,25,.25); }
+  .dends { display:flex; justify-content:space-between; font-size:11px; color:#8a8574; margin-top:12px; font-family:ui-monospace,Menlo,monospace; }
+
+  /* ---------- Settings toggle ---------- */
+  .srow { display:flex; align-items:center; gap:14px; padding:16px 0; border-bottom:1px solid #EDE9DE; }
+  .srow .ic { width:38px; height:38px; border-radius:11px; background:#EDE9DE; display:flex; align-items:center; justify-content:center; font-size:18px; }
+  .srow .body { flex:1; }
+  .srow .body .t { font-size:14.5px; color:#26241E; font-weight:600; }
+  .srow .body .d { font-size:11.5px; color:#98917E; line-height:1.4; margin-top:2px; }
+  .toggle { flex:0 0 48px; width:48px; height:29px; border-radius:99px; background:#8FA28A; position:relative; }
+  .toggle.off { background:#D8D3C4; }
+  .toggle i { position:absolute; top:3px; width:23px; height:23px; border-radius:99px; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.25); }
+  .toggle i { right:3px; } .toggle.off i { right:auto; left:3px; }
+  .prev { margin-top:18px; padding:13px 15px; border-radius:14px; background:#F0EDE4; border:1px solid #E4E0D4; font-size:12px; line-height:1.55; color:#54503F; }
+  .prev b { color:#26241E; }
+
+  .tabs { display:flex; border-top:1px solid #E4E0D4; background:#FBF9F4; padding:11px 4px 22px; }
+  .tab { flex:1; text-align:center; font-size:9px; letter-spacing:.2px; color:#A29B87; }
+  .tab.on { color:#26241E; font-weight:700; }
+  .tab span { display:block; font-size:15px; margin-bottom:2px; }
+</style>
+</head>
+<body>
+
+  <!-- ============ A · SPLIT BALANCE BAR ============ -->
+  <div class="phone">
+    <div class="screen">
+      <div class="kicker">AVIRLOG · ADVANCED</div>
+      <h1>How open is each side?</h1>
+      <div class="sub">Drag the divider. Bigger side = more open.</div>
+
+      <div class="dtitle">Option A · Split balance bar</div>
+      <div class="ends">
+        <div class="end l"><div class="lab">Left <i>· Ida</i></div><div class="val vL">30%</div></div>
+        <div class="end r"><div class="lab">Right <i>· Pingala</i></div><div class="val vR">70%</div></div>
+      </div>
+      <div class="trackA">
+        <div class="segL"></div>
+        <div class="segR"></div>
+        <div class="mid"></div>
+        <div class="midlab">50 · BALANCED</div>
+        <div class="thumbA"><div class="thumbgrip"><span></span><span></span><span></span></div></div>
+      </div>
+      <button class="logbtn">Log blend · 30 / 70</button>
+    </div>
+    <div class="tabs">
+      <div class="tab on"><span>◉</span>Log</div><div class="tab"><span>◷</span>Today</div>
+      <div class="tab"><span>∿</span>Insights</div><div class="tab"><span>▦</span>History</div><div class="tab"><span>⚙</span>Settings</div>
+    </div>
+  </div>
+  <div class="cap">A · Two-tone bar split by a grip; the wider colour is the more open nostril</div>
+
+  <!-- ============ B · CENTER PAN METER ============ -->
+  <div class="phone">
+    <div class="screen">
+      <div class="kicker">AVIRLOG · ADVANCED</div>
+      <h1>Lean from balance</h1>
+      <div class="sub">Center is balanced (Sushumna). Slide to show the lean.</div>
+
+      <div class="dtitle">Option B · Center pan meter</div>
+      <div class="ends">
+        <div class="end l"><div class="lab">Left</div><div class="val vL">30%</div></div>
+        <div class="end r"><div class="lab">Right</div><div class="val vR">70%</div></div>
+      </div>
+      <div class="scaleB"><span>100% L</span><span>50 / 50</span><span>100% R</span></div>
+      <div class="trackB">
+        <div class="lean"></div>
+        <div class="center"></div>
+        <div class="thumbB"></div>
+      </div>
+      <div class="leanlab">Leaning <b>Right</b> · 20 past balance</div>
+      <button class="logbtn" style="margin-top:26px;">Log blend · 30 / 70</button>
+    </div>
+    <div class="tabs">
+      <div class="tab on"><span>◉</span>Log</div><div class="tab"><span>◷</span>Today</div>
+      <div class="tab"><span>∿</span>Insights</div><div class="tab"><span>▦</span>History</div><div class="tab"><span>⚙</span>Settings</div>
+    </div>
+  </div>
+  <div class="cap">B · A pan/balance control — centre = 50/50; the fill shows how far you’ve leaned</div>
+
+  <!-- ============ C · TUG OF WAR ============ -->
+  <div class="phone">
+    <div class="screen">
+      <div class="kicker">AVIRLOG · ADVANCED</div>
+      <h1>Tug of breath</h1>
+      <div class="sub">The two sides push against each other at the grip.</div>
+
+      <div class="dtitle">Option C · Tug of war</div>
+      <div class="ends">
+        <div class="end l"><div class="lab">Left <i>· Ida</i></div><div class="val vL">30%</div></div>
+        <div class="end r"><div class="lab">Right <i>· Pingala</i></div><div class="val vR">70%</div></div>
+      </div>
+      <div class="tug">
+        <div class="noze nozeL">L</div>
+        <div class="trackC">
+          <div class="growL">30</div>
+          <div class="growR">70</div>
+          <div class="thumbC">⟷</div>
+        </div>
+        <div class="noze nozeR">R</div>
+      </div>
+      <div class="tugcap">Each coloured block shows that nostril’s share.</div>
+      <button class="logbtn">Log blend · 30 / 70</button>
+    </div>
+    <div class="tabs">
+      <div class="tab on"><span>◉</span>Log</div><div class="tab"><span>◷</span>Today</div>
+      <div class="tab"><span>∿</span>Insights</div><div class="tab"><span>▦</span>History</div><div class="tab"><span>⚙</span>Settings</div>
+    </div>
+  </div>
+  <div class="cap">C · Physical “tug of war” — blocks grow from each end and meet at the grip</div>
+
+  <!-- ============ D · GRADIENT + BIG NUMBER ============ -->
+  <div class="phone">
+    <div class="screen">
+      <div class="kicker">AVIRLOG · ADVANCED</div>
+      <h1>Blend</h1>
+      <div class="sub">Slide the dot. Right of centre = more right.</div>
+
+      <div class="dtitle">Option D · Gradient + big number</div>
+      <div class="bignum">
+        <div class="n">70<small>% R</small></div>
+        <div class="cc">30% Left · 70% Right</div>
+      </div>
+      <div class="trackD">
+        <div class="tick" style="left:25%;"></div>
+        <div class="tick" style="left:50%;"></div>
+        <div class="tick" style="left:75%;"></div>
+        <div class="thumbD">70</div>
+      </div>
+      <div class="dends"><span>Left · Ida</span><span>Right · Pingala</span></div>
+      <button class="logbtn" style="margin-top:30px;">Log blend · 30 / 70</button>
+    </div>
+    <div class="tabs">
+      <div class="tab on"><span>◉</span>Log</div><div class="tab"><span>◷</span>Today</div>
+      <div class="tab"><span>∿</span>Insights</div><div class="tab"><span>▦</span>History</div><div class="tab"><span>⚙</span>Settings</div>
+    </div>
+  </div>
+  <div class="cap">D · Minimal — a green→terracotta gradient with one big live number</div>
+
+  <!-- ============ SETTINGS TOGGLE ============ -->
+  <div class="phone">
+    <div class="screen">
+      <div class="kicker">SETTINGS · LOGGING</div>
+      <h1>Advanced logging</h1>
+      <div class="sub">Turn simple taps into a blend you can fine-tune.</div>
+
+      <div class="srow" style="margin-top:16px;">
+        <div class="ic">⇄</div>
+        <div class="body">
+          <div class="t">Blend slider</div>
+          <div class="d">Log how open each nostril is (e.g. 70% right / 30% left), not just which side.</div>
+        </div>
+        <div class="toggle"><i></i></div>
+      </div>
+      <div class="srow">
+        <div class="ic">◉</div>
+        <div class="body">
+          <div class="t">Quick buttons</div>
+          <div class="d">The classic Left / Right / Both taps.</div>
+        </div>
+        <div class="toggle off"><i></i></div>
+      </div>
+
+      <div class="prev">
+        <b>When on,</b> the Log screen swaps the three buttons for a blend slider.
+        Balanced (near 50/50) still records as <b>Sushumna</b>. You can switch back
+        anytime — old logs stay readable either way.
+      </div>
+    </div>
+    <div class="tabs">
+      <div class="tab"><span>◉</span>Log</div><div class="tab"><span>◷</span>Today</div>
+      <div class="tab"><span>∿</span>Insights</div><div class="tab"><span>▦</span>History</div><div class="tab on"><span>⚙</span>Settings</div>
+    </div>
+  </div>
+  <div class="cap">Settings — the blend slider is an opt-in “Advanced logging” toggle</div>
+
+</body>
+</html>
