@@ -18,6 +18,7 @@ import { useToast } from "@/src/components/Toast";
 import { useTheme } from "@/src/context/ThemeContext";
 import { api, todayStr } from "@/src/lib/api";
 import { blendToState } from "@/src/lib/blend";
+import { endBreathWindow } from "@/src/lib/liveActivityBridge";
 import { pickMessage, SWARA } from "@/src/lib/swara";
 import { BreathLog, fonts, NostrilState, radius, spacing, STATE_META } from "@/src/theme/theme";
 
@@ -111,6 +112,7 @@ export default function QuickLogScreen() {
           local_hour: new Date().getHours(),
         },
       });
+      endBreathWindow(); // close the Live Activity logging window, if open
       setGuidance({ state, message: pickMessage(state) });
       setLogVersion((v) => v + 1);
       if (moodJournaling) {
