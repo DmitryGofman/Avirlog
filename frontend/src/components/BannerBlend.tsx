@@ -1,12 +1,12 @@
 // Banner-skin blend logger (design "Option 01 · Tight Roll"), built on the REAL
 // Living Banners flags — the same LeftBannerArt / RightBannerArt cloth as the
-// tap buttons, unchanged and at a FIXED size. Each flag is rolled up at the rod
-// and unrolls downward like a poster: its share is how far it has unrolled. The
-// unrolled edge curls into a small, firm cylinder (a "tight roll") — a vertical
-// cloth-gradient with dark rims, a lit crown and a crisp specular highlight, so
-// it reads as the cloth wound tight rather than a flat bar. Pull one down to
-// open that side; the other rolls back up, so they always sum to 100%. Used
-// when Advanced logging is on.
+// tap buttons, unchanged and at a FIXED size. Each flag hangs from cloth loops
+// over the rod and unrolls downward like a poster: its share is how far it has
+// unrolled. The unrolled edge winds into a small firm cylinder that shows the
+// cloth's PLAIN BACK (no front print — you don't see the sun/moon on a rolled-up
+// flag), shaded as a lit roll with wound seams, and it narrows into the flag's
+// pointed hem at full unroll. Pull one down to open that side; the other rolls
+// back up, so they always sum to 100%. Used when Advanced logging is on.
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useEffect, useRef, useState } from "react";
 import { Animated, Easing, StyleSheet, Text, View } from "react-native";
@@ -24,31 +24,35 @@ const MIN_REVEAL = 28; // always show at least a small roll + a sliver of cloth
 
 // The cloth art (viewBox 146×404) fits height-first, so 1 art unit = FLAG_H/404
 // on screen. The banner body is full width down to artY 360, then tapers to a
-// point at artY 396 — that pointed hem is what should surface as the flag fully
-// unrolls, instead of being cut off flat by the roll.
+// point at artY 396 — that pointed hem surfaces as the flag fully unrolls.
 const ART_SCALE = FLAG_H / 404;
 const BODY_HALF = 69 * ART_SCALE; // half-width of the straight body, on screen
 const TAPER_TOP = 360; // artY where the triangle hem begins
 const TAPER_TIP = 396; // artY of the point
 
-// Cylinder shading for each flag's roll: dark rim → cloth base → lit crown →
-// base → dark rim, top-to-bottom. Colours are the two cloths (Ida indigo,
-// Pingala terracotta) so the roll reads as that flag wound up.
+// The rolled part shows the PLAIN BACK of the cloth, shaded as a lit cylinder:
+// dark rim → muted reverse → lit crown → reverse → dark rim, top to bottom.
 const ROLL_COLORS = {
-  left: ["#201B40", "#343970", "#6E73AC", "#343970", "#201B40"] as const,
-  right: ["#43180F", "#7A3B2D", "#B57E64", "#7A3B2D", "#43180F"] as const,
+  left: ["#1F2247", "#363B6E", "#5F65A0", "#363B6E", "#1F2247"] as const,
+  right: ["#3B1910", "#7C4938", "#B27E69", "#7C4938", "#3B1910"] as const,
 };
+// Cloth-loop colour per flag (the tab that hangs it over the rod).
+const LOOP_COLORS = { left: "#343970", right: "#7A3B2D" };
+// Rendered x of the three tab positions (art x 26 / 73 / 120 × ART_SCALE).
+const LOOP_X = [23, 64, 105];
 
 function BlendFlag({
   share,
   swayDelay,
   rollColors,
+  loopColor,
   drag,
   children,
 }: {
   share: number;
   swayDelay: number;
   rollColors: readonly string[];
+  loopColor: string;
   drag: ReturnType<typeof useBlendDrag>;
   children: React.ReactNode;
 }) {
@@ -72,25 +76,31 @@ function BlendFlag({
   const revealH = Math.max(MIN_REVEAL, (share / 100) * FLAG_H);
   const rolledLen = FLAG_H - revealH;
 
-  // The roll's WIDTH tracks the cloth width at the unrolled edge. While the edge
-  // is in the straight body it's full width; once it reaches the triangle hem the
-  // roll narrows with the cloth, so the flag's real point surfaces at the end.
+  // The roll's WIDTH tracks the cloth width at the unrolled edge. In the straight
+  // body it's full width; once the edge reaches the triangle hem the roll narrows
+  // with the cloth, so the flag's real point surfaces at the end.
   const artY = revealH / ART_SCALE;
   const half =
     artY <= TAPER_TOP ? BODY_HALF : BODY_HALF * Math.max(0, (TAPER_TIP - artY) / (TAPER_TIP - TAPER_TOP));
   const rollW = half * 2 + 10;
   const rollLeft = FLAG_W / 2 - rollW / 2;
 
-  // Tight, firm roll: capped radius, and never taller than it is wide near the tip.
+  // Tight, firm roll: capped radius, never taller than it is wide near the tip.
   const r = Math.max(6, Math.min(16, rolledLen * 0.12));
   const rollH = Math.min(Math.round(r * 2), Math.round(rollW * 0.85));
   const specH = Math.max(2, rollH * 0.14);
   const showRoll = rolledLen > 2 && rollW > 8;
   const showPct = rollW >= 44;
+  const showSeams = showRoll && rollH >= 15;
 
   return (
     <View style={styles.slot}>
       <Animated.View style={{ width: FLAG_W, height: FLAG_H, transform: [{ rotate }] }}>
+        {/* cloth loops that hang the banner over the rod, in its own colour */}
+        {LOOP_X.map((x, i) => (
+          <View key={i} style={[styles.loop, { left: x - 6.5, backgroundColor: loopColor }]} />
+        ))}
+
         {/* the unrolled portion — full-size flag, clipped from the top down */}
         <View style={[styles.reveal, { height: revealH }]}>
           <View style={{ width: FLAG_W, height: FLAG_H }}>{children}</View>
@@ -104,7 +114,7 @@ function BlendFlag({
           )}
         </View>
 
-        {/* the tight rolled cylinder riding the unrolled edge; it narrows with the
+        {/* the tight rolled cylinder — plain back of the cloth, narrowing with the
             cloth so the pointed hem can surface at the end of the unroll */}
         {showRoll && (
           <View
@@ -118,6 +128,9 @@ function BlendFlag({
               locations={[0, 0.26, 0.5, 0.74, 1]}
               style={[StyleSheet.absoluteFill, { borderRadius: rollH / 2 }]}
             />
+            {/* wound seams — a couple of overlap lines so it reads as rolled cloth */}
+            {showSeams && <View style={[styles.rollSeam, { top: rollH * 0.4 }]} />}
+            {showSeams && <View style={[styles.rollSeam, { top: rollH * 0.63 }]} />}
             {/* crisp specular highlight — the "firm / glossy" tell */}
             <View style={[styles.rollSpec, { top: rollH * 0.24, height: specH, borderRadius: specH }]} />
             {showPct && <Text style={styles.rollPct}>{share}%</Text>}
@@ -147,6 +160,12 @@ export function BannerBlend({
   const state = blendToState(right);
   const meta = STATE_META[state];
 
+  // The button reads the DOMINANT banner and its own share (matches the tall
+  // flag), so the number always belongs to the banner you're looking at.
+  const dominant = state === "left" ? left : state === "right" ? right : Math.max(left, right);
+  const dotColor = state === "left" ? "#8FA28A" : state === "right" ? "#C29580" : "#D9D4C4";
+  const logLabel = state === "both" ? `Log · ${meta.label} · ${left} / ${right}` : `Log · ${meta.label} ${dominant}%`;
+
   return (
     <View style={styles.wrap}>
       <View style={styles.rig}>
@@ -154,10 +173,10 @@ export function BannerBlend({
         <View style={styles.rodCapL} />
         <View style={styles.rodCapR} />
         <View style={styles.row}>
-          <BlendFlag share={left} swayDelay={0} rollColors={ROLL_COLORS.left} drag={leftDrag}>
+          <BlendFlag share={left} swayDelay={0} rollColors={ROLL_COLORS.left} loopColor={LOOP_COLORS.left} drag={leftDrag}>
             <LeftBannerArt />
           </BlendFlag>
-          <BlendFlag share={right} swayDelay={1300} rollColors={ROLL_COLORS.right} drag={rightDrag}>
+          <BlendFlag share={right} swayDelay={1300} rollColors={ROLL_COLORS.right} loopColor={LOOP_COLORS.right} drag={rightDrag}>
             <RightBannerArt />
           </BlendFlag>
         </View>
@@ -171,10 +190,8 @@ export function BannerBlend({
         onResponderRelease={() => !disabled && onLog(right)}
         style={[styles.logBtn, { opacity: disabled ? 0.6 : 1 }]}
       >
-        <View style={[styles.logDot, { backgroundColor: state === "left" ? "#8FA28A" : state === "right" ? "#C29580" : "#D9D4C4" }]} />
-        <Text style={styles.logText}>
-          Log · {meta.label} {right}% R
-        </Text>
+        <View style={[styles.logDot, { backgroundColor: dotColor }]} />
+        <Text style={styles.logText}>{logLabel}</Text>
       </View>
     </View>
   );
@@ -183,11 +200,21 @@ export function BannerBlend({
 const styles = StyleSheet.create({
   wrap: { flex: 1, gap: spacing.md, paddingBottom: spacing.sm },
   rig: { flex: 1, position: "relative", paddingTop: 8, minHeight: FLAG_H + 20 },
-  rod: { position: "absolute", top: 8, left: 2, right: 2, height: 9, borderRadius: 5, backgroundColor: "#5C3D21" },
-  rodCapL: { position: "absolute", top: 4, left: -2, width: 16, height: 16, borderRadius: 8, backgroundColor: "#6E4A2A" },
-  rodCapR: { position: "absolute", top: 4, right: -2, width: 16, height: 16, borderRadius: 8, backgroundColor: "#6E4A2A" },
-  row: { flex: 1, flexDirection: "row", justifyContent: "space-evenly", alignItems: "flex-start", paddingTop: 12 },
+  rod: { position: "absolute", top: 8, left: 2, right: 2, height: 9, borderRadius: 5, backgroundColor: "#5C3D21", zIndex: 3 },
+  rodCapL: { position: "absolute", top: 4, left: -2, width: 16, height: 16, borderRadius: 8, backgroundColor: "#6E4A2A", zIndex: 3 },
+  rodCapR: { position: "absolute", top: 4, right: -2, width: 16, height: 16, borderRadius: 8, backgroundColor: "#6E4A2A", zIndex: 3 },
+  row: { flex: 1, flexDirection: "row", justifyContent: "space-evenly", alignItems: "flex-start", paddingTop: 12, zIndex: 1 },
   slot: { width: FLAG_W, height: FLAG_H, position: "relative" },
+  loop: {
+    position: "absolute",
+    top: -12,
+    width: 13,
+    height: 22,
+    borderTopLeftRadius: 7,
+    borderTopRightRadius: 7,
+    borderBottomLeftRadius: 2,
+    borderBottomRightRadius: 2,
+  },
   reveal: { width: FLAG_W, overflow: "hidden", position: "absolute", top: 0, left: 0 },
   contact: { position: "absolute", left: 0, right: 0, bottom: 0, height: 14 },
   roll: {
@@ -201,6 +228,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
     elevation: 4,
   },
+  rollSeam: { position: "absolute", left: "8%", right: "8%", height: 1, backgroundColor: "rgba(0,0,0,0.20)" },
   rollSpec: { position: "absolute", left: "12%", right: "12%", backgroundColor: "rgba(255,255,255,0.55)" },
   rollPct: {
     fontFamily: fonts.bold,
