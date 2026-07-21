@@ -168,8 +168,8 @@ struct BreathLiveActivity: Widget {
               }
             } else {
               laButton("Left", "left", leftColor)
-              laButton("Right", "right", rightColor)
               laButton("Both", "both", bothColor)
+              laButton("Right", "right", rightColor)
             }
           }
         }
@@ -187,8 +187,8 @@ struct BreathLiveActivity: Widget {
               }
             } else {
               laButton("L", "left", leftColor)
-              laButton("R", "right", rightColor)
               laButton("B", "both", bothColor)
+              laButton("R", "right", rightColor)
             }
           }
           .padding(.vertical, 4)
@@ -283,8 +283,8 @@ struct AvirLogWidgetView: View {
           }
         } else {
           button("L", "left", leftColor)
-          button("R", "right", rightColor)
           button("B", "both", bothColor)
+          button("R", "right", rightColor)
         }
       }
     }

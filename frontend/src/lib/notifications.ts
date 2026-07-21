@@ -78,8 +78,8 @@ export async function configureNotifications(): Promise<void> {
 
   await Notifications.setNotificationCategoryAsync(BREATH_CATEGORY, [
     { identifier: "log-left", buttonTitle: "Left", options: { opensAppToForeground: false } },
-    { identifier: "log-right", buttonTitle: "Right", options: { opensAppToForeground: false } },
     { identifier: "log-both", buttonTitle: "Both", options: { opensAppToForeground: false } },
+    { identifier: "log-right", buttonTitle: "Right", options: { opensAppToForeground: false } },
   ]);
 
   await Notifications.setNotificationCategoryAsync(BREATH_BLEND_CATEGORY, [
@@ -149,7 +149,7 @@ export async function scheduleNextReminder(cfg: ReminderConfig): Promise<void> {
       title: "Breath check",
       body: advanced
         ? "How open is each nostril? Hold to log a blend"
-        : "Which nostril is active? Hold to log · Left / Right / Both",
+        : "Which nostril is active? Hold to log · Left / Both / Right",
       categoryIdentifier: advanced ? BREATH_BLEND_CATEGORY : BREATH_CATEGORY,
     },
     trigger: {
