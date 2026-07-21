@@ -19,6 +19,7 @@ import { useTheme } from "@/src/context/ThemeContext";
 import { api, todayStr } from "@/src/lib/api";
 import { blendToState } from "@/src/lib/blend";
 import { endBreathWindow } from "@/src/lib/liveActivityBridge";
+import { setWidgetAdvanced } from "@/src/lib/widgetBridge";
 import { pickMessage, SWARA } from "@/src/lib/swara";
 import { BreathLog, fonts, NostrilState, radius, spacing, STATE_META } from "@/src/theme/theme";
 
@@ -89,6 +90,8 @@ export default function QuickLogScreen() {
         .then((s) => {
           setMoodJournaling(s.mood_journaling ?? true);
           setAdvanced(s.advanced_logging ?? false);
+          // Keep the widget + Live Activity in sync with Advanced logging.
+          setWidgetAdvanced(s.advanced_logging ?? false);
         })
         .catch(() => {});
     }, []),

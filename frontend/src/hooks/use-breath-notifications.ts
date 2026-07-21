@@ -14,6 +14,7 @@ import { api } from "@/src/lib/api";
 import { createBreathLog } from "@/src/lib/breathLog";
 import { endBreathWindow } from "@/src/lib/liveActivityBridge";
 import {
+  actionToBlend,
   actionToState,
   configureNotifications,
   ensureReminderArmed,
@@ -43,7 +44,10 @@ export function useBreathNotifications() {
     const handle = async (response: Notifications.NotificationResponse | null) => {
       if (!response) return;
       const actionId = response.actionIdentifier;
-      const state = actionToState(actionId);
+      // Advanced preset-blend buttons carry a right-nostril %; the plain
+      // buttons just carry a side.
+      const blend = actionToBlend(actionId);
+      const state = blend ? blend.state : actionToState(actionId);
 
       if (state) {
         // Quick-log button. Use the notification id + action as a stable
@@ -52,7 +56,7 @@ export function useBreathNotifications() {
         // upserts the same row — so the log is never lost or duplicated.
         const key = `notif_${response.notification.request.identifier}_${actionId}`;
         try {
-          await createBreathLog(state, key);
+          await createBreathLog(state, key, blend?.right);
           endBreathWindow(); // close the Live Activity window if one is open
           await presentLogConfirmation(state);
           showToast(`Logged · ${STATE_META[state].label}`);

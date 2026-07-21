@@ -18,6 +18,9 @@ import { NostrilState, STATE_META } from "@/src/theme/theme";
 const LIVE_WINDOW_SECONDS = 600;
 
 export const BREATH_CATEGORY = "breath-log";
+// Advanced variant: the reminder offers three preset-blend buttons instead of
+// plain Left / Right / Both, matching the widget + Live Activity.
+export const BREATH_BLEND_CATEGORY = "breath-blend";
 const CHANNEL_ID = "reminders";
 
 export interface ReminderConfig {
@@ -26,6 +29,8 @@ export interface ReminderConfig {
   quiet_hours_enabled: boolean;
   quiet_start_minutes: number;
   quiet_end_minutes: number;
+  // When on, the reminder shows preset-blend buttons (mirrors Advanced logging).
+  advanced_logging?: boolean;
 }
 
 const ACTION_TO_STATE: Record<string, NostrilState> = {
@@ -34,8 +39,19 @@ const ACTION_TO_STATE: Record<string, NostrilState> = {
   "log-both": "both",
 };
 
+// Preset-blend actions → the right-nostril % they log and its dominant side.
+const ACTION_TO_BLEND: Record<string, { state: NostrilState; right: number }> = {
+  "blend-l70": { state: "left", right: 30 },
+  "blend-even": { state: "both", right: 50 },
+  "blend-r70": { state: "right", right: 70 },
+};
+
 export function actionToState(actionId: string): NostrilState | null {
   return ACTION_TO_STATE[actionId] ?? null;
+}
+
+export function actionToBlend(actionId: string): { state: NostrilState; right: number } | null {
+  return ACTION_TO_BLEND[actionId] ?? null;
 }
 
 let configured = false;
@@ -61,6 +77,12 @@ export async function configureNotifications(): Promise<void> {
     { identifier: "log-left", buttonTitle: "Left", options: { opensAppToForeground: false } },
     { identifier: "log-right", buttonTitle: "Right", options: { opensAppToForeground: false } },
     { identifier: "log-both", buttonTitle: "Both", options: { opensAppToForeground: false } },
+  ]);
+
+  await Notifications.setNotificationCategoryAsync(BREATH_BLEND_CATEGORY, [
+    { identifier: "blend-l70", buttonTitle: "70% Left", options: { opensAppToForeground: false } },
+    { identifier: "blend-even", buttonTitle: "Even", options: { opensAppToForeground: false } },
+    { identifier: "blend-r70", buttonTitle: "70% Right", options: { opensAppToForeground: false } },
   ]);
 
   if (Platform.OS === "android") {
@@ -116,11 +138,14 @@ export async function scheduleNextReminder(cfg: ReminderConfig): Promise<void> {
   await configureNotifications();
   await cancelReminders();
   const delay = nextDelaySeconds(cfg);
+  const advanced = !!cfg.advanced_logging;
   await Notifications.scheduleNotificationAsync({
     content: {
       title: "Breath check",
-      body: "Which nostril is active? Hold to log · Left / Right / Both",
-      categoryIdentifier: BREATH_CATEGORY,
+      body: advanced
+        ? "How open is each nostril? Hold to log a blend"
+        : "Which nostril is active? Hold to log · Left / Right / Both",
+      categoryIdentifier: advanced ? BREATH_BLEND_CATEGORY : BREATH_CATEGORY,
     },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,

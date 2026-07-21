@@ -36,20 +36,29 @@ export function clearWidgetDue(): void {
   M.reloadWidget();
 }
 
+// Mirror the Advanced-logging setting to the widget + Live Activity so they show
+// the preset-blend buttons when it's on, and the simple Left/Right/Both when off.
+export function setWidgetAdvanced(advanced: boolean): void {
+  if (!M) return;
+  M.setNumber("advanced", advanced ? 1 : 0);
+  M.reloadWidget();
+}
+
 // Import logs made on the widget into the on-device store. Returns how many.
 export async function importWidgetLogs(): Promise<number> {
   if (!M) return 0;
   const raw = M.getString("pendingLogs");
   if (!raw) return 0;
   M.remove("pendingLogs");
-  let items: { state: NostrilState; at: number }[] = [];
+  let items: { state: NostrilState; at: number; blend?: number }[] = [];
   try {
     items = JSON.parse(raw);
   } catch {
     return 0;
   }
   for (const it of items) {
-    if (it?.state) await createBreathLog(it.state).catch(() => {});
+    // `blend` (right-nostril %) is present on advanced preset-blend taps.
+    if (it?.state) await createBreathLog(it.state, undefined, it.blend).catch(() => {});
   }
   M.reloadWidget();
   return items.length;

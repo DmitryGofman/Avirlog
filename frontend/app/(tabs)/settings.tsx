@@ -23,6 +23,7 @@ import { useTheme } from "@/src/context/ThemeContext";
 import { api } from "@/src/lib/api";
 import { ACCOUNTS_ENABLED, DEFAULT_SKIN, SKINS, SkinId } from "@/src/lib/config";
 import { cancelReminders, ensurePermission, scheduleNextReminder } from "@/src/lib/notifications";
+import { setWidgetAdvanced } from "@/src/lib/widgetBridge";
 import { fonts, radius, spacing } from "@/src/theme/theme";
 
 interface Settings {
@@ -137,6 +138,8 @@ export default function SettingsScreen() {
   const toggleAdvancedLogging = (enabled: boolean) => {
     if (!settings) return;
     persist({ ...settings, advanced_logging: enabled });
+    // Flip the widget + Live Activity between preset-blend and Left/Right/Both.
+    setWidgetAdvanced(enabled);
   };
 
   const setInterval = (seconds: number) => {
@@ -384,7 +387,8 @@ export default function SettingsScreen() {
           <Text style={[styles.reminderHint, { color: colors.onSurfaceTertiary, paddingBottom: spacing.lg }]}>
             Swaps the Left / Right / Both buttons for a blend control — on the Living Banners skin
             the two flags unroll down the pole, otherwise a slider — so you can log how open
-            each nostril is (e.g. 70% right / 30% left). A near-even split still records as Sushumna.
+            each nostril is (e.g. 70% right / 30% left). The widget, Live Activity and reminder also
+            switch to quick preset-blend buttons. A near-even split still records as Sushumna.
             Switch back anytime; older logs stay readable.
           </Text>
         </Section>

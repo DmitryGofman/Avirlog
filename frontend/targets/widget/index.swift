@@ -23,7 +23,11 @@ enum SharedStore {
     return v > 0 ? v : 600
   }
 
-  static func appendPendingLog(_ state: String) {
+  // Mirrors the app's Advanced-logging setting: when on, the widget + Live
+  // Activity offer preset-blend buttons instead of Left/Right/Both.
+  static var advanced: Bool { (defaults?.double(forKey: "advanced") ?? 0) > 0.5 }
+
+  private static func appendPending(_ entry: [String: Any]) {
     guard let d = defaults else { return }
     var arr: [[String: Any]] = []
     if let raw = d.string(forKey: "pendingLogs"),
@@ -31,11 +35,20 @@ enum SharedStore {
        let parsed = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
       arr = parsed
     }
-    arr.append(["state": state, "at": Date().timeIntervalSince1970])
+    arr.append(entry)
     if let out = try? JSONSerialization.data(withJSONObject: arr),
        let s = String(data: out, encoding: .utf8) {
       d.set(s, forKey: "pendingLogs")
     }
+  }
+
+  static func appendPendingLog(_ state: String) {
+    appendPending(["state": state, "at": Date().timeIntervalSince1970])
+  }
+
+  // A preset-blend tap: `right` is the right-nostril %, `state` its dominant side.
+  static func appendPendingBlend(_ state: String, _ right: Int) {
+    appendPending(["state": state, "blend": right, "at": Date().timeIntervalSince1970])
   }
 
   static func armNextDue() {
@@ -76,6 +89,35 @@ struct LogBreathIntent: AppIntent {
   }
 }
 
+// Log a blend from an advanced preset button. `right` is the right-nostril %.
+struct LogBlendIntent: AppIntent {
+  static var title: LocalizedStringResource = "Log breath blend"
+
+  @Parameter(title: "Right percent")
+  var right: Int
+
+  init() {}
+  init(right: Int) { self.right = right }
+
+  func perform() async throws -> some IntentResult {
+    let state = right >= 55 ? "right" : (right <= 45 ? "left" : "both")
+    SharedStore.appendPendingBlend(state, right)
+    SharedStore.armNextDue()
+    UNUserNotificationCenter.current().removeAllDeliveredNotifications()
+    UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
+    if #available(iOS 16.1, *) {
+      for activity in Activity<BreathActivityAttributes>.activities {
+        await activity.end(nil, dismissalPolicy: .immediate)
+      }
+    }
+    WidgetCenter.shared.reloadAllTimelines()
+    return .result()
+  }
+}
+
+// The three preset blends shown in advanced mode: (label, right-nostril %).
+let BLEND_PRESETS: [(String, Int)] = [("70 L", 30), ("50·50", 50), ("70 R", 70)]
+
 // MARK: - Live Activity
 
 // Attributes shared with the app's LiveActivityModule. ActivityKit matches the
@@ -114,9 +156,15 @@ struct BreathLiveActivity: Widget {
         .foregroundColor(.white.opacity(0.85))
         if !context.state.logged {
           HStack(spacing: 7) {
-            laButton("Left", "left", leftColor)
-            laButton("Right", "right", rightColor)
-            laButton("Both", "both", bothColor)
+            if SharedStore.advanced {
+              laBlendButton(BLEND_PRESETS[0], leftColor)
+              laBlendButton(BLEND_PRESETS[1], bothColor)
+              laBlendButton(BLEND_PRESETS[2], rightColor)
+            } else {
+              laButton("Left", "left", leftColor)
+              laButton("Right", "right", rightColor)
+              laButton("Both", "both", bothColor)
+            }
           }
         }
       }
@@ -127,9 +175,15 @@ struct BreathLiveActivity: Widget {
       DynamicIsland {
         DynamicIslandExpandedRegion(.center) {
           HStack(spacing: 7) {
-            laButton("L", "left", leftColor)
-            laButton("R", "right", rightColor)
-            laButton("B", "both", bothColor)
+            if SharedStore.advanced {
+              laBlendButton(BLEND_PRESETS[0], leftColor)
+              laBlendButton(BLEND_PRESETS[1], bothColor)
+              laBlendButton(BLEND_PRESETS[2], rightColor)
+            } else {
+              laButton("L", "left", leftColor)
+              laButton("R", "right", rightColor)
+              laButton("B", "both", bothColor)
+            }
           }
           .padding(.vertical, 4)
         }
@@ -149,6 +203,18 @@ struct BreathLiveActivity: Widget {
     Button(intent: LogBreathIntent(state: state)) {
       Text(label)
         .font(.system(size: 15, weight: .heavy))
+        .foregroundColor(.white)
+        .frame(maxWidth: .infinity, minHeight: 34)
+        .background(color)
+        .clipShape(RoundedRectangle(cornerRadius: 9))
+    }
+    .buttonStyle(.plain)
+  }
+
+  func laBlendButton(_ preset: (String, Int), _ color: Color) -> some View {
+    Button(intent: LogBlendIntent(right: preset.1)) {
+      Text(preset.0)
+        .font(.system(size: 14, weight: .heavy))
         .foregroundColor(.white)
         .frame(maxWidth: .infinity, minHeight: 34)
         .background(color)
@@ -203,9 +269,15 @@ struct AvirLogWidgetView: View {
         .tracking(2)
         .foregroundColor(entry.due ? .white : .secondary)
       HStack(spacing: 5) {
-        button("L", "left", leftColor)
-        button("R", "right", rightColor)
-        button("B", "both", bothColor)
+        if SharedStore.advanced {
+          blendButton(BLEND_PRESETS[0], leftColor)
+          blendButton(BLEND_PRESETS[1], bothColor)
+          blendButton(BLEND_PRESETS[2], rightColor)
+        } else {
+          button("L", "left", leftColor)
+          button("R", "right", rightColor)
+          button("B", "both", bothColor)
+        }
       }
     }
     .padding(8)
@@ -230,6 +302,18 @@ struct AvirLogWidgetView: View {
     }
     .buttonStyle(.plain)
   }
+
+  func blendButton(_ preset: (String, Int), _ color: Color) -> some View {
+    Button(intent: LogBlendIntent(right: preset.1)) {
+      Text(preset.0)
+        .font(.system(size: 13, weight: .heavy))
+        .foregroundColor(.white)
+        .frame(maxWidth: .infinity, minHeight: 36)
+        .background(color)
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+    .buttonStyle(.plain)
+  }
 }
 
 // MARK: - Widget
@@ -240,7 +324,7 @@ struct AvirLogWidget: Widget {
       AvirLogWidgetView(entry: entry)
     }
     .configurationDisplayName("Breath Log")
-    .description("Log Left, Right or Both. Lights up when it's time.")
+    .description("Log Left, Right or Both — or a preset blend with Advanced logging. Lights up when it's time.")
     .supportedFamilies([.systemSmall, .accessoryRectangular])
   }
 }

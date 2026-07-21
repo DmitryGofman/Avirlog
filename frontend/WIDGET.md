@@ -24,7 +24,17 @@ the interactive buttons.
 
 - `nextDueAt` (number, epoch seconds) — when the widget switches to LOG NOW. Written by the app when reminders are (re)scheduled.
 - `intervalSeconds` (number) — so a widget tap can arm the next due time itself.
-- `pendingLogs` (JSON string) — logs made on the widget; the app imports them on next foreground and clears them.
+- `advanced` (number, 0/1) — mirrors the app's **Advanced logging** setting. When 1, the widget + Live Activity swap Left/Right/Both for three **preset-blend** buttons (`70 L` / `50·50` / `70 R`), which log via `LogBlendIntent` (a `blend` = right-nostril % on the pending log). Written by the app on the Log screen and when the setting is toggled.
+- `pendingLogs` (JSON string) — logs made on the widget; each is `{state, at}` (or `{state, blend, at}` for a preset-blend tap). The app imports them on next foreground and clears them.
+
+## Simple vs advanced
+
+The widget, Live Activity and reminder notification all follow one setting:
+
+- **Advanced logging OFF** → simple **Left / Right / Both** (the default everywhere).
+- **Advanced logging ON** → **preset-blend** buttons on the widget + Live Activity, and the reminder notification uses the `breath-blend` category (`70% Left` / `Even` / `70% Right`).
+
+A true drag slider isn't possible on these Apple surfaces (buttons/toggles only), so "blend" is expressed as presets; the full drag bar lives in the app.
 
 ## Build & test loop (on the Mac)
 
