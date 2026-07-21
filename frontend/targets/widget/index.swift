@@ -115,8 +115,14 @@ struct LogBlendIntent: AppIntent {
   }
 }
 
-// The three preset blends shown in advanced mode: (label, right-nostril %).
-let BLEND_PRESETS: [(String, Int)] = [("70 L", 30), ("50·50", 50), ("70 R", 70)]
+// The five preset blends shown in advanced mode: (label, right-nostril %).
+// 80L/65L lean Ida, 50 is even (Sushumna), 65R/80R lean Pingala.
+let BLEND_PRESETS: [(String, Int)] = [("80L", 20), ("65L", 35), ("50", 50), ("65R", 65), ("80R", 80)]
+
+// Colour a preset by which side it leans: first two Ida, middle even, last two Pingala.
+func blendPresetColor(_ i: Int, _ left: Color, _ both: Color, _ right: Color) -> Color {
+  return i < 2 ? left : (i == 2 ? both : right)
+}
 
 // MARK: - Live Activity
 
@@ -157,9 +163,9 @@ struct BreathLiveActivity: Widget {
         if !context.state.logged {
           HStack(spacing: 7) {
             if SharedStore.advanced {
-              laBlendButton(BLEND_PRESETS[0], leftColor)
-              laBlendButton(BLEND_PRESETS[1], bothColor)
-              laBlendButton(BLEND_PRESETS[2], rightColor)
+              ForEach(0..<BLEND_PRESETS.count, id: \.self) { i in
+                laBlendButton(BLEND_PRESETS[i], blendPresetColor(i, leftColor, bothColor, rightColor))
+              }
             } else {
               laButton("Left", "left", leftColor)
               laButton("Right", "right", rightColor)
@@ -176,9 +182,9 @@ struct BreathLiveActivity: Widget {
         DynamicIslandExpandedRegion(.center) {
           HStack(spacing: 7) {
             if SharedStore.advanced {
-              laBlendButton(BLEND_PRESETS[0], leftColor)
-              laBlendButton(BLEND_PRESETS[1], bothColor)
-              laBlendButton(BLEND_PRESETS[2], rightColor)
+              ForEach(0..<BLEND_PRESETS.count, id: \.self) { i in
+                laBlendButton(BLEND_PRESETS[i], blendPresetColor(i, leftColor, bothColor, rightColor))
+              }
             } else {
               laButton("L", "left", leftColor)
               laButton("R", "right", rightColor)
@@ -214,11 +220,13 @@ struct BreathLiveActivity: Widget {
   func laBlendButton(_ preset: (String, Int), _ color: Color) -> some View {
     Button(intent: LogBlendIntent(right: preset.1)) {
       Text(preset.0)
-        .font(.system(size: 14, weight: .heavy))
+        .font(.system(size: 12, weight: .heavy))
+        .minimumScaleFactor(0.7)
+        .lineLimit(1)
         .foregroundColor(.white)
         .frame(maxWidth: .infinity, minHeight: 34)
         .background(color)
-        .clipShape(RoundedRectangle(cornerRadius: 9))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
     .buttonStyle(.plain)
   }
@@ -270,9 +278,9 @@ struct AvirLogWidgetView: View {
         .foregroundColor(entry.due ? .white : .secondary)
       HStack(spacing: 5) {
         if SharedStore.advanced {
-          blendButton(BLEND_PRESETS[0], leftColor)
-          blendButton(BLEND_PRESETS[1], bothColor)
-          blendButton(BLEND_PRESETS[2], rightColor)
+          ForEach(0..<BLEND_PRESETS.count, id: \.self) { i in
+            blendButton(BLEND_PRESETS[i], blendPresetColor(i, leftColor, bothColor, rightColor))
+          }
         } else {
           button("L", "left", leftColor)
           button("R", "right", rightColor)
@@ -306,11 +314,13 @@ struct AvirLogWidgetView: View {
   func blendButton(_ preset: (String, Int), _ color: Color) -> some View {
     Button(intent: LogBlendIntent(right: preset.1)) {
       Text(preset.0)
-        .font(.system(size: 13, weight: .heavy))
+        .font(.system(size: 11, weight: .heavy))
+        .minimumScaleFactor(0.6)
+        .lineLimit(1)
         .foregroundColor(.white)
-        .frame(maxWidth: .infinity, minHeight: 36)
+        .frame(maxWidth: .infinity, minHeight: 34)
         .background(color)
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
     .buttonStyle(.plain)
   }

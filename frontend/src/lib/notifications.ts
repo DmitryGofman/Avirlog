@@ -40,10 +40,13 @@ const ACTION_TO_STATE: Record<string, NostrilState> = {
 };
 
 // Preset-blend actions → the right-nostril % they log and its dominant side.
+// Five levels, matching the widget/Live Activity presets.
 const ACTION_TO_BLEND: Record<string, { state: NostrilState; right: number }> = {
-  "blend-l70": { state: "left", right: 30 },
+  "blend-l80": { state: "left", right: 20 },
+  "blend-l65": { state: "left", right: 35 },
   "blend-even": { state: "both", right: 50 },
-  "blend-r70": { state: "right", right: 70 },
+  "blend-r65": { state: "right", right: 65 },
+  "blend-r80": { state: "right", right: 80 },
 };
 
 export function actionToState(actionId: string): NostrilState | null {
@@ -80,9 +83,11 @@ export async function configureNotifications(): Promise<void> {
   ]);
 
   await Notifications.setNotificationCategoryAsync(BREATH_BLEND_CATEGORY, [
-    { identifier: "blend-l70", buttonTitle: "70% Left", options: { opensAppToForeground: false } },
-    { identifier: "blend-even", buttonTitle: "Even", options: { opensAppToForeground: false } },
-    { identifier: "blend-r70", buttonTitle: "70% Right", options: { opensAppToForeground: false } },
+    { identifier: "blend-l80", buttonTitle: "80% Left", options: { opensAppToForeground: false } },
+    { identifier: "blend-l65", buttonTitle: "65% Left", options: { opensAppToForeground: false } },
+    { identifier: "blend-even", buttonTitle: "Even 50 / 50", options: { opensAppToForeground: false } },
+    { identifier: "blend-r65", buttonTitle: "65% Right", options: { opensAppToForeground: false } },
+    { identifier: "blend-r80", buttonTitle: "80% Right", options: { opensAppToForeground: false } },
   ]);
 
   if (Platform.OS === "android") {
