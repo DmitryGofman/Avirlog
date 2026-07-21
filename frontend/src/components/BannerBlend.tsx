@@ -1,9 +1,13 @@
-// Banner-skin blend logger (design "Option 01"), built on the REAL Living
-// Banners flags — the same LeftBannerArt / RightBannerArt cloth as the tap
-// buttons, unchanged and at a FIXED size. Each flag is rolled up at the rod and
-// unrolls downward like a poster: its share is how far it has unrolled (a roll
-// bar rides the unrolled edge). Pull one down to open that side; the other rolls
-// back up, so they always sum to 100%. Used when Advanced logging is on.
+// Banner-skin blend logger (design "Option 01 · Tight Roll"), built on the REAL
+// Living Banners flags — the same LeftBannerArt / RightBannerArt cloth as the
+// tap buttons, unchanged and at a FIXED size. Each flag is rolled up at the rod
+// and unrolls downward like a poster: its share is how far it has unrolled. The
+// unrolled edge curls into a small, firm cylinder (a "tight roll") — a vertical
+// cloth-gradient with dark rims, a lit crown and a crisp specular highlight, so
+// it reads as the cloth wound tight rather than a flat bar. Pull one down to
+// open that side; the other rolls back up, so they always sum to 100%. Used
+// when Advanced logging is on.
+import { LinearGradient } from "expo-linear-gradient";
 import React, { useEffect, useRef, useState } from "react";
 import { Animated, Easing, StyleSheet, Text, View } from "react-native";
 
@@ -16,19 +20,26 @@ import { fonts, radius, spacing, STATE_META } from "@/src/theme/theme";
 // matches the art's 146×404 aspect so the full flag fills it at 100%.
 const FLAG_W = 128;
 const FLAG_H = 352;
-const ROLL_H = 18;
-const MIN_REVEAL = ROLL_H + 10; // always show at least the roll + a sliver
+const MIN_REVEAL = 28; // always show at least a small roll + a sliver of cloth
+
+// Cylinder shading for each flag's roll: dark rim → cloth base → lit crown →
+// base → dark rim, top-to-bottom. Colours are the two cloths (Ida indigo,
+// Pingala terracotta) so the roll reads as that flag wound up.
+const ROLL_COLORS = {
+  left: ["#201B40", "#343970", "#6E73AC", "#343970", "#201B40"] as const,
+  right: ["#43180F", "#7A3B2D", "#B57E64", "#7A3B2D", "#43180F"] as const,
+};
 
 function BlendFlag({
   share,
   swayDelay,
-  rollColor,
+  rollColors,
   drag,
   children,
 }: {
   share: number;
   swayDelay: number;
-  rollColor: string;
+  rollColors: readonly string[];
   drag: ReturnType<typeof useBlendDrag>;
   children: React.ReactNode;
 }) {
@@ -47,11 +58,13 @@ function BlendFlag({
   const rotate = sway.interpolate({ inputRange: [0, 1], outputRange: ["-0.5deg", "0.6deg"] });
 
   // The flat (unrolled) part grows from the pole downward; the rest of the cloth
-  // is wound into a roll whose thickness SHRINKS as you unroll — fat and up near
-  // the pole when rolled, thin and low when fully open. That's the "pull the
-  // poster down off the rod" read, with the flag itself never changing size.
+  // is wound into a tight cylinder at the unrolled edge. The roll stays small and
+  // firm (capped radius) — it barely thickens as more winds in, which is what
+  // sells "tight roll" rather than a fat scroll. Never larger than ~32pt.
   const revealH = Math.max(MIN_REVEAL, (share / 100) * (FLAG_H - 34));
-  const rollH = Math.round(14 + 26 * (1 - share / 100)); // ~40 rolled → 14 open
+  const r = Math.max(7, Math.min(16, (FLAG_H - revealH) * 0.12));
+  const rollH = Math.round(r * 2);
+  const specH = Math.max(2, rollH * 0.14);
 
   return (
     <View style={styles.slot}>
@@ -59,16 +72,23 @@ function BlendFlag({
         {/* the unrolled portion — full-size flag, clipped from the top down */}
         <View style={[styles.reveal, { height: revealH }]}>
           <View style={{ width: FLAG_W, height: FLAG_H }}>{children}</View>
+          {/* contact shadow where the cloth bends into the roll */}
+          <LinearGradient
+            pointerEvents="none"
+            colors={["rgba(0,0,0,0)", "rgba(0,0,0,0.30)"]}
+            style={styles.contact}
+          />
         </View>
-        {/* the rolled cloth cylinder riding the unrolled edge */}
-        <View
-          style={[
-            styles.roll,
-            { top: revealH, height: rollH, borderRadius: rollH / 2, backgroundColor: rollColor },
-          ]}
-        >
-          <View style={[styles.rollShine, { height: Math.max(3, rollH * 0.28), borderRadius: rollH / 2 }]} />
-          <View style={[styles.rollShadow, { height: Math.max(3, rollH * 0.26), borderRadius: rollH / 2 }]} />
+
+        {/* the tight rolled cylinder riding the unrolled edge */}
+        <View style={[styles.roll, { top: revealH, height: rollH, borderRadius: rollH / 2 }]}>
+          <LinearGradient
+            colors={rollColors as unknown as readonly [string, string, ...string[]]}
+            locations={[0, 0.26, 0.5, 0.74, 1]}
+            style={[StyleSheet.absoluteFill, { borderRadius: rollH / 2 }]}
+          />
+          {/* crisp specular highlight — the "firm / glossy" tell */}
+          <View style={[styles.rollSpec, { top: rollH * 0.24, height: specH, borderRadius: specH }]} />
           <Text style={styles.rollPct}>{share}%</Text>
         </View>
       </Animated.View>
@@ -102,10 +122,10 @@ export function BannerBlend({
         <View style={styles.rodCapL} />
         <View style={styles.rodCapR} />
         <View style={styles.row}>
-          <BlendFlag share={left} swayDelay={0} rollColor="#2B2550" drag={leftDrag}>
+          <BlendFlag share={left} swayDelay={0} rollColors={ROLL_COLORS.left} drag={leftDrag}>
             <LeftBannerArt />
           </BlendFlag>
-          <BlendFlag share={right} swayDelay={1300} rollColor="#5A2824" drag={rightDrag}>
+          <BlendFlag share={right} swayDelay={1300} rollColors={ROLL_COLORS.right} drag={rightDrag}>
             <RightBannerArt />
           </BlendFlag>
         </View>
@@ -137,21 +157,31 @@ const styles = StyleSheet.create({
   row: { flex: 1, flexDirection: "row", justifyContent: "space-evenly", alignItems: "flex-start", paddingTop: 12 },
   slot: { width: FLAG_W, height: FLAG_H, position: "relative" },
   reveal: { width: FLAG_W, overflow: "hidden", position: "absolute", top: 0, left: 0 },
+  contact: { position: "absolute", left: 0, right: 0, bottom: 0, height: 14 },
   roll: {
     position: "absolute",
     left: -6,
     width: FLAG_W + 12,
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
     shadowColor: "#000",
-    shadowOpacity: 0.4,
+    shadowOpacity: 0.42,
     shadowRadius: 5,
     shadowOffset: { width: 0, height: 3 },
     elevation: 4,
   },
-  rollShine: { position: "absolute", top: 2, left: 10, right: 10, backgroundColor: "rgba(255,255,255,0.30)" },
-  rollShadow: { position: "absolute", bottom: 2, left: 10, right: 10, backgroundColor: "rgba(0,0,0,0.30)" },
-  rollPct: { fontFamily: fonts.bold, fontSize: 12, color: "#F2F4FC", letterSpacing: 0.5, zIndex: 2 },
+  rollSpec: { position: "absolute", left: 16, right: 16, backgroundColor: "rgba(255,255,255,0.55)" },
+  rollPct: {
+    fontFamily: fonts.bold,
+    fontSize: 12,
+    color: "#F6F3FA",
+    letterSpacing: 0.5,
+    zIndex: 2,
+    textShadowColor: "rgba(0,0,0,0.45)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
   hit: { ...StyleSheet.absoluteFillObject },
   hint: {
     fontFamily: fonts.regular,
