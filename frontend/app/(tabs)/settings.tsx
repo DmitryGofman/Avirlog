@@ -382,9 +382,10 @@ export default function SettingsScreen() {
             }
           />
           <Text style={[styles.reminderHint, { color: colors.onSurfaceTertiary, paddingBottom: spacing.lg }]}>
-            Swaps the Left / Right / Both buttons for a blend slider — log how open each nostril is
-            (e.g. 70% right / 30% left). A near-even split still records as Sushumna. Switch back
-            anytime; older logs stay readable.
+            Swaps the Left / Right / Both buttons for a blend control — on the Living Banners skin
+            the two flags unroll down the pole, otherwise a slider — so you can log how open
+            each nostril is (e.g. 70% right / 30% left). A near-even split still records as Sushumna.
+            Switch back anytime; older logs stay readable.
           </Text>
         </Section>
 

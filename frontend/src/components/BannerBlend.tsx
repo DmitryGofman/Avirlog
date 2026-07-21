@@ -22,6 +22,15 @@ const FLAG_W = 128;
 const FLAG_H = 352;
 const MIN_REVEAL = 28; // always show at least a small roll + a sliver of cloth
 
+// The cloth art (viewBox 146×404) fits height-first, so 1 art unit = FLAG_H/404
+// on screen. The banner body is full width down to artY 360, then tapers to a
+// point at artY 396 — that pointed hem is what should surface as the flag fully
+// unrolls, instead of being cut off flat by the roll.
+const ART_SCALE = FLAG_H / 404;
+const BODY_HALF = 69 * ART_SCALE; // half-width of the straight body, on screen
+const TAPER_TOP = 360; // artY where the triangle hem begins
+const TAPER_TIP = 396; // artY of the point
+
 // Cylinder shading for each flag's roll: dark rim → cloth base → lit crown →
 // base → dark rim, top-to-bottom. Colours are the two cloths (Ida indigo,
 // Pingala terracotta) so the roll reads as that flag wound up.
@@ -58,13 +67,26 @@ function BlendFlag({
   const rotate = sway.interpolate({ inputRange: [0, 1], outputRange: ["-0.5deg", "0.6deg"] });
 
   // The flat (unrolled) part grows from the pole downward; the rest of the cloth
-  // is wound into a tight cylinder at the unrolled edge. The roll stays small and
-  // firm (capped radius) — it barely thickens as more winds in, which is what
-  // sells "tight roll" rather than a fat scroll. Never larger than ~32pt.
-  const revealH = Math.max(MIN_REVEAL, (share / 100) * (FLAG_H - 34));
-  const r = Math.max(7, Math.min(16, (FLAG_H - revealH) * 0.12));
-  const rollH = Math.round(r * 2);
+  // is wound into a tight cylinder at the unrolled edge. At 100% the whole flag —
+  // including its pointed hem — is showing and the roll is gone.
+  const revealH = Math.max(MIN_REVEAL, (share / 100) * FLAG_H);
+  const rolledLen = FLAG_H - revealH;
+
+  // The roll's WIDTH tracks the cloth width at the unrolled edge. While the edge
+  // is in the straight body it's full width; once it reaches the triangle hem the
+  // roll narrows with the cloth, so the flag's real point surfaces at the end.
+  const artY = revealH / ART_SCALE;
+  const half =
+    artY <= TAPER_TOP ? BODY_HALF : BODY_HALF * Math.max(0, (TAPER_TIP - artY) / (TAPER_TIP - TAPER_TOP));
+  const rollW = half * 2 + 10;
+  const rollLeft = FLAG_W / 2 - rollW / 2;
+
+  // Tight, firm roll: capped radius, and never taller than it is wide near the tip.
+  const r = Math.max(6, Math.min(16, rolledLen * 0.12));
+  const rollH = Math.min(Math.round(r * 2), Math.round(rollW * 0.85));
   const specH = Math.max(2, rollH * 0.14);
+  const showRoll = rolledLen > 2 && rollW > 8;
+  const showPct = rollW >= 44;
 
   return (
     <View style={styles.slot}>
@@ -73,24 +95,34 @@ function BlendFlag({
         <View style={[styles.reveal, { height: revealH }]}>
           <View style={{ width: FLAG_W, height: FLAG_H }}>{children}</View>
           {/* contact shadow where the cloth bends into the roll */}
-          <LinearGradient
-            pointerEvents="none"
-            colors={["rgba(0,0,0,0)", "rgba(0,0,0,0.30)"]}
-            style={styles.contact}
-          />
+          {showRoll && (
+            <LinearGradient
+              pointerEvents="none"
+              colors={["rgba(0,0,0,0)", "rgba(0,0,0,0.30)"]}
+              style={styles.contact}
+            />
+          )}
         </View>
 
-        {/* the tight rolled cylinder riding the unrolled edge */}
-        <View style={[styles.roll, { top: revealH, height: rollH, borderRadius: rollH / 2 }]}>
-          <LinearGradient
-            colors={rollColors as unknown as readonly [string, string, ...string[]]}
-            locations={[0, 0.26, 0.5, 0.74, 1]}
-            style={[StyleSheet.absoluteFill, { borderRadius: rollH / 2 }]}
-          />
-          {/* crisp specular highlight — the "firm / glossy" tell */}
-          <View style={[styles.rollSpec, { top: rollH * 0.24, height: specH, borderRadius: specH }]} />
-          <Text style={styles.rollPct}>{share}%</Text>
-        </View>
+        {/* the tight rolled cylinder riding the unrolled edge; it narrows with the
+            cloth so the pointed hem can surface at the end of the unroll */}
+        {showRoll && (
+          <View
+            style={[
+              styles.roll,
+              { top: revealH, left: rollLeft, width: rollW, height: rollH, borderRadius: rollH / 2 },
+            ]}
+          >
+            <LinearGradient
+              colors={rollColors as unknown as readonly [string, string, ...string[]]}
+              locations={[0, 0.26, 0.5, 0.74, 1]}
+              style={[StyleSheet.absoluteFill, { borderRadius: rollH / 2 }]}
+            />
+            {/* crisp specular highlight — the "firm / glossy" tell */}
+            <View style={[styles.rollSpec, { top: rollH * 0.24, height: specH, borderRadius: specH }]} />
+            {showPct && <Text style={styles.rollPct}>{share}%</Text>}
+          </View>
+        )}
       </Animated.View>
       {/* full-height transparent drag surface so you can grab anywhere */}
       <View ref={drag.ref} {...drag.panHandlers} style={styles.hit} />
@@ -160,8 +192,6 @@ const styles = StyleSheet.create({
   contact: { position: "absolute", left: 0, right: 0, bottom: 0, height: 14 },
   roll: {
     position: "absolute",
-    left: -6,
-    width: FLAG_W + 12,
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
@@ -171,7 +201,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
     elevation: 4,
   },
-  rollSpec: { position: "absolute", left: 16, right: 16, backgroundColor: "rgba(255,255,255,0.55)" },
+  rollSpec: { position: "absolute", left: "12%", right: "12%", backgroundColor: "rgba(255,255,255,0.55)" },
   rollPct: {
     fontFamily: fonts.bold,
     fontSize: 12,
