@@ -23,6 +23,7 @@ import { useTheme } from "@/src/context/ThemeContext";
 import { api } from "@/src/lib/api";
 import { ACCOUNTS_ENABLED, DEFAULT_SKIN, SKINS, SkinId } from "@/src/lib/config";
 import { cancelReminders, ensurePermission, scheduleNextReminder } from "@/src/lib/notifications";
+import { setWidgetAdvanced } from "@/src/lib/widgetBridge";
 import { fonts, radius, spacing } from "@/src/theme/theme";
 
 interface Settings {
@@ -34,6 +35,7 @@ interface Settings {
   theme: "light" | "dark";
   mood_journaling: boolean;
   skin: SkinId;
+  advanced_logging: boolean;
 }
 
 const INTERVALS = [
@@ -76,7 +78,12 @@ export default function SettingsScreen() {
   useEffect(() => {
     api<Settings>("/settings")
       .then((s) =>
-        setSettings({ ...s, mood_journaling: s.mood_journaling ?? true, skin: s.skin ?? DEFAULT_SKIN }),
+        setSettings({
+          ...s,
+          mood_journaling: s.mood_journaling ?? true,
+          skin: s.skin ?? DEFAULT_SKIN,
+          advanced_logging: s.advanced_logging ?? false,
+        }),
       )
       .catch(() => showToast("Could not load settings", "error"));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -126,6 +133,13 @@ export default function SettingsScreen() {
   const toggleMoodJournaling = (enabled: boolean) => {
     if (!settings) return;
     persist({ ...settings, mood_journaling: enabled });
+  };
+
+  const toggleAdvancedLogging = (enabled: boolean) => {
+    if (!settings) return;
+    persist({ ...settings, advanced_logging: enabled });
+    // Flip the widget + Live Activity between preset-blend and Left/Right/Both.
+    setWidgetAdvanced(enabled);
   };
 
   const setInterval = (seconds: number) => {
@@ -348,6 +362,34 @@ export default function SettingsScreen() {
           <Text style={[styles.reminderHint, { color: colors.onSurfaceTertiary, paddingBottom: spacing.lg }]}>
             When on, logging a nostril opens a sheet to add mood, energy, focus, tags and a note. When
             off, AvirLog stays minimal — one tap logs which nostril is active.
+          </Text>
+        </Section>
+
+        <Section title="Logging">
+          <Row
+            icon="swap-horizontal-outline"
+            label="Advanced logging"
+            testID="settings-advanced-logging-row"
+            right={
+              settings ? (
+                <Switch
+                  testID="settings-advanced-logging-switch"
+                  value={settings.advanced_logging}
+                  onValueChange={toggleAdvancedLogging}
+                  trackColor={{ false: colors.border, true: colors.brand }}
+                  thumbColor="#FFFFFF"
+                />
+              ) : (
+                <ActivityIndicator size="small" color={colors.brand} />
+              )
+            }
+          />
+          <Text style={[styles.reminderHint, { color: colors.onSurfaceTertiary, paddingBottom: spacing.lg }]}>
+            Swaps the Left / Right / Both buttons for a blend control — on the Living Banners skin
+            the two flags unroll down the pole, otherwise a slider — so you can log how open
+            each nostril is (e.g. 70% right / 30% left). The widget, Live Activity and reminder also
+            switch to quick preset-blend buttons. A near-even split still records as Sushumna.
+            Switch back anytime; older logs stay readable.
           </Text>
         </Section>
 

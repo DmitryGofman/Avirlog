@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AvirLog — Science + Tradition, together</title>
+<style>
+  /* SCIENCE + TRADITION, TOGETHER — four screens, static (CSS only, no JS).
+     Positioning: "We measure a real rhythm. Tradition read it first. Each log
+     gives you both a scientific note and a traditional suggestion — then invites
+     you to test whether it holds for YOU."
+     1) Log + result — press a side, get a combined recommendation card
+     2) Did you know — rotating tradition x science cards (cross-fade, CSS only)
+     3) Evidence — every claim graded
+     4) Experiments — n-of-1, test the suggestions on your own data */
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#B9B3A6; padding:28px 16px 60px;
+    font-family:-apple-system,"Segoe UI",system-ui,sans-serif;
+    display:flex; flex-wrap:wrap; gap:26px; justify-content:center;
+  }
+  .phone {
+    width:355px; background:#F7F5F0; border-radius:38px; overflow:hidden;
+    box-shadow:0 24px 60px rgba(55,50,40,.4);
+    display:flex; flex-direction:column; min-height:760px;
+  }
+  .screen { flex:1; padding:30px 22px 18px; }
+  .cap { text-align:center; width:100%; font-size:12.5px; color:#54503F; margin-top:-14px; }
+
+  .kicker { font-size:10px; letter-spacing:2.4px; text-transform:uppercase; color:#98917E; font-family:ui-monospace,Menlo,monospace; }
+  h1 { font-size:23px; font-weight:700; letter-spacing:-.4px; color:#26241E; margin:8px 0 4px; }
+  .sub { font-size:12.5px; color:#77715F; line-height:1.45; }
+
+  /* ---------- screen 1: log + result ---------- */
+  .row { display:flex; gap:10px; margin-top:18px; }
+  .nostril {
+    flex:1; height:112px; border-radius:18px; padding:13px;
+    display:flex; flex-direction:column; justify-content:flex-end; text-align:left;
+    border:none; cursor:pointer;
+  }
+  .nostril .big { font-size:18px; font-weight:700; }
+  .nostril .state { font-size:10.5px; font-weight:600; margin-top:2px; opacity:.85; }
+  .nostril .trad { font-size:9.5px; opacity:.6; margin-top:5px; font-style:italic; }
+  .nL { background:#8FA28A; color:#1E2A1E; }
+  .nR { background:#C29580; color:#3A1D10; box-shadow:0 0 0 3px #3A1D10 inset, 0 0 0 5px #C29580; }
+  .nB {
+    margin-top:10px; height:48px; border-radius:14px; background:#EDE9DE; width:100%;
+    border:1px solid #DDD7C6; color:#54503F; display:flex; align-items:center;
+    justify-content:center; gap:8px; font-size:13px; font-weight:600; cursor:pointer;
+  }
+  .nB .trad { font-size:9.5px; font-weight:400; font-style:italic; opacity:.65; }
+
+  /* the result card that appears right after you log */
+  .result {
+    margin-top:16px; border-radius:16px; overflow:hidden;
+    border:1px solid #D8B9A9; background:#FBF3EE;
+  }
+  .result .rhead {
+    padding:11px 14px; background:#C29580; color:#3A1D10;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .result .rhead .t { font-size:14px; font-weight:700; }
+  .result .rhead .t small { display:block; font-size:9.5px; font-weight:600; font-style:italic; opacity:.75; margin-top:1px; }
+  .result .rhead .glyph { font-size:20px; }
+  .result .rbody { padding:12px 14px 14px; }
+  .note { display:flex; gap:9px; margin-bottom:9px; }
+  .note .lab {
+    flex:0 0 62px; font-size:8.5px; letter-spacing:1.2px; text-transform:uppercase;
+    font-family:ui-monospace,Menlo,monospace; color:#98917E; padding-top:2px;
+  }
+  .note .txt { font-size:11.5px; line-height:1.5; color:#54503F; }
+  .note .txt b { color:#26241E; }
+  .suggest {
+    margin-top:4px; padding:10px 12px; border-radius:11px; background:#EAD9B0;
+    color:#5B4718; font-size:11.5px; line-height:1.5;
+  }
+  .suggest b { color:#3E3008; }
+  .chips { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+  .chip { font-size:10.5px; font-weight:600; background:#F2E7C7; color:#6E5320; padding:5px 10px; border-radius:99px; }
+  .tiny { font-size:9.5px; color:#98917E; margin-top:10px; font-style:italic; line-height:1.5; }
+  .tiny a { color:#8a6f52; }
+
+  /* ---------- screen 2: did you know ---------- */
+  .feedwrap { position:relative; height:520px; margin-top:18px; }
+  .dyk {
+    position:absolute; inset:0; border:1px solid #DDD7C6; border-radius:16px;
+    padding:18px 16px; background:#FDFCF8; opacity:0; animation:cyc 21s infinite;
+  }
+  /* Card 1 is visible by default (opacity:1) so the very first paint — and any
+     viewer that pauses animations — still shows a card, never a blank panel.
+     The keyframe starts visible too, so t=0 shows card 1. */
+  .dyk:nth-child(1){ animation-delay:0s; opacity:1; }
+  .dyk:nth-child(2){ animation-delay:7s; }
+  .dyk:nth-child(3){ animation-delay:14s; }
+  @keyframes cyc {
+    0%   { opacity:1; transform:translateY(0); }
+    28%  { opacity:1; transform:translateY(0); }
+    33%  { opacity:0; transform:translateY(-8px); }
+    97%  { opacity:0; transform:translateY(8px); }
+    100% { opacity:1; transform:translateY(0); }
+  }
+  .dyk .tag { font-size:9.5px; letter-spacing:1.6px; text-transform:uppercase; font-family:ui-monospace,Menlo,monospace; color:#98917E; }
+  .dyk h2 { font-size:18px; color:#26241E; margin:9px 0 10px; letter-spacing:-.3px; line-height:1.2; }
+  .dyk .pair { border-radius:12px; padding:11px 12px; margin-top:9px; }
+  .dyk .trads { background:#EEE7F2; }
+  .dyk .scis  { background:#E4EEE0; }
+  .dyk .pair .k { font-size:9px; letter-spacing:1.3px; text-transform:uppercase; font-family:ui-monospace,Menlo,monospace; margin-bottom:4px; }
+  .dyk .trads .k { color:#6b5488; }
+  .dyk .scis .k  { color:#3f6a34; }
+  .dyk .pair p { font-size:11.5px; line-height:1.5; color:#4c4838; }
+  .dyk .rel { font-size:11px; line-height:1.55; color:#77715F; margin-top:11px; }
+  .dyk .rel b { color:#26241E; }
+  .dots { position:absolute; bottom:-4px; left:0; right:0; display:flex; justify-content:center; gap:6px; }
+  .dots i { width:6px; height:6px; border-radius:99px; background:#CFC8B6; }
+  .dots i:first-child { background:#8B846E; }
+
+  /* ---------- screen 3: evidence ---------- */
+  .claim { border:1px solid #DDD7C6; border-radius:14px; padding:14px; margin-top:12px; background:#FDFCF8; }
+  .badge { display:inline-block; font-size:9px; font-weight:800; letter-spacing:1.4px; padding:3px 9px; border-radius:99px; text-transform:uppercase; font-family:ui-monospace,Menlo,monospace; }
+  .b-est { background:#DCE8D8; color:#33502E; }
+  .b-eme { background:#F2E4C8; color:#6E5320; }
+  .b-pre { background:#E4E2DC; color:#68644F; }
+  .b-tra { background:#E4DCEC; color:#4E3A66; }
+  .claim h3 { font-size:14px; color:#26241E; margin:8px 0 4px; }
+  .claim p { font-size:11.5px; line-height:1.55; color:#77715F; }
+  .claim .src { font-size:9.5px; color:#98917E; margin-top:6px; font-family:ui-monospace,Menlo,monospace; }
+
+  /* ---------- screen 4: experiments ---------- */
+  .exp { border:1px solid #DDD7C6; border-radius:14px; padding:14px; margin-top:12px; background:#FDFCF8; }
+  .exp .h { font-size:10px; letter-spacing:1.6px; color:#98917E; font-family:ui-monospace,Menlo,monospace; }
+  .exp h3 { font-size:14px; color:#26241E; margin:5px 0 8px; }
+  .stat { display:flex; gap:8px; margin:8px 0; }
+  .statbox { flex:1; background:#F0EDE4; border-radius:10px; padding:9px 10px; }
+  .statbox .k { font-size:9px; letter-spacing:1.2px; color:#98917E; text-transform:uppercase; font-family:ui-monospace,Menlo,monospace; }
+  .statbox .v { font-size:15px; font-weight:700; color:#26241E; font-family:ui-monospace,Menlo,monospace; margin-top:2px; }
+  .verdict { font-size:11.5px; line-height:1.5; color:#54503F; }
+  .verdict b { color:#26241E; }
+  .meter { height:6px; border-radius:3px; background:#E4E0D4; margin:8px 0 4px; overflow:hidden; }
+  .meter i { display:block; height:100%; width:38%; background:#8FA28A; }
+  .meter-cap { font-size:9.5px; color:#98917E; font-family:ui-monospace,Menlo,monospace; }
+  .newexp { margin-top:14px; height:44px; border:1.5px dashed #B9B3A2; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:12.5px; color:#77715F; font-weight:600; }
+  .disclaim { font-size:10px; color:#98917E; line-height:1.5; margin-top:14px; font-style:italic; }
+
+  .tabs { display:flex; border-top:1px solid #E4E0D4; background:#FBF9F4; padding:11px 6px 22px; }
+  .tab { flex:1; text-align:center; font-size:9px; letter-spacing:.3px; color:#A29B87; }
+  .tab.on { color:#26241E; font-weight:700; }
+  .tab span { display:block; font-size:15px; margin-bottom:2px; }
+</style>
+</head>
+<body>
+
+  <!-- ============ 1 · LOG + RESULT ============ -->
+  <div class="phone">
+    <div class="screen">
+      <div class="kicker">AVIRLOG · NASAL CYCLE JOURNAL</div>
+      <h1>You logged: Right</h1>
+      <div class="sub">Here's what science notes and what tradition suggests — then test if it fits you.</div>
+
+      <div class="row">
+        <button class="nostril nL">
+          <span class="big">Left</span>
+          <span class="state">Left-dominant</span>
+          <span class="trad">“Ida”</span>
+        </button>
+        <button class="nostril nR">
+          <span class="big">Right</span>
+          <span class="state">Right-dominant · logged</span>
+          <span class="trad">“Pingala”</span>
+        </button>
+      </div>
+      <button class="nB">Balanced — both open <span class="trad">· “Sushumna”</span></button>
+
+      <div class="result">
+        <div class="rhead">
+          <div class="t">Right-dominant airflow<small>Pingala · Surya (sun) channel</small></div>
+          <div class="glyph">☀</div>
+        </div>
+        <div class="rbody">
+          <div class="note">
+            <div class="lab">Science</div>
+            <div class="txt">Right-nostril breathing has been linked in small studies to
+              <b>higher sympathetic arousal</b> — a slightly more alert, activated state.</div>
+          </div>
+          <div class="note">
+            <div class="lab">Tradition</div>
+            <div class="txt">Swara yoga reads Pingala as the <b>active, heating</b> channel —
+              favored for effort and engagement with the world.</div>
+          </div>
+          <div class="suggest">
+            <b>A good window to be active.</b> Both point the same way — so try it:
+            <div class="chips"><span class="chip">Focused work</span><span class="chip">Exercise</span><span class="chip">Decisions</span></div>
+          </div>
+          <div class="tiny">Suggestion, not prescription — the Experiments tab tracks whether
+            this actually holds for you. <a>Why this?</a></div>
+        </div>
+      </div>
+    </div>
+    <div class="tabs">
+      <div class="tab on"><span>◉</span>Log</div>
+      <div class="tab"><span>✦</span>Did you know</div>
+      <div class="tab"><span>▤</span>Evidence</div>
+      <div class="tab"><span>⚗</span>Experiments</div>
+      <div class="tab"><span>◷</span>Today</div>
+    </div>
+  </div>
+  <div class="cap">1 · Log → a combined card: a science note + a traditional suggestion + something to do</div>
+
+  <!-- ============ 2 · DID YOU KNOW ============ -->
+  <div class="phone">
+    <div class="screen">
+      <div class="kicker">DID YOU KNOW · TRADITION ⇄ SCIENCE</div>
+      <h1>One rhythm, many lenses</h1>
+      <div class="sub">A rotating feed — how different traditions read the breath, and where science agrees.</div>
+
+      <div class="feedwrap">
+        <div class="dyk">
+          <div class="tag">SWARA YOGA · INDIA</div>
+          <h2>The side you breathe from was a clock.</h2>
+          <div class="pair trads"><div class="k">Tradition says</div>
+            <p>Ida (left) cools and calms; Pingala (right) heats and energizes. Practitioners
+              timed tasks to the dominant nostril.</p></div>
+          <div class="pair scis"><div class="k">Science says</div>
+            <p>Airflow really does alternate between nostrils — the nasal cycle, driven by the
+              autonomic nervous system. In ~72% of people, over hours (mean ~2.6 h), and
+              more irregular than the tradition assumed.</p></div>
+          <div class="rel"><b>Where they meet:</b> tradition noticed the alternation
+            centuries before rhinomanometry could measure it.</div>
+        </div>
+
+        <div class="dyk">
+          <div class="tag">CHRONOBIOLOGY · MODERN</div>
+          <h2>Your body runs ~90-minute cycles all day.</h2>
+          <div class="pair scis"><div class="k">Science says</div>
+            <p>Kleitman's Basic Rest-Activity Cycle: alertness and rest oscillate through the
+              day. Some work ties the nasal cycle to these ultradian swings and to alternating
+              brain-hemisphere activity.</p></div>
+          <div class="pair trads"><div class="k">Tradition echoes</div>
+            <p>Yogic texts already mapped the day into active and restful windows — and told
+              you to work with them, not against them.</p></div>
+          <div class="rel"><b>Where they meet:</b> both say attention isn't flat — it comes
+            in waves worth noticing.</div>
+        </div>
+
+        <div class="dyk">
+          <div class="tag">BREATH &amp; NERVOUS SYSTEM</div>
+          <h2>Slow breathing can settle you — measurably.</h2>
+          <div class="pair scis"><div class="k">Science says</div>
+            <p>Slow, nasal, extended-exhale breathing raises heart-rate variability and vagal
+              (parasympathetic) tone, and can lower stress and anxiety.</p></div>
+          <div class="pair trads"><div class="k">Tradition says</div>
+            <p>Pranayama has taught breath-pacing for calm and focus for millennia — the
+              left-nostril / cooling practices especially.</p></div>
+          <div class="rel"><b>Where they meet:</b> the calming technique is old; the mechanism
+            (vagal tone, HRV) is now measurable.</div>
+        </div>
+
+        <div class="dots"><i></i><i></i><i></i></div>
+      </div>
+    </div>
+    <div class="tabs">
+      <div class="tab"><span>◉</span>Log</div>
+      <div class="tab on"><span>✦</span>Did you know</div>
+      <div class="tab"><span>▤</span>Evidence</div>
+      <div class="tab"><span>⚗</span>Experiments</div>
+      <div class="tab"><span>◷</span>Today</div>
+    </div>
+  </div>
+  <div class="cap">2 · Did you know — cards rotate; each pairs a tradition with the matching science</div>
+
+  <!-- ============ 3 · EVIDENCE ============ -->
+  <div class="phone">
+    <div class="screen">
+      <div class="kicker">EVIDENCE · KNOWN VS. BELIEVED</div>
+      <h1>Claims, graded honestly</h1>
+      <div class="sub">Every statement in the app carries its evidence level. We don't confirm beliefs — we label them.</div>
+
+      <div class="claim">
+        <span class="badge b-est">Established</span>
+        <h3>The nasal cycle is real</h3>
+        <p>Airflow dominance alternates between nostrils under autonomic control of the nasal
+          turbinates. Seen in ~72% of people, typically over hours (mean ~2.6 h) and irregular.
+          Documented since 1895, confirmed with rhinomanometry.</p>
+        <div class="src">Kayser 1895 · Hasegawa &amp; Kern 1977 · Eccles 1996 · Kahana-Zweig 2016</div>
+      </div>
+
+      <div class="claim">
+        <span class="badge b-est">Established</span>
+        <h3>Slow breathing calms the nervous system</h3>
+        <p>Slow, paced breathing (&lt;10 / min) raises heart-rate variability and vagal tone,
+          shifting you toward “rest.” The app's strongest evidence — and it doesn't depend on
+          which nostril.</p>
+        <div class="src">Zaccaro et al. 2018 (review) · Russo et al. 2017 (review)</div>
+      </div>
+
+      <div class="claim">
+        <span class="badge b-eme">Emerging / contested</span>
+        <h3>Nostril side ↔ autonomic state</h3>
+        <p>Small studies link right-nostril breathing to arousal and left to calming — but
+          samples are tiny and one controlled study found <b>no effect</b>. Real question,
+          unsettled answer. That's why you test it.</p>
+        <div class="src">Werntz 1983 · Telles 1994 · Pal 2014 · Larson 1993 (null)</div>
+      </div>
+
+      <div class="claim">
+        <span class="badge b-pre">Preliminary</span>
+        <h3>Effects on focus &amp; cognition</h3>
+        <p>That dominance predicts your focus, energy or mood is not established — one small
+          study saw a spatial-task effect, others didn't. Exactly what your own log can
+          explore, n of 1.</p>
+        <div class="src">Jella &amp; Shannahoff-Khalsa 1993 · mixed findings</div>
+      </div>
+
+      <div class="claim">
+        <span class="badge b-tra">Traditional</span>
+        <h3>The Swara interpretation</h3>
+        <p>Swara yoga read this rhythm long before instruments could measure it — left cooling
+          (Ida), right heating (Pingala), balance as stillness (Sushumna). A remarkable early
+          observation; honored here as heritage and as the source of the suggestions you test.</p>
+        <div class="src">Shiva Svarodaya (trad.)</div>
+      </div>
+    </div>
+    <div class="tabs">
+      <div class="tab"><span>◉</span>Log</div>
+      <div class="tab"><span>✦</span>Did you know</div>
+      <div class="tab on"><span>▤</span>Evidence</div>
+      <div class="tab"><span>⚗</span>Experiments</div>
+      <div class="tab"><span>◷</span>Today</div>
+    </div>
+  </div>
+  <div class="cap">3 · Evidence — grades: Established / Emerging / Preliminary / Traditional</div>
+
+  <!-- ============ 4 · EXPERIMENTS ============ -->
+  <div class="phone">
+    <div class="screen">
+      <div class="kicker">EXPERIMENTS · N = 1 (YOU)</div>
+      <h1>Do the suggestions hold?</h1>
+      <div class="sub">Every recommendation becomes a testable hypothesis against your own numbers.</div>
+
+      <div class="exp">
+        <div class="h">H1 · ACTIVE · 12 DAYS</div>
+        <h3>Is my focus higher when right-dominant?</h3>
+        <div class="stat">
+          <div class="statbox"><div class="k">Right avg</div><div class="v">6.3</div></div>
+          <div class="statbox"><div class="k">Left avg</div><div class="v">5.4</div></div>
+          <div class="statbox"><div class="k">Samples</div><div class="v">n=42</div></div>
+        </div>
+        <div class="verdict"><b>Suggestive, not conclusive.</b> +0.9 so far — the tradition's
+          “active window” is leaning true for you. Keep logging.</div>
+        <div class="meter"><i></i></div>
+        <div class="meter-cap">38% of samples needed for a stable read</div>
+      </div>
+
+      <div class="exp">
+        <div class="h">H2 · COMPLETE</div>
+        <h3>Does my cycle match the published rhythm?</h3>
+        <div class="stat">
+          <div class="statbox"><div class="k">Your median</div><div class="v">1h 50m</div></div>
+          <div class="statbox"><div class="k">Published</div><div class="v">0.5–4h</div></div>
+        </div>
+        <div class="verdict"><b>Consistent.</b> Your switching sits inside the documented
+          nasal-cycle range.</div>
+      </div>
+
+      <div class="newexp">＋ New experiment (e.g. “Am I calmer when left-dominant?”)</div>
+
+      <div class="disclaim">Personal observations, not medical evidence. One person's data can
+        inform habits — it can't prove physiology.</div>
+    </div>
+    <div class="tabs">
+      <div class="tab"><span>◉</span>Log</div>
+      <div class="tab"><span>✦</span>Did you know</div>
+      <div class="tab"><span>▤</span>Evidence</div>
+      <div class="tab on"><span>⚗</span>Experiments</div>
+      <div class="tab"><span>◷</span>Today</div>
+    </div>
+  </div>
+  <div class="cap">4 · Experiments — the traditional suggestions become hypotheses you test on yourself</div>
+
+</body>
+</html>

@@ -11,12 +11,16 @@ import { BreathLog, NostrilState } from "@/src/theme/theme";
 export async function createBreathLog(
   state: NostrilState,
   idempotencyKey?: string,
+  blend?: number,
 ): Promise<BreathLog> {
   return api<BreathLog>("/logs", {
     method: "POST",
     body: {
       ...(idempotencyKey ? { id: idempotencyKey } : {}),
       nostril_state: state,
+      // A blend (right-nostril %) comes from the advanced widget/Live Activity
+      // preset buttons; simple Left/Right/Both taps leave it unset.
+      ...(blend != null ? { blend } : {}),
       tags: [],
       local_date: todayStr(),
       local_hour: new Date().getHours(),

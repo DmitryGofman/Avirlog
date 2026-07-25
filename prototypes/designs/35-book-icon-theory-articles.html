@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AvirLog — Book icon → Theory → Articles</title>
+<style>
+  /* ORIGINAL CLEAN LOG + a little book icon (top right) that opens THEORY.
+     Theory cards are tappable: each opens a readable article with the real
+     studies, linked out to PubMed. Three screens show the whole path:
+       1) Log (unchanged) — book icon top-right
+       2) Theory — opens over the app; every card is tappable ›
+       3) Article — what a card opens: plain-language text + linked papers
+     Static, CSS only (no JS). */
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#B9B3A6; padding:28px 16px 60px;
+    font-family:-apple-system,"Segoe UI",system-ui,sans-serif;
+    display:flex; flex-wrap:wrap; gap:26px; justify-content:center;
+  }
+  .phone {
+    width:355px; background:#F7F5F0; border-radius:38px; overflow:hidden;
+    box-shadow:0 24px 60px rgba(55,50,40,.4);
+    display:flex; flex-direction:column; min-height:760px;
+  }
+  .screen { flex:1; padding:30px 22px 18px; display:flex; flex-direction:column; }
+  .cap { text-align:center; width:100%; font-size:12.5px; color:#54503F; margin-top:-14px; }
+
+  .kicker { font-size:10px; letter-spacing:2.4px; text-transform:uppercase; color:#98917E; font-family:ui-monospace,Menlo,monospace; }
+  h1 { font-size:25px; font-weight:700; letter-spacing:-.4px; color:#26241E; margin:8px 0 4px; }
+  .sub { font-size:13px; color:#77715F; line-height:1.45; }
+
+  /* header row with book button */
+  .htop { display:flex; align-items:center; justify-content:space-between; }
+  .book {
+    width:42px; height:42px; border-radius:13px; border:1px solid #DDD7C6; background:#FDFCF8;
+    display:flex; align-items:center; justify-content:center; flex:0 0 42px; margin-top:2px;
+    box-shadow:0 1px 0 rgba(0,0,0,.03);
+  }
+  .book small { position:absolute; }
+
+  /* ---------- LOG (matches the real app's proportions) ---------- */
+  /* date + pulse dot row (top-left), book button (top-right) */
+  .drow { display:flex; align-items:center; gap:8px; }
+  .pdot { width:7px; height:7px; border-radius:99px; background:#C29580; box-shadow:0 0 0 4px rgba(194,149,128,.22); }
+  .date { font-size:12px; letter-spacing:.9px; text-transform:uppercase; color:#98917E; font-family:ui-monospace,Menlo,monospace; }
+
+  /* the buttons fill the screen exactly like log.tsx: Left+Right are flex:1
+     (tall, dominant), Both is a short bar, a compact guidance card sits below */
+  .btnwrap { flex:1; display:flex; flex-direction:column; gap:12px; margin-top:22px; }
+  .bigrow { flex:1; display:flex; gap:12px; }
+  .big {
+    flex:1; border-radius:22px; padding:16px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px;
+    border:none; cursor:pointer; text-align:center;
+  }
+  .big .n { font-size:31px; font-weight:700; letter-spacing:-.6px; }
+  .big .t { font-size:13px; font-style:italic; opacity:.62; }
+  .bL { background:#8FA28A; color:#1E2A1E; }
+  .bR { background:#C29580; color:#3A1D10; }
+  .bBoth {
+    height:80px; border-radius:20px; background:#EDE9DE;
+    border:1px solid #DDD7C6; color:#54503F; width:100%; cursor:pointer;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+  }
+  .bBoth .bn { font-size:20px; font-weight:700; letter-spacing:-.3px; }
+  .bBoth .t { font-size:12px; font-weight:400; font-style:italic; opacity:.6; }
+
+  /* compact guidance card below the buttons — like the app's guidanceCard */
+  .guide { padding:13px 15px; border-radius:16px; background:#F0EDE4; border:1px solid #E4E0D4; }
+  .guide .gh { display:flex; align-items:center; gap:8px; margin-bottom:5px; }
+  .guide .gdot { width:8px; height:8px; border-radius:99px; background:#C29580; }
+  .guide .gstate { font-size:11px; letter-spacing:.7px; text-transform:uppercase; color:#98917E; font-family:ui-monospace,Menlo,monospace; flex:1; }
+  .guide .gchev { font-size:14px; color:#B0A992; }
+  .guide .gmsg { font-size:14px; color:#26241E; font-weight:600; line-height:1.4; }
+  .guide .gmsg b { color:#7a5a2c; }
+
+  /* ---------- nav header (pushed screens) ---------- */
+  .nav { display:flex; align-items:center; gap:12px; margin-bottom:6px; }
+  .back { width:34px; height:34px; border-radius:10px; border:1px solid #E4E0D4; background:#FDFCF8; display:flex; align-items:center; justify-content:center; font-size:17px; color:#54503F; }
+  .nav .ntitle { font-size:17px; font-weight:700; color:#26241E; }
+
+  /* ---------- THEORY ---------- */
+  .lead { font-size:13px; color:#5b5645; line-height:1.55; margin:12px 0 4px; }
+  .lead b { color:#26241E; }
+  .sect { font-size:10px; letter-spacing:1.8px; text-transform:uppercase; color:#98917E; font-family:ui-monospace,Menlo,monospace; margin:20px 0 8px; }
+
+  .map { display:flex; flex-direction:column; gap:7px; }
+  .maprow { display:flex; align-items:center; gap:11px; padding:10px 12px; border-radius:12px; }
+  .maprow .dot { width:12px; height:12px; border-radius:99px; flex:0 0 12px; }
+  .maprow .mn { font-size:12.5px; color:#26241E; font-weight:700; }
+  .maprow .mn small { font-weight:400; font-style:italic; color:#8a8574; }
+  .maprow .md { font-size:11.5px; color:#77715F; margin-left:auto; text-align:right; }
+  .m1 { background:#EAF0E7; } .m1 .dot { background:#8FA28A; }
+  .m2 { background:#F5E7DF; } .m2 .dot { background:#C29580; }
+  .m3 { background:#EDE9DE; } .m3 .dot { background:#B9B3A2; }
+
+  /* tappable claim card */
+  .claim { border:1px solid #DDD7C6; border-radius:14px; padding:13px 14px; margin-top:9px; background:#FDFCF8; display:flex; gap:10px; align-items:flex-start; cursor:pointer; }
+  .claim .c-main { flex:1; }
+  .badge { display:inline-block; font-size:8.5px; font-weight:800; letter-spacing:1.3px; padding:3px 8px; border-radius:99px; text-transform:uppercase; font-family:ui-monospace,Menlo,monospace; }
+  .b-est { background:#DCE8D8; color:#33502E; }
+  .b-eme { background:#F2E4C8; color:#6E5320; }
+  .b-tra { background:#E4DCEC; color:#4E3A66; }
+  .claim h3 { font-size:13.5px; color:#26241E; margin:7px 0 3px; }
+  .claim p { font-size:11.5px; line-height:1.5; color:#77715F; }
+  .claim .meta { font-size:9.5px; color:#98917E; margin-top:6px; font-family:ui-monospace,Menlo,monospace; }
+  .chev { font-size:20px; color:#C6BFAD; align-self:center; }
+
+  /* ---------- ARTICLE ---------- */
+  .art-badge { margin:10px 0 6px; }
+  .art h1 { font-size:23px; margin-top:4px; }
+  .art .byline { font-size:11px; color:#98917E; font-family:ui-monospace,Menlo,monospace; margin-bottom:14px; }
+  .art p { font-size:13px; line-height:1.62; color:#4c4838; margin-bottom:12px; }
+  .art p b { color:#26241E; }
+  .pull { border-left:3px solid #8FA28A; background:#EEF2EB; border-radius:0 10px 10px 0; padding:11px 14px; margin:4px 0 14px; font-size:12px; line-height:1.55; color:#3f5238; }
+  .art .sect { margin-top:6px; }
+  .paper { display:flex; align-items:center; gap:10px; border:1px solid #E4E0D4; border-radius:12px; padding:11px 13px; margin-top:8px; background:#FDFCF8; cursor:pointer; }
+  .paper .pmain { flex:1; }
+  .paper .pt { font-size:12px; color:#26241E; font-weight:600; line-height:1.35; }
+  .paper .pa { font-size:10.5px; color:#98917E; margin-top:3px; font-family:ui-monospace,Menlo,monospace; }
+  .paper .link { font-size:10px; color:#6f8a63; font-weight:700; white-space:nowrap; }
+  .tradnote { font-size:12px; color:#77715F; line-height:1.55; background:#F1ECF5; border-radius:12px; padding:12px 14px; margin-top:8px; }
+  .tradnote b { color:#4E3A66; }
+
+  .tabs { display:flex; border-top:1px solid #E4E0D4; background:#FBF9F4; padding:11px 4px 22px; }
+  .tab { flex:1; text-align:center; font-size:9px; letter-spacing:.2px; color:#A29B87; }
+  .tab.on { color:#26241E; font-weight:700; }
+  .tab span { display:block; font-size:15px; margin-bottom:2px; }
+</style>
+</head>
+<body>
+
+  <!-- ============ 1 · LOG (original) + book icon ============ -->
+  <div class="phone">
+    <div class="screen">
+      <div class="htop">
+        <div class="drow"><span class="pdot"></span><span class="date">Sunday · July 19</span></div>
+        <div class="book" title="Theory">
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#54503F" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v15H5.5A1.5 1.5 0 0 0 4 20.5z"/>
+            <path d="M20 5.5A1.5 1.5 0 0 0 18.5 4H13v15h5.5A1.5 1.5 0 0 1 20 20.5z"/>
+          </svg>
+        </div>
+      </div>
+      <h1>What is dominant now?</h1>
+      <div class="sub">Log current breath state</div>
+
+      <div class="btnwrap">
+        <div class="bigrow">
+          <button class="big bL"><span class="n">Left</span><span class="t">Ida</span></button>
+          <button class="big bR"><span class="n">Right</span><span class="t">Pingala</span></button>
+        </div>
+        <button class="bBoth"><span class="bn">Both</span><span class="t">Sushumna</span></button>
+
+        <div class="guide">
+          <div class="gh"><span class="gdot"></span><span class="gstate">Right · Pingala</span><span class="gchev">›</span></div>
+          <div class="gmsg">A good window for <b>focus &amp; effort</b>. Tap the book ↗ to read why.</div>
+        </div>
+      </div>
+    </div>
+    <div class="tabs">
+      <div class="tab on"><span>◉</span>Log</div>
+      <div class="tab"><span>◷</span>Today</div>
+      <div class="tab"><span>∿</span>Insights</div>
+      <div class="tab"><span>▦</span>History</div>
+      <div class="tab"><span>⚙</span>Settings</div>
+    </div>
+  </div>
+  <div class="cap">1 · Log stays exactly like the main version — one new thing: the book icon, top right</div>
+
+  <!-- ============ 2 · THEORY (opens from the book) ============ -->
+  <div class="phone">
+    <div class="screen">
+      <div class="nav">
+        <div class="back">‹</div>
+        <div class="ntitle">Theory</div>
+      </div>
+      <div class="lead">Your nose keeps a real rhythm. <b>Tradition read it first; science can now
+        measure it.</b> What each side <i>means</i> is still partly a hypothesis — tap any card to
+        read the evidence.</div>
+
+      <div class="sect">What tradition says</div>
+      <div class="map">
+        <div class="maprow m1"><span class="dot"></span><span class="mn">Ida <small>left · moon</small></span><span class="md">cooling · rest</span></div>
+        <div class="maprow m2"><span class="dot"></span><span class="mn">Pingala <small>right · sun</small></span><span class="md">heating · focus</span></div>
+        <div class="maprow m3"><span class="dot"></span><span class="mn">Sushumna <small>both</small></span><span class="md">balance · stillness</span></div>
+      </div>
+
+      <div class="sect">What science knows · tap to read</div>
+      <div class="claim">
+        <div class="c-main">
+          <span class="badge b-est">Established</span>
+          <h3>The nasal cycle is real</h3>
+          <p>Airflow alternates between nostrils under autonomic control — documented since 1895.</p>
+          <div class="meta">3 papers · ~4 min read</div>
+        </div>
+        <span class="chev">›</span>
+      </div>
+      <div class="claim">
+        <div class="c-main">
+          <span class="badge b-est">Established</span>
+          <h3>Slow breathing calms you</h3>
+          <p>Paced breathing raises heart-rate variability and vagal tone.</p>
+          <div class="meta">2 reviews · ~3 min read</div>
+        </div>
+        <span class="chev">›</span>
+      </div>
+      <div class="claim">
+        <div class="c-main">
+          <span class="badge b-eme">Emerging / contested</span>
+          <h3>Right = active, left = calm?</h3>
+          <p>Small studies point this way; one controlled study found no effect.</p>
+          <div class="meta">4 papers · incl. a null result</div>
+        </div>
+        <span class="chev">›</span>
+      </div>
+      <div class="claim">
+        <div class="c-main">
+          <span class="badge b-tra">Traditional</span>
+          <h3>The Swara interpretation</h3>
+          <p>Where Ida / Pingala / Sushumna come from — heritage, not measurement.</p>
+          <div class="meta">Shiva Svarodaya</div>
+        </div>
+        <span class="chev">›</span>
+      </div>
+    </div>
+    <div class="tabs">
+      <div class="tab"><span>◉</span>Log</div>
+      <div class="tab"><span>◷</span>Today</div>
+      <div class="tab"><span>∿</span>Insights</div>
+      <div class="tab"><span>▦</span>History</div>
+      <div class="tab"><span>⚙</span>Settings</div>
+    </div>
+  </div>
+  <div class="cap">2 · Theory opens over the app (from the book). Every claim card is tappable ›</div>
+
+  <!-- ============ 3 · ARTICLE (what a card opens) ============ -->
+  <div class="phone">
+    <div class="screen art">
+      <div class="nav">
+        <div class="back">‹</div>
+        <div class="ntitle">Theory</div>
+      </div>
+      <div class="art-badge"><span class="badge b-est">Established</span></div>
+      <h1>The nasal cycle is real</h1>
+      <div class="byline">Physiology · ~4 min read</div>
+
+      <p>Right now, one of your nostrils is probably breathing more freely than the other. A few
+        hours from now, they'll likely have <b>swapped</b>. This isn't congestion — it's the
+        <b>nasal cycle</b>: erectile tissue in each nostril slowly swells and shrinks, steered by
+        your autonomic nervous system.</p>
+      <p>The German physician <b>Richard Kayser</b> first measured it in 1895. Modern studies
+        confirm it — but with a caveat worth knowing: only about <b>72% of people</b> show a
+        clear cycle, its length is usually <b>hours (averaging ~2.6 h)</b>, and it's <b>irregular</b>,
+        not a tidy clock.</p>
+
+      <div class="pull">Why it matters here: the thing you're logging is real, measurable
+        physiology — that's the solid ground the app stands on.</div>
+
+      <div class="sect">The research</div>
+      <div class="paper">
+        <div class="pmain">
+          <div class="pt">The human nasal cycle</div>
+          <div class="pa">Hasegawa &amp; Kern · Mayo Clin Proc · 1977</div>
+        </div>
+        <span class="link">PubMed →</span>
+      </div>
+      <div class="paper">
+        <div class="pmain">
+          <div class="pt">A role for the nasal cycle in respiratory defence</div>
+          <div class="pa">Eccles · Eur Respir J · 1996 · PMID 8777979</div>
+        </div>
+        <span class="link">PubMed →</span>
+      </div>
+      <div class="paper">
+        <div class="pmain">
+          <div class="pt">Measuring &amp; Characterizing the Human Nasal Cycle</div>
+          <div class="pa">Kahana-Zweig et al. · PLOS ONE · 2016</div>
+        </div>
+        <span class="link">Open →</span>
+      </div>
+
+      <div class="sect">In tradition</div>
+      <div class="tradnote"><b>Swara yoga noticed this alternation centuries before rhinomanometry</b>
+        could measure it — and built a whole practice around which side is open. The observation
+        was real; the meanings are what the Experiments tab lets you test.</div>
+    </div>
+    <div class="tabs">
+      <div class="tab"><span>◉</span>Log</div>
+      <div class="tab"><span>◷</span>Today</div>
+      <div class="tab"><span>∿</span>Insights</div>
+      <div class="tab"><span>▦</span>History</div>
+      <div class="tab"><span>⚙</span>Settings</div>
+    </div>
+  </div>
+  <div class="cap">3 · Tapping a card opens a readable article + the real papers, linked out to PubMed</div>
+
+</body>
+</html>

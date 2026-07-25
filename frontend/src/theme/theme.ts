@@ -154,6 +154,9 @@ export interface BreathLog {
   id: string;
   user_id: string;
   nostril_state: NostrilState;
+  // Advanced logging: the RIGHT nostril's share, 0–100 (left = 100 − blend).
+  // Absent/null for logs made with the simple Left / Right / Both buttons.
+  blend?: number | null;
   mood_score: number | null;
   energy_score: number | null;
   focus_score: number | null;

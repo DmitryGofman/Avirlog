@@ -24,6 +24,9 @@ export interface LocalSettings {
   theme: "light" | "dark";
   mood_journaling: boolean;
   skin: SkinId;
+  // When on, the Log screen swaps the Left/Right/Both buttons for a blend
+  // slider that records how open each nostril is.
+  advanced_logging: boolean;
 }
 
 const LOGS_KEY = "avirlog_local_logs";
@@ -39,6 +42,7 @@ const DEFAULT_SETTINGS: LocalSettings = {
   theme: "light",
   mood_journaling: true,
   skin: DEFAULT_SKIN,
+  advanced_logging: false,
 };
 
 function genId(): string {
@@ -176,6 +180,7 @@ export async function localApi<T = any>(path: string, options: LocalApiOptions =
           id: body.id ?? genId(),
           user_id: "local",
           nostril_state: body.nostril_state as NostrilState,
+          blend: body.blend ?? null,
           mood_score: body.mood_score ?? null,
           energy_score: body.energy_score ?? null,
           focus_score: body.focus_score ?? null,

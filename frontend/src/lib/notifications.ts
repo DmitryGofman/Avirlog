@@ -8,10 +8,19 @@
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 
+import { endBreathWindow, startBreathWindow } from "@/src/lib/liveActivityBridge";
 import { pickMessage, SWARA } from "@/src/lib/swara";
+import { clearWidgetDue, setWidgetDue } from "@/src/lib/widgetBridge";
 import { NostrilState, STATE_META } from "@/src/theme/theme";
 
+// The Live Activity logging window stays up for at most this long before it
+// goes stale and the classic notification takes over as the fallback.
+const LIVE_WINDOW_SECONDS = 600;
+
 export const BREATH_CATEGORY = "breath-log";
+// Advanced variant: the reminder offers three preset-blend buttons instead of
+// plain Left / Right / Both, matching the widget + Live Activity.
+export const BREATH_BLEND_CATEGORY = "breath-blend";
 const CHANNEL_ID = "reminders";
 
 export interface ReminderConfig {
@@ -20,6 +29,8 @@ export interface ReminderConfig {
   quiet_hours_enabled: boolean;
   quiet_start_minutes: number;
   quiet_end_minutes: number;
+  // When on, the reminder shows preset-blend buttons (mirrors Advanced logging).
+  advanced_logging?: boolean;
 }
 
 const ACTION_TO_STATE: Record<string, NostrilState> = {
@@ -28,8 +39,22 @@ const ACTION_TO_STATE: Record<string, NostrilState> = {
   "log-both": "both",
 };
 
+// Preset-blend actions → the right-nostril % they log and its dominant side.
+// Five levels, matching the widget/Live Activity presets.
+const ACTION_TO_BLEND: Record<string, { state: NostrilState; right: number }> = {
+  "blend-l80": { state: "left", right: 20 },
+  "blend-l65": { state: "left", right: 35 },
+  "blend-even": { state: "both", right: 50 },
+  "blend-r65": { state: "right", right: 65 },
+  "blend-r80": { state: "right", right: 80 },
+};
+
 export function actionToState(actionId: string): NostrilState | null {
   return ACTION_TO_STATE[actionId] ?? null;
+}
+
+export function actionToBlend(actionId: string): { state: NostrilState; right: number } | null {
+  return ACTION_TO_BLEND[actionId] ?? null;
 }
 
 let configured = false;
@@ -53,8 +78,16 @@ export async function configureNotifications(): Promise<void> {
 
   await Notifications.setNotificationCategoryAsync(BREATH_CATEGORY, [
     { identifier: "log-left", buttonTitle: "Left", options: { opensAppToForeground: false } },
-    { identifier: "log-right", buttonTitle: "Right", options: { opensAppToForeground: false } },
     { identifier: "log-both", buttonTitle: "Both", options: { opensAppToForeground: false } },
+    { identifier: "log-right", buttonTitle: "Right", options: { opensAppToForeground: false } },
+  ]);
+
+  await Notifications.setNotificationCategoryAsync(BREATH_BLEND_CATEGORY, [
+    { identifier: "blend-l80", buttonTitle: "80% Left", options: { opensAppToForeground: false } },
+    { identifier: "blend-l65", buttonTitle: "65% Left", options: { opensAppToForeground: false } },
+    { identifier: "blend-even", buttonTitle: "Even 50 / 50", options: { opensAppToForeground: false } },
+    { identifier: "blend-r65", buttonTitle: "65% Right", options: { opensAppToForeground: false } },
+    { identifier: "blend-r80", buttonTitle: "80% Right", options: { opensAppToForeground: false } },
   ]);
 
   if (Platform.OS === "android") {
@@ -103,24 +136,34 @@ function nextDelaySeconds(cfg: ReminderConfig): number {
   return Math.max(5, Math.round((target.getTime() - Date.now()) / 1000));
 }
 
-// Cancel any pending reminder and arm exactly one for the next tick.
+// Cancel any pending reminder and arm exactly one for the next tick. The
+// widget is lit at the same moment (shared "due" time).
 export async function scheduleNextReminder(cfg: ReminderConfig): Promise<void> {
   if (Platform.OS === "web" || !cfg.reminder_enabled) return;
   await configureNotifications();
   await cancelReminders();
+  const delay = nextDelaySeconds(cfg);
+  const advanced = !!cfg.advanced_logging;
   await Notifications.scheduleNotificationAsync({
     content: {
       title: "Breath check",
-      body: "Which nostril is active? Hold to log · Left / Right / Both",
-      categoryIdentifier: BREATH_CATEGORY,
+      body: advanced
+        ? "How open is each nostril? Hold to log a blend"
+        : "Which nostril is active? Hold to log · Left / Both / Right",
+      categoryIdentifier: advanced ? BREATH_BLEND_CATEGORY : BREATH_CATEGORY,
     },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-      seconds: nextDelaySeconds(cfg),
+      seconds: delay,
       repeats: false,
       channelId: Platform.OS === "android" ? CHANNEL_ID : undefined,
     },
   });
+  setWidgetDue(Date.now() / 1000 + delay, cfg.reminder_interval_seconds);
+  // Open the interactive Live Activity logging window (no-op if unsupported).
+  // It counts down and offers Left/Right/Both; when it goes stale the
+  // scheduled notification above is the fallback.
+  startBreathWindow(Math.min(delay, LIVE_WINDOW_SECONDS));
 }
 
 // Re-arm on app open / after a swipe: only if reminders are on and nothing is
@@ -148,4 +191,6 @@ export async function presentLogConfirmation(state: NostrilState): Promise<void>
 export async function cancelReminders(): Promise<void> {
   if (Platform.OS === "web") return;
   await Notifications.cancelAllScheduledNotificationsAsync();
+  clearWidgetDue();
+  endBreathWindow();
 }

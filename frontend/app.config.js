@@ -16,5 +16,36 @@ module.exports = ({ config }) => {
   } else {
     delete config.experiments.baseUrl;
   }
+
+  // Widget target (native). @bacons/apple-targets compiles targets/widget/
+  // into a WidgetKit extension; the App Group lets the app and widget share
+  // the reminder state and the logs made on the widget.
+  //
+  // The plugin is a Mac-side toolchain dep (`npx expo install
+  // @bacons/apple-targets`, per WIDGET.md), so it isn't in package.json. Only
+  // register it when it actually resolves — that way the widget builds when the
+  // toolchain is installed, while `expo config` / the web + plain-iOS builds
+  // keep working without it instead of hard-failing to resolve the plugin.
+  try {
+    require.resolve("@bacons/apple-targets");
+    config.plugins = [...(config.plugins || []), "@bacons/apple-targets"];
+  } catch {
+    console.warn(
+      "[app.config] @bacons/apple-targets not installed — skipping the widget target. " +
+        "Run `npx expo install @bacons/apple-targets` to include it (see WIDGET.md).",
+    );
+  }
+  config.ios = config.ios || {};
+  config.ios.entitlements = {
+    ...(config.ios.entitlements || {}),
+    "com.apple.security.application-groups": ["group.com.avirlog.app"],
+  };
+  // Required for the app to run Live Activities (the timed lock-screen
+  // logging window). Without this key ActivityKit requests are rejected.
+  config.ios.infoPlist = {
+    ...(config.ios.infoPlist || {}),
+    NSSupportsLiveActivities: true,
+  };
+
   return config;
 };
