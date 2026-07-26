@@ -369,7 +369,7 @@ struct AvirLogWidgetView: View {
   @ViewBuilder
   func buttonFill(_ color: Color) -> some View {
     if isAccessory {
-      RoundedRectangle(cornerRadius: 6).fill(.white.opacity(0.22))
+      RoundedRectangle(cornerRadius: 6).fill(Color.white.opacity(0.22))
     } else {
       color
     }
