@@ -1,80 +1,116 @@
-// Advanced-logging blend slider — Design 01: a gradient track (Ida green →
-// neutral → Pingala terra) with a round knob you drag to set how open each
-// nostril is. Left % = 100 − right; the drag hook snaps to the nearest 5, and
-// near-50/50 records as Sushumna. A Log button below commits the blend. Used
-// for the classic skin when Advanced logging is on.
-import { LinearGradient } from "expo-linear-gradient";
+// Advanced-logging control for the classic skin — the "Refined bars" pip design:
+// 20 rounded segments, Ida green filling from the left and Pingala terracotta
+// from the right, a slim handle on the divider, and each side's percentage
+// beside it. The three quick Left / Both / Right buttons stay above it in a
+// compact row, so you can still log a plain state in one tap, or set a blend on
+// the bars and log that instead.
+//
+// The handle sits at the LEFT share (the divider between the two colours), so
+// dragging it right gives Ida more bars. One bar = 5%, which is exactly the step
+// useBlendDrag snaps to. Near-50/50 still records as Sushumna.
 import React, { useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { useTheme } from "@/src/context/ThemeContext";
 import { useBlendDrag } from "@/src/hooks/use-blend-drag";
 import { blendToState, stateToBlend } from "@/src/lib/blend";
-import { fonts, radius, spacing, STATE_META } from "@/src/theme/theme";
+import { fonts, NostrilState, radius, spacing, STATE_META } from "@/src/theme/theme";
+
+const QUICK: NostrilState[] = ["left", "both", "right"];
 
 export function SliderBlend({
   disabled,
   onLog,
+  onQuickLog,
 }: {
   disabled?: boolean;
   onLog: (rightPct: number) => void;
+  // Tapping one of the compact buttons logs that state directly, no blend.
+  onQuickLog?: (state: NostrilState) => void;
 }) {
   const { colors } = useTheme();
   const [right, setRight] = useState(50);
   const left = 100 - right;
 
-  // Knob position along the track is the RIGHT share directly: far left = all
-  // Ida, far right = all Pingala.
-  const drag = useBlendDrag({ axis: "horizontal", setValue: setRight, disabled, map: (f) => f * 100 });
+  // The grip is the boundary between the two fills, i.e. the LEFT share.
+  const drag = useBlendDrag({ axis: "horizontal", setValue: setRight, disabled, map: (f) => (1 - f) * 100 });
 
   const state = blendToState(right);
   const meta = STATE_META[state];
+  const dominant = state === "left" ? left : state === "right" ? right : Math.max(left, right);
+  const logLabel = state === "both" ? `Log · ${meta.label} · ${left} / ${right}` : `Log · ${meta.label} ${dominant}%`;
 
   return (
     <View style={styles.wrap}>
-      {/* end readouts — the two shares live at the ends they belong to */}
-      <View style={styles.ends}>
-        <View style={styles.end}>
+      {/* compact quick-log row — same three states, one tap each */}
+      <View style={styles.quickRow}>
+        {QUICK.map((s) => {
+          const m = STATE_META[s];
+          return (
+            <Pressable
+              key={s}
+              testID={`quick-log-${s}-button`}
+              onPress={() => onQuickLog?.(s)}
+              disabled={disabled || !onQuickLog}
+              style={({ pressed }) => [
+                styles.quickBtn,
+                {
+                  backgroundColor: colors[m.colorKey],
+                  opacity: disabled ? 0.6 : pressed ? 0.9 : 1,
+                  transform: [{ scale: pressed ? 0.97 : 1 }],
+                },
+              ]}
+            >
+              <Text style={[styles.quickLabel, { color: colors[m.onColorKey] }]}>{m.label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      <View style={styles.blendBlock}>
+        {/* end readouts */}
+        <View style={styles.ends}>
           <Text style={[styles.cap, { color: colors.onSurfaceTertiary }]}>LEFT · IDA</Text>
-          <Text style={[styles.pct, { color: colors.stateLeft }]}>{left}%</Text>
-        </View>
-        <View style={[styles.end, styles.endR]}>
           <Text style={[styles.cap, { color: colors.onSurfaceTertiary }]}>RIGHT · PINGALA</Text>
+        </View>
+
+        {/* Refined bars: BAR_COUNT rounded segments, Ida green from the left and
+            Pingala terracotta from the right, with a slim handle on the divider.
+            Each bar is one 5% step, which is exactly what the drag hook snaps to. */}
+        <View ref={drag.ref} {...drag.panHandlers} style={styles.trackHit}>
+          <View style={styles.bars}>
+            {Array.from({ length: BAR_COUNT }, (_, i) => (
+              <View
+                key={i}
+                style={[
+                  styles.bar,
+                  { backgroundColor: i < left / STEP ? colors.stateLeft : colors.stateRight },
+                ]}
+              />
+            ))}
+          </View>
+          <View style={[styles.handle, { left: `${left}%`, backgroundColor: colors.onSurface }]} />
+        </View>
+
+        {/* percentages beside each side */}
+        <View style={styles.ends}>
+          <Text style={[styles.pct, { color: colors.stateLeft }]}>{left}%</Text>
           <Text style={[styles.pct, { color: colors.stateRight }]}>{right}%</Text>
         </View>
-      </View>
 
-      {/* gradient track + round knob */}
-      <View ref={drag.ref} {...drag.panHandlers} style={styles.trackHit}>
-        <LinearGradient
-          colors={[colors.stateLeft, colors.surfaceTertiary, colors.stateRight]}
-          locations={[0, 0.5, 1]}
-          start={{ x: 0, y: 0.5 }}
-          end={{ x: 1, y: 0.5 }}
-          style={styles.track}
-        />
-        <View
-          style={[
-            styles.knob,
-            { left: `${right}%`, backgroundColor: colors.surface, borderColor: colors.stateRight },
-          ]}
-        />
-      </View>
-
-      <Text style={[styles.hint, { color: colors.onSurfaceTertiary }]}>
-        Drag the knob — Left and Right stay linked.
-      </Text>
-
-      <View
-        testID="blend-log-button"
-        onStartShouldSetResponder={() => true}
-        onResponderRelease={() => !disabled && onLog(right)}
-        style={[styles.logBtn, { backgroundColor: colors.brandPrimary, opacity: disabled ? 0.6 : 1 }]}
-      >
-        <View style={[styles.logDot, { backgroundColor: colors[meta.colorKey] }]} />
-        <Text style={[styles.logText, { color: colors.onBrandPrimary }]}>
-          Log · {meta.label} {right}% R
+        <Text style={[styles.hint, { color: colors.onSurfaceTertiary }]}>
+          Drag across the bars — the two sides stay linked.
         </Text>
+
+        <View
+          testID="blend-log-button"
+          onStartShouldSetResponder={() => true}
+          onResponderRelease={() => !disabled && onLog(right)}
+          style={[styles.logBtn, { backgroundColor: colors.brandPrimary, opacity: disabled ? 0.6 : 1 }]}
+        >
+          <View style={[styles.logDot, { backgroundColor: colors[meta.colorKey] }]} />
+          <Text style={[styles.logText, { color: colors.onBrandPrimary }]}>{logLabel}</Text>
+        </View>
       </View>
     </View>
   );
@@ -83,30 +119,35 @@ export function SliderBlend({
 // So other screens can seed a slider from a discrete state if needed.
 export const seedBlend = stateToBlend;
 
-const KNOB = 28;
+const BAR_COUNT = 20;
+const STEP = 100 / BAR_COUNT; // 5% per bar — matches the drag hook's snapping
+const TRACK_H = 34;
 
 const styles = StyleSheet.create({
-  wrap: { flex: 1, justifyContent: "center", gap: spacing.lg, paddingBottom: spacing.sm },
+  wrap: { flex: 1, justifyContent: "center", gap: spacing.xl, paddingBottom: spacing.sm },
+  quickRow: { flexDirection: "row", gap: spacing.sm },
+  quickBtn: {
+    flex: 1,
+    height: 56,
+    borderRadius: radius.md,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  quickLabel: { fontFamily: fonts.semibold, fontSize: 16, letterSpacing: -0.2 },
+  blendBlock: { gap: spacing.md },
   ends: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end" },
-  end: { gap: 2 },
-  endR: { alignItems: "flex-end" },
   cap: { fontFamily: fonts.medium, fontSize: 10, letterSpacing: 1 },
-  pct: { fontFamily: fonts.bold, fontSize: 30, letterSpacing: -1 },
-  trackHit: { height: KNOB, justifyContent: "center" },
-  track: { height: 24, borderRadius: 12, width: "100%" },
-  knob: {
+  pct: { fontFamily: fonts.bold, fontSize: 22, letterSpacing: -0.5 },
+  trackHit: { height: TRACK_H, justifyContent: "center" },
+  bars: { flexDirection: "row", gap: 3, height: TRACK_H },
+  bar: { flex: 1, height: "100%", borderRadius: 6 },
+  handle: {
     position: "absolute",
-    top: 0,
-    width: KNOB,
-    height: KNOB,
-    borderRadius: KNOB / 2,
-    marginLeft: -KNOB / 2,
-    borderWidth: 2,
-    shadowColor: "#000",
-    shadowOpacity: 0.28,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
+    top: -5,
+    bottom: -5,
+    width: 3,
+    marginLeft: -1.5,
+    borderRadius: 2,
   },
   hint: { fontFamily: fonts.regular, fontSize: 12, textAlign: "center" },
   logBtn: {

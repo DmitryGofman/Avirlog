@@ -17,6 +17,7 @@ the interactive buttons.
 | `targets/widget/index.swift` | The WidgetKit widget: timeline, calm vs LOG-NOW view, `LogBreathIntent` (App Intent) that logs from a button tap |
 | `targets/widget/expo-target.config.js` | Declares the widget target + App Group entitlement to `@bacons/apple-targets` |
 | `modules/app-group-storage/` | Local Expo native module so JS can read/write the shared App Group store and reload the widget |
+| `modules/*/ios/*.podspec` | **Required.** Without a podspec CocoaPods never compiles the module, so the native module is missing at runtime and every bridge call silently no-ops |
 | `src/lib/widgetBridge.ts` | JS wrapper: push the next-due time, import logs made on the widget, reload |
 | `app.config.js` | Adds the `@bacons/apple-targets` plugin + App Group entitlement on the main app |
 
@@ -56,6 +57,44 @@ A true drag slider isn't possible on these Apple surfaces (buttons/toggles only)
 4. Tap Left/Right/Both on the widget → open the app → the log should appear in
    Today/History. Enable reminders → at the interval, the widget border goes
    white ("LOG NOW").
+
+## Sizes
+
+`supportedFamilies` offers `systemSmall`, `systemMedium`, `systemLarge` and
+`accessoryRectangular`, so you can add the widget at whatever size you want and
+resize it by removing/re-adding at another size (iOS has no drag-to-resize for
+widgets). One view adapts to all of them via `@Environment(\.widgetFamily)`:
+button height and type scale up, the wide families show full words
+(Left / Both / Right) instead of initials, and the large family adds a caption.
+Lock-Screen accessory widgets are rendered monochrome by iOS, so they skip the
+dark card and coloured fills and use outlined buttons instead.
+
+## Logging while the phone is locked
+
+Both intents set `authenticationPolicy = .alwaysAllowed`, so a tap on the
+Lock-Screen widget logs immediately instead of being swallowed / asking you to
+unlock (iOS defaults app intents to `.requiresAuthentication`). `openAppWhenRun`
+is `false` so you're never bounced into the app either. This is safe for us: the
+intent writes one row to our own App Group container and shows nothing private.
+
+The App Group store is readable/writable while locked because its files use
+"protected until first user authentication" — i.e. it works any time after the
+first unlock following a reboot. Straight after a reboot, unlock once first.
+
+## Troubleshooting
+
+**Widget taps never appear in History, no Live Activity shows, or the widget
+ignores Advanced logging.** All three have the same cause: the local native
+modules under `modules/` weren't compiled, so `requireOptionalNativeModule`
+returns `null` and `widgetBridge` / `liveActivityBridge` become silent no-ops.
+Check that each module has **`ios/<Name>.podspec`** and that
+`package.json` has `expo.autolinking.nativeModulesDir = "./modules"`, then
+rebuild. (The bridges are deliberately written as safe no-ops so a missing
+module can't crash the app — which is why this fails quietly.)
+
+**No Live Activity even with the module present.** The window is opened from
+`scheduleNextReminder`, so **reminders must be enabled** in Settings; it also
+needs iOS 16.2+ and Live Activities allowed for the app in iOS Settings.
 
 ## Known constraints (Apple platform, not our code)
 

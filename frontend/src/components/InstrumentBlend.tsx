@@ -3,20 +3,26 @@
 // scale is the RIGHT nostril's share (left = right end → 100% R). Drag, then LOG.
 // Used when Advanced logging is on with the instrument skin.
 import React, { useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { MONO } from "@/src/components/ScreenHeader";
 import { useTheme } from "@/src/context/ThemeContext";
 import { useBlendDrag } from "@/src/hooks/use-blend-drag";
 import { blendToState } from "@/src/lib/blend";
-import { spacing } from "@/src/theme/theme";
+import { NostrilState, spacing, STATE_META } from "@/src/theme/theme";
+
+// Quick-log row order: Both sits between the two sides, as everywhere else.
+const QUICK: NostrilState[] = ["left", "both", "right"];
 
 export function InstrumentBlend({
   disabled,
   onLog,
+  onQuickLog,
 }: {
   disabled?: boolean;
   onLog: (rightPct: number) => void;
+  // Tapping one of the compact buttons logs that state directly, no blend.
+  onQuickLog?: (state: NostrilState) => void;
 }) {
   const { colors } = useTheme();
   const [right, setRight] = useState(50);
@@ -35,6 +41,30 @@ export function InstrumentBlend({
         </Text>
         <Text style={[styles.title, { color: colors.onSurface }]}>NASAL AIRFLOW</Text>
         <View style={[styles.hair, { backgroundColor: colors.border }]} />
+      </View>
+
+      {/* compact quick-log row — one tap logs a plain state, in sheet language */}
+      <View style={styles.quickRow}>
+        {QUICK.map((s) => (
+          <Pressable
+            key={s}
+            testID={`quick-log-${s}-button`}
+            onPress={() => onQuickLog?.(s)}
+            disabled={disabled || !onQuickLog}
+            style={({ pressed }) => [
+              styles.quickBtn,
+              {
+                borderColor: colors.border,
+                backgroundColor: pressed ? colors.surfaceTertiary : colors.surface,
+                opacity: disabled ? 0.6 : 1,
+              },
+            ]}
+          >
+            <Text style={[styles.quickLabel, { color: colors.onSurface }]}>
+              {STATE_META[s].label.toUpperCase()}
+            </Text>
+          </Pressable>
+        ))}
       </View>
 
       <View style={styles.readout}>
@@ -86,6 +116,9 @@ const styles = StyleSheet.create({
   kicker: { fontFamily: MONO, fontSize: 10, letterSpacing: 1.5 },
   title: { fontFamily: MONO, fontSize: 24, letterSpacing: 1, marginTop: 6, fontWeight: "700" },
   hair: { height: 1, marginTop: spacing.md },
+  quickRow: { flexDirection: "row", gap: spacing.sm },
+  quickBtn: { flex: 1, height: 46, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  quickLabel: { fontFamily: MONO, fontSize: 12, fontWeight: "700", letterSpacing: 1.5 },
   readout: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
   rcenter: { alignItems: "center" },
   rlabel: { fontFamily: MONO, fontSize: 9, letterSpacing: 1 },

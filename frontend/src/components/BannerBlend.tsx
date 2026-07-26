@@ -9,11 +9,13 @@
 // back up, so they always sum to 100%. Used when Advanced logging is on.
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useEffect, useRef, useState } from "react";
-import { Animated, Easing, StyleSheet, Text, View } from "react-native";
+import { Animated, Easing, Platform, StyleSheet, Text, View } from "react-native";
 
 import { LeftBannerArt, RightBannerArt } from "@/src/components/BannerButtons";
+import { SkiaBannerRoll, skiaRollAvailable } from "@/src/components/SkiaBannerRoll";
 import { useBlendDrag } from "@/src/hooks/use-blend-drag";
 import { blendToState } from "@/src/lib/blend";
+import { getRealisticRoll } from "@/src/lib/rollPref";
 import { fonts, radius, spacing, STATE_META } from "@/src/theme/theme";
 
 // Fixed flag geometry — the cloth never changes size, it only unrolls. The box
@@ -36,6 +38,11 @@ const ROLL_COLORS = {
   left: ["#1F2247", "#363B6E", "#5F65A0", "#363B6E", "#1F2247"] as const,
   right: ["#3B1910", "#7C4938", "#B27E69", "#7C4938", "#3B1910"] as const,
 };
+// Same reverse colours as 0–1 RGB, for the GPU-shaded roll's shader uniform.
+const ROLL_BACK_RGB = {
+  left: [0.243, 0.263, 0.467] as const,
+  right: [0.486, 0.286, 0.22] as const,
+};
 // Cloth-loop colour per flag (the tab that hangs it over the rod).
 const LOOP_COLORS = { left: "#343970", right: "#7A3B2D" };
 // Rendered x of the three tab positions (art x 26 / 73 / 120 × ART_SCALE).
@@ -45,14 +52,20 @@ function BlendFlag({
   share,
   swayDelay,
   rollColors,
+  backRgb,
   loopColor,
+  realistic,
   drag,
   children,
 }: {
   share: number;
   swayDelay: number;
   rollColors: readonly string[];
+  backRgb: readonly [number, number, number];
   loopColor: string;
+  // When on, the roll is drawn by the Skia cylinder shader instead of the
+  // view-layer gradient pill.
+  realistic: boolean;
   drag: ReturnType<typeof useBlendDrag>;
   children: React.ReactNode;
 }) {
@@ -114,9 +127,32 @@ function BlendFlag({
           )}
         </View>
 
-        {/* the tight rolled cylinder — plain back of the cloth, narrowing with the
-            cloth so the pointed hem can surface at the end of the unroll */}
-        {showRoll && (
+        {/* GPU-shaded roll: a real per-pixel cylinder, with the cloth
+            foreshortening into it and the hem taper falling out of the geometry. */}
+        {showRoll && realistic && (
+          <>
+            <SkiaBannerRoll
+              width={FLAG_W}
+              height={FLAG_H}
+              flatH={revealH}
+              radius={r}
+              flagH={FLAG_H}
+              artScale={ART_SCALE}
+              bodyHalf={BODY_HALF}
+              taperTop={TAPER_TOP}
+              taperTip={TAPER_TIP}
+              back={backRgb}
+            />
+            {showPct && (
+              <Text style={[styles.rollPct, styles.rollPctFloat, { top: revealH + rollH / 2 - 8 }]}>
+                {share}%
+              </Text>
+            )}
+          </>
+        )}
+
+        {/* the original view-layer roll — gradient pill, kept for comparison */}
+        {showRoll && !realistic && (
           <View
             style={[
               styles.roll,
@@ -153,6 +189,22 @@ export function BannerBlend({
   const [right, setRight] = useState(50);
   const left = 100 - right;
 
+  // Which roll to draw. Skia has to be present *and* the shader has to have
+  // compiled, otherwise fall back to the view-layer pill.
+  const [realistic, setRealistic] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    // Native only: the web build (GitHub Pages) has no CanvasKit loaded, so it
+    // keeps the view-layer roll rather than risking a blank canvas.
+    if (Platform.OS === "web") return;
+    getRealisticRoll().then((on) => {
+      if (alive) setRealistic(on && skiaRollAvailable());
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   // Pull a banner DOWN to unroll it (more open on that side).
   const leftDrag = useBlendDrag({ axis: "vertical", setValue: setRight, disabled, map: (f) => (1 - f) * 100 });
   const rightDrag = useBlendDrag({ axis: "vertical", setValue: setRight, disabled, map: (f) => f * 100 });
@@ -173,10 +225,26 @@ export function BannerBlend({
         <View style={styles.rodCapL} />
         <View style={styles.rodCapR} />
         <View style={styles.row}>
-          <BlendFlag share={left} swayDelay={0} rollColors={ROLL_COLORS.left} loopColor={LOOP_COLORS.left} drag={leftDrag}>
+          <BlendFlag
+            share={left}
+            swayDelay={0}
+            rollColors={ROLL_COLORS.left}
+            backRgb={ROLL_BACK_RGB.left}
+            loopColor={LOOP_COLORS.left}
+            realistic={realistic}
+            drag={leftDrag}
+          >
             <LeftBannerArt />
           </BlendFlag>
-          <BlendFlag share={right} swayDelay={1300} rollColors={ROLL_COLORS.right} loopColor={LOOP_COLORS.right} drag={rightDrag}>
+          <BlendFlag
+            share={right}
+            swayDelay={1300}
+            rollColors={ROLL_COLORS.right}
+            backRgb={ROLL_BACK_RGB.right}
+            loopColor={LOOP_COLORS.right}
+            realistic={realistic}
+            drag={rightDrag}
+          >
             <RightBannerArt />
           </BlendFlag>
         </View>
@@ -228,6 +296,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
     elevation: 4,
   },
+  rollPctFloat: { position: "absolute", left: 0, right: 0, textAlign: "center" },
   rollSeam: { position: "absolute", left: "8%", right: "8%", height: 1, backgroundColor: "rgba(0,0,0,0.20)" },
   rollSpec: { position: "absolute", left: "12%", right: "12%", backgroundColor: "rgba(255,255,255,0.55)" },
   rollPct: {

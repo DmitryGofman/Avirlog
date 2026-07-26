@@ -193,7 +193,11 @@ export default function QuickLogScreen() {
         style={[styles.instrumentRoot, { paddingTop: insets.top + spacing.md }]}
       >
         {advanced ? (
-          <InstrumentBlend disabled={!!creating} onLog={(r) => logState(blendToState(r), r)} />
+          <InstrumentBlend
+            disabled={!!creating}
+            onLog={(r) => logState(blendToState(r), r)}
+            onQuickLog={logState}
+          />
         ) : (
           <InstrumentLog creating={creating} onLog={logState} refreshToken={logVersion} />
         )}
@@ -283,7 +287,11 @@ export default function QuickLogScreen() {
            Both (Sushumna) accrues less, so it sits below as a short bar. */
         <Animated.View style={[styles.buttons, { opacity: enter, transform: [{ translateY: enterTranslate }] }]}>
           {advanced ? (
-            <SliderBlend disabled={!!creating} onLog={(r) => logState(blendToState(r), r)} />
+            <SliderBlend
+              disabled={!!creating}
+              onLog={(r) => logState(blendToState(r), r)}
+              onQuickLog={logState}
+            />
           ) : (
             <>
               <View style={styles.topRow}>
