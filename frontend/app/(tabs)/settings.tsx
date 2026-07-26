@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Platform,
@@ -57,6 +57,66 @@ function fmtClock(minutes: number): string {
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+interface RowProps {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  right?: React.ReactNode;
+  onPress?: () => void;
+  testID: string;
+  danger?: boolean;
+}
+
+interface SectionProps {
+  title: string;
+  children: React.ReactNode;
+}
+
+type Palette = ReturnType<typeof useTheme>["colors"];
+type SkinUi = ReturnType<typeof useSkinUi>;
+
+// Row and Section MUST live at module scope. Declared inside the screen they
+// were a brand-new component type on every render, so React unmounted and
+// rebuilt the whole settings tree on each toggle — which tore down touch
+// targets mid-gesture and made taps land on the wrong row.
+function SettingsRow({
+  icon,
+  label,
+  right,
+  onPress,
+  testID,
+  danger,
+  colors,
+  ui,
+}: RowProps & { colors: Palette; ui: SkinUi }) {
+  return (
+    <Pressable
+      testID={testID}
+      onPress={onPress}
+      disabled={!onPress}
+      style={({ pressed }) => [styles.row, { opacity: pressed && onPress ? 0.7 : 1 }]}
+    >
+      <View style={[styles.rowIcon, ui.sq, { backgroundColor: colors.brandTertiary }]}>
+        <Ionicons name={icon} size={16} color={danger ? colors.error : colors.onBrandTertiary} />
+      </View>
+      <Text style={[styles.rowLabel, { color: danger ? colors.error : colors.onSurface }]}>
+        {label}
+      </Text>
+      <View style={styles.rowRight}>{right}</View>
+    </Pressable>
+  );
+}
+
+function SettingsSection({ title, children, colors, ui }: SectionProps & { colors: Palette; ui: SkinUi }) {
+  return (
+    <View style={styles.section}>
+      <Text style={[styles.sectionTitle, ui.monoLabel, { color: colors.onSurfaceTertiary }]}>{title}</Text>
+      <View style={[styles.sectionCard, ui.sq, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}>
+        {children}
+      </View>
+    </View>
+  );
 }
 
 export default function SettingsScreen() {
@@ -223,44 +283,14 @@ export default function SettingsScreen() {
 
   const isPresetInterval = INTERVALS.some((i) => i.value === settings?.reminder_interval_seconds);
 
-  const Row = ({
-    icon,
-    label,
-    right,
-    onPress,
-    testID,
-    danger,
-  }: {
-    icon: keyof typeof Ionicons.glyphMap;
-    label: string;
-    right?: React.ReactNode;
-    onPress?: () => void;
-    testID: string;
-    danger?: boolean;
-  }) => (
-    <Pressable
-      testID={testID}
-      onPress={onPress}
-      disabled={!onPress}
-      style={({ pressed }) => [styles.row, { opacity: pressed && onPress ? 0.7 : 1 }]}
-    >
-      <View style={[styles.rowIcon, ui.sq, { backgroundColor: colors.brandTertiary }]}>
-        <Ionicons name={icon} size={16} color={danger ? colors.error : colors.onBrandTertiary} />
-      </View>
-      <Text style={[styles.rowLabel, { color: danger ? colors.error : colors.onSurface }]}>
-        {label}
-      </Text>
-      <View style={styles.rowRight}>{right}</View>
-    </Pressable>
+  const Row = useCallback(
+    (props: RowProps) => <SettingsRow {...props} colors={colors} ui={ui} />,
+    [colors, ui],
   );
 
-  const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
-    <View style={styles.section}>
-      <Text style={[styles.sectionTitle, ui.monoLabel, { color: colors.onSurfaceTertiary }]}>{title}</Text>
-      <View style={[styles.sectionCard, ui.sq, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}>
-        {children}
-      </View>
-    </View>
+  const Section = useCallback(
+    (props: SectionProps) => <SettingsSection {...props} colors={colors} ui={ui} />,
+    [colors, ui],
   );
 
   return (
