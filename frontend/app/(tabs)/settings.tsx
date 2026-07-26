@@ -23,6 +23,7 @@ import { useTheme } from "@/src/context/ThemeContext";
 import { api } from "@/src/lib/api";
 import { ACCOUNTS_ENABLED, DEFAULT_SKIN, SKINS, SkinId } from "@/src/lib/config";
 import { cancelReminders, ensurePermission, scheduleNextReminder } from "@/src/lib/notifications";
+import { getRealisticRoll, setRealisticRoll } from "@/src/lib/rollPref";
 import { setWidgetAdvanced } from "@/src/lib/widgetBridge";
 import { fonts, radius, spacing } from "@/src/theme/theme";
 
@@ -67,6 +68,8 @@ export default function SettingsScreen() {
   const router = useRouter();
 
   const [settings, setSettings] = useState<Settings | null>(null);
+  // Local-only: GPU-shaded banner roll vs the original view-layer one.
+  const [realisticRoll, setRealisticRollState] = useState(true);
   const [customOpen, setCustomOpen] = useState(false);
   const [customValue, setCustomValue] = useState("");
   const [quietEdit, setQuietEdit] = useState<null | "start" | "end">(null);
@@ -86,6 +89,7 @@ export default function SettingsScreen() {
         }),
       )
       .catch(() => showToast("Could not load settings", "error"));
+    getRealisticRoll().then(setRealisticRollState);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -140,6 +144,12 @@ export default function SettingsScreen() {
     persist({ ...settings, advanced_logging: enabled });
     // Flip the widget + Live Activity between preset-blend and Left/Right/Both.
     setWidgetAdvanced(enabled);
+  };
+
+  const toggleRealisticRoll = (enabled: boolean) => {
+    setRealisticRollState(enabled);
+    setRealisticRoll(enabled);
+    showToast(enabled ? "Realistic roll on — reopen Log to see it" : "Realistic roll off");
   };
 
   const setInterval = (seconds: number) => {
@@ -390,6 +400,25 @@ export default function SettingsScreen() {
             each nostril is (e.g. 70% right / 30% left). The widget, Live Activity and reminder also
             switch to quick preset-blend buttons. A near-even split still records as Sushumna.
             Switch back anytime; older logs stay readable.
+          </Text>
+          <Row
+            icon="color-wand-outline"
+            label="Realistic banner roll"
+            testID="settings-realistic-roll-row"
+            right={
+              <Switch
+                testID="settings-realistic-roll-switch"
+                value={realisticRoll}
+                onValueChange={toggleRealisticRoll}
+                trackColor={{ false: colors.border, true: colors.brand }}
+                thumbColor="#FFFFFF"
+              />
+            }
+          />
+          <Text style={[styles.reminderHint, { color: colors.onSurfaceTertiary, paddingBottom: spacing.lg }]}>
+            Living Banners only. Draws the rolled cloth with a GPU shader — a real
+            lit cylinder instead of a flat bar. Turn it off to compare with the
+            original.
           </Text>
         </Section>
 
