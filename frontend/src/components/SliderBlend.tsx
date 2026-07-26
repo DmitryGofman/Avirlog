@@ -1,12 +1,13 @@
-// Advanced-logging control for the classic skin — design "Option 02": a two-tone
-// split bar (Ida green filling from the left, Pingala terracotta from the right)
-// meeting at a vertical grip you drag. The three quick Left / Both / Right
-// buttons stay above it in a compact row, so you can still log a plain state in
-// one tap, or set a blend on the bar and log that instead.
+// Advanced-logging control for the classic skin — the "Refined bars" pip design:
+// 20 rounded segments, Ida green filling from the left and Pingala terracotta
+// from the right, a slim handle on the divider, and each side's percentage
+// beside it. The three quick Left / Both / Right buttons stay above it in a
+// compact row, so you can still log a plain state in one tap, or set a blend on
+// the bars and log that instead.
 //
-// The grip sits at the LEFT share, so dragging it right gives Ida more of the
-// bar; the hint text says so. Near-50/50 still records as Sushumna.
-import { LinearGradient } from "expo-linear-gradient";
+// The handle sits at the LEFT share (the divider between the two colours), so
+// dragging it right gives Ida more bars. One bar = 5%, which is exactly the step
+// useBlendDrag snaps to. Near-50/50 still records as Sushumna.
 import React, { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -69,36 +70,36 @@ export function SliderBlend({
       <View style={styles.blendBlock}>
         {/* end readouts */}
         <View style={styles.ends}>
-          <View>
-            <Text style={[styles.cap, { color: colors.onSurfaceTertiary }]}>LEFT · IDA</Text>
-            <Text style={[styles.pct, { color: colors.stateLeft }]}>{left}%</Text>
-          </View>
-          <View style={{ alignItems: "flex-end" }}>
-            <Text style={[styles.cap, { color: colors.onSurfaceTertiary }]}>RIGHT · PINGALA</Text>
-            <Text style={[styles.pct, { color: colors.stateRight }]}>{right}%</Text>
-          </View>
+          <Text style={[styles.cap, { color: colors.onSurfaceTertiary }]}>LEFT · IDA</Text>
+          <Text style={[styles.cap, { color: colors.onSurfaceTertiary }]}>RIGHT · PINGALA</Text>
         </View>
 
-        {/* two-tone split bar + grip */}
+        {/* Refined bars: BAR_COUNT rounded segments, Ida green from the left and
+            Pingala terracotta from the right, with a slim handle on the divider.
+            Each bar is one 5% step, which is exactly what the drag hook snaps to. */}
         <View ref={drag.ref} {...drag.panHandlers} style={styles.trackHit}>
-          <View style={[styles.track, { backgroundColor: colors.surfaceTertiary }]}>
-            <View style={{ width: `${left}%`, height: "100%", backgroundColor: colors.stateLeft }} />
-            <View style={{ flex: 1, height: "100%", backgroundColor: colors.stateRight }} />
-            {/* soft cylinder sheen so the bar reads as a solid object */}
-            <LinearGradient
-              pointerEvents="none"
-              colors={["rgba(255,255,255,0.22)", "rgba(255,255,255,0.02)", "rgba(0,0,0,0.12)"]}
-              style={StyleSheet.absoluteFill}
-            />
+          <View style={styles.bars}>
+            {Array.from({ length: BAR_COUNT }, (_, i) => (
+              <View
+                key={i}
+                style={[
+                  styles.bar,
+                  { backgroundColor: i < left / STEP ? colors.stateLeft : colors.stateRight },
+                ]}
+              />
+            ))}
           </View>
-          <View style={[styles.grip, { left: `${left}%`, backgroundColor: colors.surface }]}>
-            <View style={[styles.ridge, { backgroundColor: colors.onSurfaceTertiary, left: 1.5 }]} />
-            <View style={[styles.ridge, { backgroundColor: colors.onSurfaceTertiary, right: 1.5 }]} />
-          </View>
+          <View style={[styles.handle, { left: `${left}%`, backgroundColor: colors.onSurface }]} />
+        </View>
+
+        {/* percentages beside each side */}
+        <View style={styles.ends}>
+          <Text style={[styles.pct, { color: colors.stateLeft }]}>{left}%</Text>
+          <Text style={[styles.pct, { color: colors.stateRight }]}>{right}%</Text>
         </View>
 
         <Text style={[styles.hint, { color: colors.onSurfaceTertiary }]}>
-          Drag the divider — the two sides stay linked.
+          Drag across the bars — the two sides stay linked.
         </Text>
 
         <View
@@ -118,8 +119,9 @@ export function SliderBlend({
 // So other screens can seed a slider from a discrete state if needed.
 export const seedBlend = stateToBlend;
 
+const BAR_COUNT = 20;
+const STEP = 100 / BAR_COUNT; // 5% per bar — matches the drag hook's snapping
 const TRACK_H = 34;
-const GRIP_W = 7;
 
 const styles = StyleSheet.create({
   wrap: { flex: 1, justifyContent: "center", gap: spacing.xl, paddingBottom: spacing.sm },
@@ -135,28 +137,18 @@ const styles = StyleSheet.create({
   blendBlock: { gap: spacing.md },
   ends: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end" },
   cap: { fontFamily: fonts.medium, fontSize: 10, letterSpacing: 1 },
-  pct: { fontFamily: fonts.bold, fontSize: 28, letterSpacing: -1 },
+  pct: { fontFamily: fonts.bold, fontSize: 22, letterSpacing: -0.5 },
   trackHit: { height: TRACK_H, justifyContent: "center" },
-  track: {
-    height: TRACK_H,
-    borderRadius: 10,
-    overflow: "hidden",
-    flexDirection: "row",
-  },
-  grip: {
+  bars: { flexDirection: "row", gap: 3, height: TRACK_H },
+  bar: { flex: 1, height: "100%", borderRadius: 6 },
+  handle: {
     position: "absolute",
-    top: -3,
-    bottom: -3,
-    width: GRIP_W,
-    marginLeft: -GRIP_W / 2,
-    borderRadius: 4,
-    shadowColor: "#000",
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 3,
+    top: -5,
+    bottom: -5,
+    width: 3,
+    marginLeft: -1.5,
+    borderRadius: 2,
   },
-  ridge: { position: "absolute", top: "38%", height: "24%", width: 1, opacity: 0.6 },
   hint: { fontFamily: fonts.regular, fontSize: 12, textAlign: "center" },
   logBtn: {
     height: 54,
