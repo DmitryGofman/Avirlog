@@ -263,50 +263,77 @@ struct Provider: TimelineProvider {
 
 // MARK: - View
 
+// One view for every supported size. Everything that changes with the widget
+// family (button height, type size, full words vs initials, whether the dark
+// card is drawn at all) is derived from `family`, so you can add the small,
+// medium or large widget and it fills the space properly instead of staying tiny.
 struct AvirLogWidgetView: View {
   var entry: BreathEntry
+  @Environment(\.widgetFamily) private var family
 
   private let leftColor = Color(red: 0.33, green: 0.40, blue: 0.35)
   private let rightColor = Color(red: 0.54, green: 0.30, blue: 0.24)
   private let bothColor = Color(red: 0.42, green: 0.42, blue: 0.40)
 
+  // Lock-Screen accessory widgets are rendered monochrome/vibrant by iOS, so
+  // they get no dark card and no coloured fills — just outlined buttons.
+  private var isAccessory: Bool { family == .accessoryRectangular }
+  private var isWide: Bool { family == .systemMedium || family == .systemLarge }
+
+  private var buttonHeight: CGFloat {
+    switch family {
+    case .systemLarge: return 66
+    case .systemMedium: return 50
+    case .systemSmall: return 38
+    default: return 26 // accessoryRectangular
+    }
+  }
+  private var titleSize: CGFloat { isAccessory ? 9 : (family == .systemLarge ? 13 : 10) }
+  private var gap: CGFloat { isAccessory ? 3 : (SharedStore.advanced ? 4 : 6) }
+
   var body: some View {
-    VStack(spacing: 6) {
+    VStack(spacing: isAccessory ? 3 : 8) {
       Text(entry.due ? "LOG NOW" : "BREATH")
-        .font(.system(size: 10, weight: .heavy))
+        .font(.system(size: titleSize, weight: .heavy))
         .tracking(2)
-        .foregroundColor(entry.due ? .white : .secondary)
-      HStack(spacing: 5) {
+        .foregroundColor(isAccessory ? .primary : (entry.due ? .white : .secondary))
+
+      HStack(spacing: gap) {
         if SharedStore.advanced {
           ForEach(0..<BLEND_PRESETS.count, id: \.self) { i in
             blendButton(BLEND_PRESETS[i], blendPresetColor(i, leftColor, bothColor, rightColor))
           }
         } else {
-          button("L", "left", leftColor)
-          button("B", "both", bothColor)
-          button("R", "right", rightColor)
+          button(isWide ? "Left" : "L", "left", leftColor)
+          button(isWide ? "Both" : "B", "both", bothColor)
+          button(isWide ? "Right" : "R", "right", rightColor)
         }
       }
+
+      // The large widget has room to spare — say what the buttons do.
+      if family == .systemLarge {
+        Text(SharedStore.advanced
+             ? "Tap a blend — how open each nostril is"
+             : "Tap the nostril that is open now")
+          .font(.system(size: 11))
+          .foregroundColor(.white.opacity(0.5))
+          .multilineTextAlignment(.center)
+      }
     }
-    .padding(8)
-    .containerBackground(for: .widget) {
-      Color.black.opacity(entry.due ? 0.92 : 0.82)
-    }
-    .overlay(
-      RoundedRectangle(cornerRadius: 18)
-        .stroke(entry.due ? Color.white : Color.white.opacity(0.12),
-                lineWidth: entry.due ? 3 : 1)
-    )
+    .padding(isAccessory ? 0 : 12)
+    .widgetBackground(dark: !isAccessory, due: entry.due)
   }
 
   func button(_ label: String, _ state: String, _ color: Color) -> some View {
     Button(intent: LogBreathIntent(state: state)) {
       Text(label)
-        .font(.system(size: 17, weight: .heavy))
-        .foregroundColor(.white)
-        .frame(maxWidth: .infinity, minHeight: 36)
-        .background(color)
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .font(.system(size: isAccessory ? 12 : (isWide ? 20 : 17), weight: .heavy))
+        .minimumScaleFactor(0.6)
+        .lineLimit(1)
+        .foregroundColor(isAccessory ? .primary : .white)
+        .frame(maxWidth: .infinity, minHeight: buttonHeight)
+        .background(buttonFill(color))
+        .clipShape(RoundedRectangle(cornerRadius: isAccessory ? 6 : 10))
     }
     .buttonStyle(.plain)
   }
@@ -314,15 +341,43 @@ struct AvirLogWidgetView: View {
   func blendButton(_ preset: (String, Int), _ color: Color) -> some View {
     Button(intent: LogBlendIntent(right: preset.1)) {
       Text(preset.0)
-        .font(.system(size: 11, weight: .heavy))
-        .minimumScaleFactor(0.6)
+        .font(.system(size: isAccessory ? 9 : (isWide ? 15 : 11), weight: .heavy))
+        .minimumScaleFactor(0.5)
         .lineLimit(1)
-        .foregroundColor(.white)
-        .frame(maxWidth: .infinity, minHeight: 34)
-        .background(color)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .foregroundColor(isAccessory ? .primary : .white)
+        .frame(maxWidth: .infinity, minHeight: buttonHeight)
+        .background(buttonFill(color))
+        .clipShape(RoundedRectangle(cornerRadius: isAccessory ? 5 : 8))
     }
     .buttonStyle(.plain)
+  }
+
+  // Accessory widgets can't carry our palette (iOS tints them), so use a faint
+  // wash there and the real cloth colour everywhere else.
+  @ViewBuilder
+  func buttonFill(_ color: Color) -> some View {
+    if isAccessory {
+      RoundedRectangle(cornerRadius: 6).fill(.white.opacity(0.22))
+    } else {
+      color
+    }
+  }
+}
+
+private extension View {
+  // The dark card + LOG-NOW border, skipped for Lock-Screen accessory widgets.
+  @ViewBuilder
+  func widgetBackground(dark: Bool, due: Bool) -> some View {
+    if dark {
+      self
+        .containerBackground(for: .widget) { Color.black.opacity(due ? 0.92 : 0.82) }
+        .overlay(
+          RoundedRectangle(cornerRadius: 18)
+            .stroke(due ? Color.white : Color.white.opacity(0.12), lineWidth: due ? 3 : 1)
+        )
+    } else {
+      self.containerBackground(for: .widget) { Color.clear }
+    }
   }
 }
 
@@ -334,8 +389,10 @@ struct AvirLogWidget: Widget {
       AvirLogWidgetView(entry: entry)
     }
     .configurationDisplayName("Breath Log")
-    .description("Log Left, Right or Both — or a preset blend with Advanced logging. Lights up when it's time.")
-    .supportedFamilies([.systemSmall, .accessoryRectangular])
+    .description("Log Left, Both or Right — or a preset blend with Advanced logging. Lights up when it's time.")
+    // Offer every practical size so the widget can be as small or as large as
+    // you want it on the Home Screen, plus the Lock-Screen accessory.
+    .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryRectangular])
   }
 }
 

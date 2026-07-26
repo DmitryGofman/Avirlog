@@ -13,10 +13,13 @@ const USE_NATIVE = Platform.OS !== "web";
 
 const SNOW_COUNT = 16;
 const EMBER_COUNT = 12;
-const EFFECT_MS = 3000;
+const EFFECT_MS = 1800;
 const FADE_IN_MS = 400;
 const FADE_OUT_MS = 900;
 const PULSE_MS = 2400;
+// Overall strength of the burst layer. Kept well under 1 so logging reads as a
+// soft tint rather than a full-screen flash.
+const INTENSITY = 0.42;
 
 export interface IceFireEffectHandle {
   trigger: (state: NostrilState) => void;
@@ -162,13 +165,14 @@ export const IceFireEffect = forwardRef<IceFireEffectHandle>(function IceFireEff
     );
   };
 
+  const layerOpacity = master.interpolate({ inputRange: [0, 1], outputRange: [0, INTENSITY] });
   const pulseScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 32] });
-  const pulseOpacity = pulse.interpolate({ inputRange: [0, 0.85, 1], outputRange: [0.85, 0.15, 0] });
+  const pulseOpacity = pulse.interpolate({ inputRange: [0, 0.85, 1], outputRange: [0.3, 0.05, 0] });
 
   return (
     <Animated.View pointerEvents="none" style={StyleSheet.absoluteFill}>
       {mode === "cold" && (
-        <Animated.View style={[StyleSheet.absoluteFill, { opacity: master }]}>
+        <Animated.View style={[StyleSheet.absoluteFill, { opacity: layerOpacity }]}>
           <LinearGradient
             colors={["rgba(140,190,235,0.30)", "rgba(90,140,200,0.08)", "rgba(70,110,160,0.22)"]}
             style={StyleSheet.absoluteFill}
@@ -193,7 +197,7 @@ export const IceFireEffect = forwardRef<IceFireEffectHandle>(function IceFireEff
       )}
 
       {mode === "warm" && (
-        <Animated.View style={[StyleSheet.absoluteFill, { opacity: master }]}>
+        <Animated.View style={[StyleSheet.absoluteFill, { opacity: layerOpacity }]}>
           <LinearGradient
             colors={["rgba(255,170,80,0.12)", "rgba(255,130,60,0.06)", "rgba(255,110,30,0.32)"]}
             style={StyleSheet.absoluteFill}
@@ -207,7 +211,7 @@ export const IceFireEffect = forwardRef<IceFireEffectHandle>(function IceFireEff
       )}
 
       {mode === "balance" && (
-        <Animated.View style={[StyleSheet.absoluteFill, { opacity: master }]}>
+        <Animated.View style={[StyleSheet.absoluteFill, { opacity: layerOpacity }]}>
           {/* soft even white base + a brighter band through the center */}
           <View style={[StyleSheet.absoluteFill, styles.balanceBase]} />
           <LinearGradient
@@ -217,17 +221,24 @@ export const IceFireEffect = forwardRef<IceFireEffectHandle>(function IceFireEff
         </Animated.View>
       )}
 
-      <Animated.View
-        style={[
-          styles.pulseRing,
-          {
-            left: width / 2 - PULSE_BASE / 2,
-            top: height / 2 - PULSE_BASE / 2,
-            opacity: pulseOpacity,
-            transform: [{ scale: pulseScale }],
-          },
-        ]}
-      />
+      {/* The pulse must be gated by `master` like every other layer: at rest the
+          pulse value is 0, which the interpolation below maps to a *visible*
+          opacity, so ungated it left a small ring permanently drawn in the middle
+          of the screen. Nesting multiplies the two opacities, so it now only
+          appears while a burst is actually playing. */}
+      <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity: layerOpacity }]}>
+        <Animated.View
+          style={[
+            styles.pulseRing,
+            {
+              left: width / 2 - PULSE_BASE / 2,
+              top: height / 2 - PULSE_BASE / 2,
+              opacity: pulseOpacity,
+              transform: [{ scale: pulseScale }],
+            },
+          ]}
+        />
+      </Animated.View>
     </Animated.View>
   );
 });
