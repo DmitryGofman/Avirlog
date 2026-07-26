@@ -23,6 +23,7 @@ import { useTheme } from "@/src/context/ThemeContext";
 import { api } from "@/src/lib/api";
 import { ACCOUNTS_ENABLED, DEFAULT_SKIN, SKINS, SkinId } from "@/src/lib/config";
 import { cancelReminders, ensurePermission, scheduleNextReminder } from "@/src/lib/notifications";
+import { buildStamp, CODE_REVISION_NOTE } from "@/src/lib/buildInfo";
 import { getRealisticRoll, setRealisticRoll } from "@/src/lib/rollPref";
 import { setWidgetAdvanced } from "@/src/lib/widgetBridge";
 import { fonts, radius, spacing } from "@/src/theme/theme";
@@ -449,6 +450,19 @@ export default function SettingsScreen() {
             Living Banners only. Draws the rolled cloth with a GPU shader — a real
             lit cylinder instead of a flat bar. Turn it off to compare with the
             original.
+          </Text>
+        </Section>
+
+        <Section title="About">
+          <Row
+            icon="information-circle-outline"
+            label={buildStamp()}
+            testID="settings-build-row"
+          />
+          <Text style={[styles.reminderHint, { color: colors.onSurfaceTertiary, paddingBottom: spacing.lg }]}>
+            This build: {CODE_REVISION_NOTE}. The version stays 1.0.0 between
+            TestFlight builds, so check the code marker to confirm an update
+            actually installed.
           </Text>
         </Section>
 
