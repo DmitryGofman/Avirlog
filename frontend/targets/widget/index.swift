@@ -66,6 +66,14 @@ enum SharedStore {
 struct LogBreathIntent: AppIntent {
   static var title: LocalizedStringResource = "Log breath"
 
+  // Run straight from the Lock Screen without unlocking first. iOS otherwise
+  // defaults to requiring authentication, which is why taps on the Lock-Screen
+  // widget appeared to do nothing. Safe here: logging a nostril writes one row
+  // to our own App Group container and reveals no personal data on screen.
+  static var authenticationPolicy: IntentAuthenticationPolicy = .alwaysAllowed
+  // Never bounce the user into the app — the whole point is logging in place.
+  static var openAppWhenRun: Bool = false
+
   @Parameter(title: "State")
   var state: String
 
@@ -92,6 +100,10 @@ struct LogBreathIntent: AppIntent {
 // Log a blend from an advanced preset button. `right` is the right-nostril %.
 struct LogBlendIntent: AppIntent {
   static var title: LocalizedStringResource = "Log breath blend"
+
+  // Same as LogBreathIntent: usable while the device is locked.
+  static var authenticationPolicy: IntentAuthenticationPolicy = .alwaysAllowed
+  static var openAppWhenRun: Bool = false
 
   @Parameter(title: "Right percent")
   var right: Int

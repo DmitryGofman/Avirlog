@@ -69,6 +69,18 @@ button height and type scale up, the wide families show full words
 Lock-Screen accessory widgets are rendered monochrome by iOS, so they skip the
 dark card and coloured fills and use outlined buttons instead.
 
+## Logging while the phone is locked
+
+Both intents set `authenticationPolicy = .alwaysAllowed`, so a tap on the
+Lock-Screen widget logs immediately instead of being swallowed / asking you to
+unlock (iOS defaults app intents to `.requiresAuthentication`). `openAppWhenRun`
+is `false` so you're never bounced into the app either. This is safe for us: the
+intent writes one row to our own App Group container and shows nothing private.
+
+The App Group store is readable/writable while locked because its files use
+"protected until first user authentication" — i.e. it works any time after the
+first unlock following a reboot. Straight after a reboot, unlock once first.
+
 ## Troubleshooting
 
 **Widget taps never appear in History, no Live Activity shows, or the widget
