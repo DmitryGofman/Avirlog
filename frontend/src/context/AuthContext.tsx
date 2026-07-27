@@ -4,6 +4,7 @@ import React, { createContext, ReactNode, useCallback, useContext, useEffect, us
 import { Platform } from "react-native";
 
 import { api, setApiToken } from "@/src/lib/api";
+import { migrateLocalToCloud, resetMigrationClaim } from "@/src/lib/migrate";
 import { storage } from "@/src/utils/storage";
 
 export interface User {
@@ -14,9 +15,13 @@ export interface User {
   auth_provider: string;
 }
 
+/** Progress of the one-time upload of on-device logs into the account. */
+export type SyncState = "idle" | "uploading" | "done" | "error";
+
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  syncState: SyncState;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
@@ -41,6 +46,18 @@ function extractSessionId(url: string | null): string | null {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [syncState, setSyncState] = useState<SyncState>("idle");
+
+  // Move on-device logs into the account. Deliberately not awaited by the
+  // sign-in paths: a slow or failed upload must not block getting into the app,
+  // and the migration is safe to retry on the next launch because it is
+  // idempotent and only records success once every batch has landed.
+  const runMigration = useCallback((userId: string) => {
+    setSyncState("uploading");
+    migrateLocalToCloud(userId)
+      .then(() => setSyncState("done"))
+      .catch(() => setSyncState("error"));
+  }, []);
 
   const storeToken = async (token: string) => {
     setApiToken(token);
@@ -59,7 +76,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     await storeToken(data.session_token);
     setUser(data.user);
-  }, []);
+    runMigration(data.user.id);
+  }, [runMigration]);
 
   useEffect(() => {
     let cancelled = false;
@@ -88,7 +106,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (stored) {
           setApiToken(stored);
           const me = await api<User>("/auth/me");
-          if (!cancelled) setUser(me);
+          if (!cancelled) {
+            setUser(me);
+            // Retries a migration that failed or was interrupted on an earlier
+            // run; a no-op once the local history has been claimed.
+            runMigration(me.id);
+          }
         }
       } catch {
         await clearToken();
@@ -112,7 +135,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       cancelled = true;
       sub?.remove();
     };
-  }, [processSessionId]);
+  }, [processSessionId, runMigration]);
 
   const signIn = async (email: string, password: string) => {
     const data = await api<{ token: string; user: User }>("/auth/login", {
@@ -121,6 +144,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     await storeToken(data.token);
     setUser(data.user);
+    runMigration(data.user.id);
   };
 
   const signUp = async (email: string, password: string) => {
@@ -130,6 +154,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     await storeToken(data.token);
     setUser(data.user);
+    runMigration(data.user.id);
   };
 
   const signInWithGoogle = async () => {
@@ -156,17 +181,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     await clearToken();
     setUser(null);
+    setSyncState("idle");
   };
 
   const deleteAccount = async () => {
     await api("/auth/account", { method: "DELETE" });
     await clearToken();
     setUser(null);
+    setSyncState("idle");
+    // The account that claimed the on-device history no longer exists, so
+    // release the claim — otherwise the local logs could never be migrated
+    // into a replacement account.
+    await resetMigrationClaim();
   };
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, signIn, signUp, signInWithGoogle, signOut, deleteAccount, processSessionId }}
+      value={{ user, loading, syncState, signIn, signUp, signInWithGoogle, signOut, deleteAccount, processSessionId }}
     >
       {children}
     </AuthContext.Provider>

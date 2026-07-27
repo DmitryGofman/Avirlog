@@ -12,6 +12,8 @@ from fastapi import APIRouter, FastAPI, Header, HTTPException
 from motor.motor_asyncio import AsyncIOMotorClient
 from passlib.context import CryptContext
 from pydantic import BaseModel, EmailStr, Field
+from pymongo import UpdateOne
+from pymongo.errors import DuplicateKeyError
 from starlette.middleware.cors import CORSMiddleware
 
 ROOT_DIR = Path(__file__).parent
@@ -67,7 +69,13 @@ class UserPublic(BaseModel):
 
 
 class LogCreate(BaseModel):
+    # Client-supplied id makes create idempotent: notification quick-logs and
+    # the local->cloud migration pass a stable id so a retried delivery upserts
+    # the same row instead of duplicating it. Omitted => server generates one.
+    id: Optional[str] = Field(default=None, min_length=1, max_length=128)
     nostril_state: NostrilState
+    # Advanced logging: the RIGHT nostril's share, 0-100 (left = 100 - blend).
+    blend: Optional[int] = Field(default=None, ge=0, le=100)
     mood_score: Optional[int] = Field(default=None, ge=1, le=10)
     energy_score: Optional[int] = Field(default=None, ge=1, le=10)
     focus_score: Optional[int] = Field(default=None, ge=1, le=10)
@@ -77,8 +85,25 @@ class LogCreate(BaseModel):
     local_hour: int = Field(ge=0, le=23)
 
 
+class LogImportItem(LogCreate):
+    """A log being migrated in from on-device storage.
+
+    Unlike a fresh create, an imported row keeps the timestamps it was recorded
+    with — otherwise a user's whole history collapses onto migration day.
+    """
+
+    id: str = Field(min_length=1, max_length=128)
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+
+class LogImportIn(BaseModel):
+    logs: List[LogImportItem] = Field(default_factory=list, max_length=1000)
+
+
 class LogUpdate(BaseModel):
     nostril_state: Optional[NostrilState] = None
+    blend: Optional[int] = Field(default=None, ge=0, le=100)
     mood_score: Optional[int] = Field(default=None, ge=1, le=10)
     energy_score: Optional[int] = Field(default=None, ge=1, le=10)
     focus_score: Optional[int] = Field(default=None, ge=1, le=10)
@@ -86,11 +111,29 @@ class LogUpdate(BaseModel):
     tags: Optional[List[str]] = None
 
 
+SkinId = Literal["classic", "banners", "instrument"]
+
+
 class SettingsIn(BaseModel):
-    reminder_enabled: bool = False
-    reminder_interval_minutes: int = Field(default=60, ge=5, le=1440)
-    theme: Literal["light", "dark"] = "light"
-    mood_journaling: bool = True
+    """Mirrors LocalSettings in frontend/src/lib/localStore.ts.
+
+    Every field is optional so a partial PUT patches instead of resetting the
+    fields it omits (the app sends the whole object, but a narrower client
+    must not silently wipe skin/quiet-hours).
+    """
+
+    reminder_enabled: Optional[bool] = None
+    # Cadence is stored in seconds so short test intervals are possible; the
+    # legacy minutes field is still accepted and converted.
+    reminder_interval_seconds: Optional[int] = Field(default=None, ge=60, le=86400)
+    reminder_interval_minutes: Optional[int] = Field(default=None, ge=1, le=1440)
+    quiet_hours_enabled: Optional[bool] = None
+    quiet_start_minutes: Optional[int] = Field(default=None, ge=0, le=1439)
+    quiet_end_minutes: Optional[int] = Field(default=None, ge=0, le=1439)
+    theme: Optional[Literal["light", "dark"]] = None
+    mood_journaling: Optional[bool] = None
+    skin: Optional[SkinId] = None
+    advanced_logging: Optional[bool] = None
 
 
 # ---------- Helpers ----------
@@ -152,17 +195,36 @@ async def auth_user(authorization: Optional[str] = Header(default=None)) -> dict
     return await get_current_user(authorization)
 
 
+# Defaults must match DEFAULT_SETTINGS in frontend/src/lib/localStore.ts, so a
+# user signing in for the first time sees the same configuration they had as a
+# guest rather than having the server reset it.
+DEFAULT_SETTINGS = {
+    "reminder_enabled": False,
+    "reminder_interval_seconds": 3600,
+    "quiet_hours_enabled": False,
+    "quiet_start_minutes": 22 * 60,
+    "quiet_end_minutes": 7 * 60,
+    "theme": "light",
+    "mood_journaling": True,
+    "skin": "banners",
+    "advanced_logging": False,
+}
+
+
 async def ensure_settings(user_id: str) -> dict:
     existing = await db.user_settings.find_one({"user_id": user_id}, {"_id": 0})
     if existing:
+        # Backfill fields added after this row was written, so older accounts
+        # return a complete object instead of one the app has to patch up.
+        missing = {k: v for k, v in DEFAULT_SETTINGS.items() if k not in existing}
+        if missing:
+            await db.user_settings.update_one({"user_id": user_id}, {"$set": missing})
+            existing.update(missing)
         return existing
     doc = {
         "id": str(uuid.uuid4()),
         "user_id": user_id,
-        "reminder_enabled": False,
-        "reminder_interval_minutes": 60,
-        "theme": "light",
-        "mood_journaling": True,
+        **DEFAULT_SETTINGS,
         "created_at": iso_now(),
         "updated_at": iso_now(),
     }
@@ -275,10 +337,19 @@ async def delete_account(authorization: Optional[str] = Header(default=None)):
 @api_router.post("/logs")
 async def create_log(body: LogCreate, authorization: Optional[str] = Header(default=None)):
     user = await get_current_user(authorization)
+    # Idempotent when the client supplies an id: a replayed notification
+    # quick-log returns the row already stored instead of adding a duplicate.
+    if body.id:
+        existing = await db.breath_logs.find_one(
+            {"id": body.id, "user_id": user["id"]}, {"_id": 0}
+        )
+        if existing:
+            return existing
     doc = {
-        "id": str(uuid.uuid4()),
+        "id": body.id or str(uuid.uuid4()),
         "user_id": user["id"],
         "nostril_state": body.nostril_state,
+        "blend": body.blend,
         "mood_score": body.mood_score,
         "energy_score": body.energy_score,
         "focus_score": body.focus_score,
@@ -289,8 +360,66 @@ async def create_log(body: LogCreate, authorization: Optional[str] = Header(defa
         "created_at": iso_now(),
         "updated_at": iso_now(),
     }
-    await db.breath_logs.insert_one({**doc})
+    try:
+        await db.breath_logs.insert_one({**doc})
+    except DuplicateKeyError:
+        # Two replays raced past the find_one above; the stored row wins.
+        stored = await db.breath_logs.find_one(
+            {"id": doc["id"], "user_id": user["id"]}, {"_id": 0}
+        )
+        if stored:
+            return stored
+        raise
     return doc
+
+
+@api_router.post("/logs/import")
+async def import_logs(body: LogImportIn, authorization: Optional[str] = Header(default=None)):
+    """Bulk-upload logs from on-device storage into the signed-in account.
+
+    Used once, when a guest signs in for the first time: without it their local
+    history stays orphaned in AsyncStorage while the account looks empty.
+    Keyed on the client's own log ids, so re-running it after a partial failure
+    re-sends the same rows harmlessly instead of duplicating the history.
+    """
+    user = await get_current_user(authorization)
+    if not body.logs:
+        return {"imported": 0, "skipped": 0, "total": 0}
+
+    ops = []
+    for item in body.logs:
+        stamp = item.created_at or iso_now()
+        ops.append(
+            UpdateOne(
+                {"id": item.id, "user_id": user["id"]},
+                {
+                    "$setOnInsert": {
+                        "id": item.id,
+                        "user_id": user["id"],
+                        "nostril_state": item.nostril_state,
+                        "blend": item.blend,
+                        "mood_score": item.mood_score,
+                        "energy_score": item.energy_score,
+                        "focus_score": item.focus_score,
+                        "note": item.note,
+                        "tags": item.tags,
+                        "local_date": item.local_date,
+                        "local_hour": item.local_hour,
+                        "created_at": stamp,
+                        "updated_at": item.updated_at or stamp,
+                    }
+                },
+                upsert=True,
+            )
+        )
+
+    result = await db.breath_logs.bulk_write(ops, ordered=False)
+    imported = result.upserted_count
+    return {
+        "imported": imported,
+        "skipped": len(ops) - imported,
+        "total": len(ops),
+    }
 
 
 @api_router.get("/logs")
@@ -306,10 +435,21 @@ async def list_logs(
         query["local_date"] = date
     elif start and end:
         query["local_date"] = {"$gte": start, "$lte": end}
-    else:
-        raise HTTPException(status_code=400, detail="Provide ?date= or ?start=&end=")
-    logs = await db.breath_logs.find(query, {"_id": 0}).sort("created_at", 1).to_list(2000)
+    # No date filter returns the whole history, matching local mode (used by the
+    # migration to read everything back).
+    logs = await db.breath_logs.find(query, {"_id": 0}).sort("created_at", 1).to_list(10000)
     return logs
+
+
+@api_router.delete("/logs")
+async def delete_day(date: str, authorization: Optional[str] = Header(default=None)):
+    """Clear one whole day — e.g. a burst of accidental logs.
+
+    ?date= is required so this can never wipe the entire history by accident.
+    """
+    user = await get_current_user(authorization)
+    result = await db.breath_logs.delete_many({"user_id": user["id"], "local_date": date})
+    return {"deleted": result.deleted_count}
 
 
 @api_router.get("/logs/dates")
@@ -367,7 +507,16 @@ async def get_settings(authorization: Optional[str] = Header(default=None)):
 async def update_settings(body: SettingsIn, authorization: Optional[str] = Header(default=None)):
     user = await get_current_user(authorization)
     await ensure_settings(user["id"])
-    updates = body.model_dump()
+    # exclude_unset so omitted keys keep their stored value instead of snapping
+    # back to a default — a client that knows nothing about `skin` must not
+    # erase the user's choice of it.
+    updates = body.model_dump(exclude_unset=True, exclude_none=True)
+    # Accept the legacy minutes field from older clients, store seconds.
+    minutes = updates.pop("reminder_interval_minutes", None)
+    if minutes is not None and "reminder_interval_seconds" not in updates:
+        updates["reminder_interval_seconds"] = minutes * 60
+    if not updates:
+        return await db.user_settings.find_one({"user_id": user["id"]}, {"_id": 0})
     updates["updated_at"] = iso_now()
     await db.user_settings.update_one({"user_id": user["id"]}, {"$set": updates})
     return await db.user_settings.find_one({"user_id": user["id"]}, {"_id": 0})
@@ -420,6 +569,9 @@ async def create_indexes():
     await db.user_sessions.create_index("session_token", unique=True)
     await db.user_sessions.create_index("user_id")
     await db.breath_logs.create_index([("user_id", 1), ("local_date", 1)])
+    # Enforces idempotent create/import: a replayed client id can never become a
+    # second row for the same user.
+    await db.breath_logs.create_index([("user_id", 1), ("id", 1)], unique=True)
     await db.user_settings.create_index("user_id", unique=True)
 
 

@@ -33,7 +33,7 @@ const LOGS_KEY = "avirlog_local_logs";
 export const LOCAL_SETTINGS_KEY = "avirlog_local_settings";
 const SETTINGS_KEY = LOCAL_SETTINGS_KEY;
 
-const DEFAULT_SETTINGS: LocalSettings = {
+export const DEFAULT_SETTINGS: LocalSettings = {
   reminder_enabled: false,
   reminder_interval_seconds: 3600,
   quiet_hours_enabled: false,
@@ -113,6 +113,17 @@ async function readSettings(): Promise<LocalSettings> {
 
 async function writeSettings(next: LocalSettings): Promise<void> {
   await storage.setItem(SETTINGS_KEY, JSON.stringify(next));
+}
+
+// Direct readers for the on-device data, used by the local->cloud migration.
+// It has to read the local store while api() is already pointed at the backend
+// (the user is signed in by then), so it cannot go through localApi.
+export async function readLocalLogs(): Promise<BreathLog[]> {
+  return readLogs();
+}
+
+export async function readLocalSettings(): Promise<LocalSettings> {
+  return readSettings();
 }
 
 export async function localApi<T = any>(path: string, options: LocalApiOptions = {}): Promise<T> {
