@@ -51,6 +51,21 @@ enum SharedStore {
     appendPending(["state": state, "blend": right, "at": Date().timeIntervalSince1970])
   }
 
+  // Timestamp of the most recent widget tap, so the next render can show a
+  // short "LOGGED" confirmation — widget buttons give no press animation of
+  // their own, so without this a tap looked like nothing happened.
+  static var lastLogAt: Date? {
+    guard let t = defaults?.double(forKey: "lastLogAt"), t > 0 else { return nil }
+    return Date(timeIntervalSince1970: t)
+  }
+  static func markLogged() {
+    defaults?.set(Date().timeIntervalSince1970, forKey: "lastLogAt")
+  }
+  static func justLogged(within seconds: Double = 60) -> Bool {
+    guard let t = lastLogAt else { return false }
+    return Date().timeIntervalSince(t) < seconds
+  }
+
   static func armNextDue() {
     defaults?.set(Date().timeIntervalSince1970 + intervalSeconds, forKey: "nextDueAt")
   }
@@ -82,18 +97,32 @@ struct LogBreathIntent: AppIntent {
 
   func perform() async throws -> some IntentResult {
     SharedStore.appendPendingLog(state)
+    SharedStore.markLogged()
     SharedStore.armNextDue()
     // You logged on the widget or the Live Activity — clear the classic
     // reminder and close any open logging window.
     UNUserNotificationCenter.current().removeAllDeliveredNotifications()
     UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
-    if #available(iOS 16.1, *) {
-      for activity in Activity<BreathActivityAttributes>.activities {
-        await activity.end(nil, dismissalPolicy: .immediate)
-      }
-    }
+    await confirmThenEndActivities()
     WidgetCenter.shared.reloadAllTimelines()
     return .result()
+  }
+}
+
+// Show "LOGGED" on the Live Activity so the tap visibly registers, then close
+// it. Without the brief confirmation the window either vanished with no
+// feedback or — if ending failed — sat there for the rest of the countdown.
+@available(iOS 16.1, *)
+func confirmThenEndActivities() async {
+  for activity in Activity<BreathActivityAttributes>.activities {
+    let done = BreathActivityAttributes.ContentState(endsAt: Date(), logged: true)
+    if #available(iOS 16.2, *) {
+      await activity.update(ActivityContent(state: done, staleDate: nil))
+    }
+  }
+  try? await Task.sleep(nanoseconds: 900_000_000)
+  for activity in Activity<BreathActivityAttributes>.activities {
+    await activity.end(nil, dismissalPolicy: .immediate)
   }
 }
 
@@ -114,14 +143,11 @@ struct LogBlendIntent: AppIntent {
   func perform() async throws -> some IntentResult {
     let state = right >= 55 ? "right" : (right <= 45 ? "left" : "both")
     SharedStore.appendPendingBlend(state, right)
+    SharedStore.markLogged()
     SharedStore.armNextDue()
     UNUserNotificationCenter.current().removeAllDeliveredNotifications()
     UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
-    if #available(iOS 16.1, *) {
-      for activity in Activity<BreathActivityAttributes>.activities {
-        await activity.end(nil, dismissalPolicy: .immediate)
-      }
-    }
+    await confirmThenEndActivities()
     WidgetCenter.shared.reloadAllTimelines()
     return .result()
   }
@@ -249,24 +275,25 @@ struct BreathLiveActivity: Widget {
 struct BreathEntry: TimelineEntry {
   let date: Date
   let due: Bool
+  let justLogged: Bool
 }
 
 struct Provider: TimelineProvider {
   func placeholder(in context: Context) -> BreathEntry {
-    BreathEntry(date: Date(), due: false)
+    BreathEntry(date: Date(), due: false, justLogged: false)
   }
 
   func getSnapshot(in context: Context, completion: @escaping (BreathEntry) -> Void) {
-    completion(BreathEntry(date: Date(), due: SharedStore.isDueNow()))
+    completion(BreathEntry(date: Date(), due: SharedStore.isDueNow(), justLogged: SharedStore.justLogged()))
   }
 
   func getTimeline(in context: Context, completion: @escaping (Timeline<BreathEntry>) -> Void) {
     let now = Date()
     var entries: [BreathEntry] = []
     let due = SharedStore.nextDueAt
-    entries.append(BreathEntry(date: now, due: (due != nil && now >= due!)))
+    entries.append(BreathEntry(date: now, due: (due != nil && now >= due!), justLogged: SharedStore.justLogged()))
     if let due = due, due > now {
-      entries.append(BreathEntry(date: due, due: true))
+      entries.append(BreathEntry(date: due, due: true, justLogged: false))
     }
     let refreshAt = (due != nil && due! > now) ? due! : now.addingTimeInterval(600)
     completion(Timeline(entries: entries, policy: .after(refreshAt)))
@@ -281,6 +308,8 @@ struct Provider: TimelineProvider {
 // medium or large widget and it fills the space properly instead of staying tiny.
 struct AvirLogWidgetView: View {
   var entry: BreathEntry
+  // Fixed per widget kind — the widget you added never changes mode by itself.
+  var advanced: Bool
   @Environment(\.widgetFamily) private var family
 
   private let leftColor = Color(red: 0.33, green: 0.40, blue: 0.35)
@@ -301,17 +330,17 @@ struct AvirLogWidgetView: View {
     }
   }
   private var titleSize: CGFloat { isAccessory ? 9 : (family == .systemLarge ? 13 : 10) }
-  private var gap: CGFloat { isAccessory ? 3 : (SharedStore.advanced ? 4 : 6) }
+  private var gap: CGFloat { isAccessory ? 3 : (advanced ? 4 : 6) }
 
   var body: some View {
     VStack(spacing: isAccessory ? 3 : 8) {
-      Text(entry.due ? "LOG NOW" : "BREATH")
+      Text(entry.justLogged ? "LOGGED ✓" : (entry.due ? "LOG NOW" : "BREATH"))
         .font(.system(size: titleSize, weight: .heavy))
         .tracking(2)
         .foregroundColor(isAccessory ? .primary : (entry.due ? .white : .secondary))
 
       HStack(spacing: gap) {
-        if SharedStore.advanced {
+        if advanced {
           ForEach(0..<BLEND_PRESETS.count, id: \.self) { i in
             blendButton(BLEND_PRESETS[i], blendPresetColor(i, leftColor, bothColor, rightColor))
           }
@@ -324,7 +353,7 @@ struct AvirLogWidgetView: View {
 
       // The large widget has room to spare — say what the buttons do.
       if family == .systemLarge {
-        Text(SharedStore.advanced
+        Text(advanced
              ? "Tap a blend — how open each nostril is"
              : "Tap the nostril that is open now")
           .font(.system(size: 11))
@@ -332,6 +361,7 @@ struct AvirLogWidgetView: View {
           .multilineTextAlignment(.center)
       }
     }
+    .opacity(entry.justLogged ? 0.55 : 1)
     .padding(isAccessory ? 0 : 12)
     .widgetBackground(dark: !isAccessory, due: entry.due)
   }
@@ -395,15 +425,30 @@ private extension View {
 
 // MARK: - Widget
 
+// Two separate widgets rather than one that changes mode on its own: you pick
+// which to add, and the one on your screen stays as you chose it. Both offer
+// every practical size, so you can add whichever size you want (iOS has no
+// resize — remove and re-add at another size).
 struct AvirLogWidget: Widget {
   var body: some WidgetConfiguration {
     StaticConfiguration(kind: "AvirLogWidget", provider: Provider()) { entry in
-      AvirLogWidgetView(entry: entry)
+      AvirLogWidgetView(entry: entry, advanced: false)
     }
     .configurationDisplayName("Breath Log")
-    .description("Log Left, Both or Right — or a preset blend with Advanced logging. Lights up when it's time.")
-    // Offer every practical size so the widget can be as small or as large as
-    // you want it on the Home Screen, plus the Lock-Screen accessory.
+    .description("Tap Left, Both or Right. Lights up when it's time to log.")
+    .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryRectangular])
+  }
+}
+
+// The advanced counterpart: same widget, preset-blend buttons instead of
+// Left/Both/Right. Shown as its own choice in the widget gallery.
+struct AvirLogBlendWidget: Widget {
+  var body: some WidgetConfiguration {
+    StaticConfiguration(kind: "AvirLogBlendWidget", provider: Provider()) { entry in
+      AvirLogWidgetView(entry: entry, advanced: true)
+    }
+    .configurationDisplayName("Breath Blend")
+    .description("Tap a preset blend — how open each nostril is. Lights up when it's time to log.")
     .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryRectangular])
   }
 }
@@ -412,6 +457,7 @@ struct AvirLogWidget: Widget {
 struct AvirLogWidgetBundle: WidgetBundle {
   var body: some Widget {
     AvirLogWidget()
+    AvirLogBlendWidget()
     if #available(iOS 16.1, *) {
       BreathLiveActivity()
     }

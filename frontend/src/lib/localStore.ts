@@ -164,6 +164,18 @@ export async function localApi<T = any>(path: string, options: LocalApiOptions =
       logs.sort((a, b) => (a.created_at < b.created_at ? -1 : 1));
       return logs as T;
     }
+    // Clear a whole day at once — e.g. a burst of accidental logs from first
+    // opening the app. Requires ?date= so it can never wipe everything by
+    // accident. Returns how many rows were removed.
+    if (method === "DELETE" && query.date) {
+      const day = query.date;
+      return withLogLock(async () => {
+        const logs = await readLogs();
+        const keep = logs.filter((l) => l.local_date !== day);
+        await writeLogs(keep);
+        return { deleted: logs.length - keep.length } as T;
+      });
+    }
     if (method === "POST") {
       const body = options.body ?? {};
       return withLogLock(async () => {

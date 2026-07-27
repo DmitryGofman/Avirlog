@@ -52,6 +52,8 @@ export default function HistoryScreen() {
 
   const [editLog, setEditLog] = useState<BreathLog | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<BreathLog | null>(null);
+  // Day-level delete, for clearing a burst of accidental logs.
+  const [deleteDay, setDeleteDay] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const loadDates = useCallback(async () => {
@@ -105,6 +107,22 @@ export default function HistoryScreen() {
       await loadDates();
     } catch (e: any) {
       showToast(e.message ?? "Could not update log", "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const confirmDeleteDay = async () => {
+    if (!deleteDay) return;
+    setSaving(true);
+    try {
+      const res = await api<{ deleted?: number }>(`/logs?date=${deleteDay}`, { method: "DELETE" });
+      setDeleteDay(null);
+      showToast(`Deleted ${res?.deleted ?? 0} logs`);
+      await loadDates();
+      if (selectedDate) await loadDay(selectedDate);
+    } catch (e: any) {
+      showToast(e.message ?? "Could not delete the day", "error");
     } finally {
       setSaving(false);
     }
@@ -243,6 +261,18 @@ export default function HistoryScreen() {
                 onDelete={(l) => setDeleteTarget(l)}
               />
             ))}
+            {dayLogs !== null && dayLogs.length > 0 && (
+              <Pressable
+                testID="delete-day-button"
+                onPress={() => setDeleteDay(selectedDate)}
+                style={({ pressed }) => [styles.deleteDayBtn, { borderColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
+              >
+                <Ionicons name="trash-outline" size={15} color={colors.error} />
+                <Text style={[styles.deleteDayText, { color: colors.error }]}>
+                  Delete all {dayLogs.length} logs on this day
+                </Text>
+              </Pressable>
+            )}
             {dayLogs !== null && dayLogs.length === 0 && (
               <View style={styles.center}>
                 <Text style={[styles.muted, { color: colors.onSurfaceTertiary }]}>
@@ -265,6 +295,28 @@ export default function HistoryScreen() {
             saveLabel="Save changes"
           />
         )}
+      </Sheet>
+
+      <Sheet visible={!!deleteDay} onClose={() => setDeleteDay(null)} title="Delete this whole day?">
+        <Text style={[styles.deleteText, { color: colors.onSurfaceTertiary }]}>
+          Every log on {deleteDay ? formatDate(deleteDay) : "this day"} will be removed. This
+          cannot be undone.
+        </Text>
+        <Pressable
+          testID="confirm-delete-day-button"
+          onPress={confirmDeleteDay}
+          disabled={saving}
+          style={[styles.deleteBtn, ui.sq, { backgroundColor: colors.error, opacity: saving ? 0.7 : 1 }]}
+        >
+          {saving ? (
+            <ActivityIndicator color={colors.onError} />
+          ) : (
+            <Text style={[styles.deleteBtnText, { color: colors.onError }]}>Delete all logs that day</Text>
+          )}
+        </Pressable>
+        <Pressable testID="cancel-delete-day-button" onPress={() => setDeleteDay(null)} style={styles.cancelBtn}>
+          <Text style={[styles.cancelText, { color: colors.onSurfaceTertiary }]}>Cancel</Text>
+        </Pressable>
       </Sheet>
 
       <Sheet visible={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Delete this log?">
@@ -326,6 +378,17 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     marginTop: spacing.sm,
   },
+  deleteDayBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    paddingVertical: spacing.md,
+    borderWidth: 1,
+    borderRadius: radius.md,
+  },
+  deleteDayText: { fontFamily: fonts.medium, fontSize: 13.5 },
   deleteText: { fontFamily: fonts.regular, fontSize: 14, marginBottom: spacing.lg },
   deleteBtn: {
     height: 52,
