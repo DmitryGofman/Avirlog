@@ -70,6 +70,15 @@ export default function TodayScreen() {
   }
   const totalTime = counts.left + counts.right + counts.both;
   const pct = (n: number) => (totalTime > 0 ? Math.round((n / totalTime) * 100) : 0);
+  // Advanced logging records a right-nostril % on each log; summarise those
+  // separately so the precision you logged with is actually visible.
+  const blendLogs = logs?.filter((l) => l.blend != null) ?? [];
+  const avgRight = blendLogs.length
+    ? Math.round(blendLogs.reduce((sum, l) => sum + (l.blend as number), 0) / blendLogs.length)
+    : null;
+  const mostRight = blendLogs.length ? Math.max(...blendLogs.map((l) => l.blend as number)) : null;
+  const mostLeft = blendLogs.length ? 100 - Math.min(...blendLogs.map((l) => l.blend as number)) : null;
+
   const avgMood = avg(logs?.map((l) => l.mood_score) ?? []);
   const avgEnergy = avg(logs?.map((l) => l.energy_score) ?? []);
   const avgFocus = avg(logs?.map((l) => l.focus_score) ?? []);
@@ -160,6 +169,30 @@ export default function TodayScreen() {
               <Text style={[styles.distCaption, { color: colors.onSurfaceTertiary }]}>
                 Share of time in each state — each log holds until the next.
               </Text>
+
+              {avgRight != null && (
+                <View style={[styles.blendBox, { borderTopColor: colors.divider }]}>
+                  <Text style={[styles.blendTitle, { color: colors.onSurfaceTertiary }]}>
+                    BLEND · {blendLogs.length} logged with percentages
+                  </Text>
+                  <View style={styles.blendRow}>
+                    <View style={styles.blendCell}>
+                      <Text style={[styles.blendValue, { color: colors.stateLeft }]}>{100 - avgRight}%</Text>
+                      <Text style={[styles.blendLabel, { color: colors.onSurfaceTertiary }]}>avg left</Text>
+                    </View>
+                    <View style={styles.blendCell}>
+                      <Text style={[styles.blendValue, { color: colors.stateRight }]}>{avgRight}%</Text>
+                      <Text style={[styles.blendLabel, { color: colors.onSurfaceTertiary }]}>avg right</Text>
+                    </View>
+                    <View style={styles.blendCell}>
+                      <Text style={[styles.blendValue, { color: colors.onSurface }]}>
+                        {mostLeft}/{mostRight}
+                      </Text>
+                      <Text style={[styles.blendLabel, { color: colors.onSurfaceTertiary }]}>most L / most R</Text>
+                    </View>
+                  </View>
+                </View>
+              )}
             </View>
 
             <View style={styles.statRow}>
@@ -242,6 +275,12 @@ const styles = StyleSheet.create({
   legendDot: { width: 8, height: 8, borderRadius: 4 },
   legendText: { fontFamily: fonts.medium, fontSize: 12 },
   distCaption: { fontFamily: fonts.regular, fontSize: 11, lineHeight: 15, marginTop: spacing.sm },
+  blendBox: { marginTop: spacing.md, paddingTop: spacing.md, borderTopWidth: 1 },
+  blendTitle: { fontFamily: fonts.medium, fontSize: 10, letterSpacing: 1 },
+  blendRow: { flexDirection: "row", marginTop: spacing.sm },
+  blendCell: { flex: 1 },
+  blendValue: { fontFamily: fonts.bold, fontSize: 20, letterSpacing: -0.5 },
+  blendLabel: { fontFamily: fonts.regular, fontSize: 11, marginTop: 2 },
   statRow: { flexDirection: "row", gap: spacing.sm, marginBottom: spacing.md },
   statCard: {
     flex: 1,
