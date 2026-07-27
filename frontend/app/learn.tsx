@@ -5,6 +5,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useTheme } from "@/src/context/ThemeContext";
+import { PAPER_COUNT } from "@/src/lib/research";
 import { SWARA } from "@/src/lib/swara";
 import { fonts, NostrilState, radius, spacing, STATE_META } from "@/src/theme/theme";
 
@@ -80,6 +81,25 @@ export default function LearnScreen() {
           ))}
         </View>
 
+        <Pressable
+          testID="learn-theory-link"
+          onPress={() => router.push("/theory")}
+          style={({ pressed }) => [
+            styles.card,
+            styles.theoryLink,
+            { backgroundColor: colors.surfaceSecondary, borderColor: colors.border, opacity: pressed ? 0.7 : 1 },
+          ]}
+        >
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.cardTitle, { color: colors.onSurface }]}>Theory &amp; evidence</Text>
+            <Text style={[styles.body, { color: colors.onSurfaceSecondary }]}>
+              What the research actually shows — {PAPER_COUNT} sources graded by how strong the
+              evidence is, including the studies that argue against the side-based claim.
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.onSurfaceTertiary} />
+        </Pressable>
+
         <Text style={[styles.disclaimer, { color: colors.onSurfaceTertiary }]}>
           Grounded in Swara Yoga tradition (Shiva Swarodaya) and modern studies of the nasal cycle.
           Educational only — not medical advice.
@@ -131,6 +151,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     marginBottom: spacing.sm,
   },
+  theoryLink: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   benefitRow: { flexDirection: "row", alignItems: "flex-start", gap: spacing.md, marginBottom: spacing.sm },
   bullet: { width: 6, height: 6, borderRadius: 3, marginTop: 8 },
   disclaimer: {

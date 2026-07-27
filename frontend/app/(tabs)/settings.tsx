@@ -468,6 +468,13 @@ export default function SettingsScreen() {
 
         <Section title="Learn">
           <Row
+            icon="flask-outline"
+            label="Theory & evidence"
+            testID="settings-theory-row"
+            onPress={() => router.push("/theory")}
+            right={<Ionicons name="chevron-forward" size={16} color={colors.onSurfaceTertiary} />}
+          />
+          <Row
             icon="book-outline"
             label="Swara Yoga guide"
             testID="settings-learn-row"
