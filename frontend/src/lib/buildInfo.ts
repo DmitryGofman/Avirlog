@@ -8,12 +8,12 @@
 import Constants from "expo-constants";
 
 // Bump this with each shipped batch, and note what it contains.
-export const CODE_REVISION = "r3";
+export const CODE_REVISION = "r4";
 
 // What landed in this revision, for the Settings subtitle.
-export const CODE_REVISION_NOTE = "refined-bars slider, widget sizes, GPU roll";
+export const CODE_REVISION_NOTE = "theory & evidence page, refined-bars slider, widget sizes, GPU roll";
 
-/** e.g. "1.0.0 (7) · code r3" — falls back gracefully if a field is missing. */
+/** e.g. "1.0.0 (7) · code r4" — falls back gracefully if a field is missing. */
 export function buildStamp(): string {
   const cfg = Constants.expoConfig as
     | { version?: string; ios?: { buildNumber?: string } }
