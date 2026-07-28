@@ -60,10 +60,19 @@ A true drag slider isn't possible on these Apple surfaces (buttons/toggles only)
 
 ## Sizes
 
-`supportedFamilies` offers `systemSmall`, `systemMedium`, `systemLarge` and
-`accessoryRectangular`, so you can add the widget at whatever size you want and
-resize it by removing/re-adding at another size (iOS has no drag-to-resize for
-widgets). One view adapts to all of them via `@Environment(\.widgetFamily)`:
+`supportedFamilies` offers `systemSmall`, `systemMedium`, `systemLarge`,
+`accessoryRectangular` and `accessoryCircular`.
+
+**Where you add it decides which sizes you get.** The three `system*` sizes are
+**Home Screen** only — long-press the Home Screen → add the widget → pick the
+size in the gallery (iOS 18+ can also drag-to-resize in place). The **Lock
+Screen** picker offers only its own accessory slots and cannot be resized at all,
+which is why adding it there looks like there is a single fixed size: the wide
+`accessoryRectangular` with the three buttons, or the compact
+`accessoryCircular`, which is a status dial that opens the app (three labelled
+buttons do not fit that slot).
+
+One view adapts to all of them via `@Environment(\.widgetFamily)`:
 button height and type scale up, the wide families show full words
 (Left / Both / Right) instead of initials, and the large family adds a caption.
 Lock-Screen accessory widgets are rendered monochrome by iOS, so they skip the
