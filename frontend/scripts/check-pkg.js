@@ -1,5 +1,10 @@
 #!/usr/bin/env node
+/* global __dirname */
 // Banned packages list. Used by preinstall hook and install-guard.sh.
+//
+// Node/CommonJS, not app code. The `global` comment above is what stops
+// `expo lint` flagging __dirname (ESLint 9 dropped `eslint-env` comments, so
+// that older form does not work here).
 
 const fs = require("fs");
 const path = require("path");
