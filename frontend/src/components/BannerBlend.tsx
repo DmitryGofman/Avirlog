@@ -15,7 +15,6 @@ import { LeftBannerArt, RightBannerArt } from "@/src/components/BannerButtons";
 import { SkiaBannerRoll, skiaRollAvailable } from "@/src/components/SkiaBannerRoll";
 import { useBlendDrag } from "@/src/hooks/use-blend-drag";
 import { blendToState } from "@/src/lib/blend";
-import { getRealisticRoll } from "@/src/lib/rollPref";
 import { fonts, radius, spacing, STATE_META } from "@/src/theme/theme";
 
 // Fixed flag geometry — the cloth never changes size, it only unrolls. The box
@@ -189,20 +188,15 @@ export function BannerBlend({
   const [right, setRight] = useState(50);
   const left = 100 - right;
 
-  // Which roll to draw. Skia has to be present *and* the shader has to have
-  // compiled, otherwise fall back to the view-layer pill.
+  // The shaded roll is the only roll — there is no preference for it any more.
+  // This is purely a capability check: Skia has to be present *and* the shader
+  // has to have compiled, otherwise fall back to the view-layer pill so the
+  // screen still works instead of showing a blank canvas.
   const [realistic, setRealistic] = useState(false);
   useEffect(() => {
-    let alive = true;
-    // Native only: the web build (GitHub Pages) has no CanvasKit loaded, so it
-    // keeps the view-layer roll rather than risking a blank canvas.
+    // Native only: the web build (GitHub Pages) has no CanvasKit loaded.
     if (Platform.OS === "web") return;
-    getRealisticRoll().then((on) => {
-      if (alive) setRealistic(on && skiaRollAvailable());
-    });
-    return () => {
-      alive = false;
-    };
+    setRealistic(skiaRollAvailable());
   }, []);
 
   // Pull a banner DOWN to unroll it (more open on that side).

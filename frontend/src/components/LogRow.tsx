@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { useSkinUi } from "@/src/components/ScreenHeader";
 import { useTheme } from "@/src/context/ThemeContext";
+import { formatBlendSplit } from "@/src/lib/blend";
 import { BreathLog, fonts, radius, spacing, STATE_META } from "@/src/theme/theme";
 
 interface LogRowProps {
@@ -41,6 +42,30 @@ export function LogRow({ log, onEdit, onDelete }: LogRowProps) {
           <Text style={[styles.stateLabel, { color: colors.onSurface }]}>{meta.label}</Text>
           <Text style={[styles.time, ui.mono, { color: colors.onSurfaceTertiary }]}>{formatTime(log.created_at)}</Text>
         </View>
+        {/* Advanced logging records how open each nostril was, not just which
+            side won. Without this the row read as a bare "Right" and the
+            percentage you logged was invisible. */}
+        {log.blend != null && (
+          <View style={styles.blendWrap}>
+            <View style={[styles.blendTrack, ui.sq, { backgroundColor: colors.surfaceTertiary }]}>
+              <View
+                style={[
+                  styles.blendFill,
+                  { flex: Math.max(0, 100 - log.blend), backgroundColor: colors[STATE_META.left.colorKey] },
+                ]}
+              />
+              <View
+                style={[
+                  styles.blendFill,
+                  { flex: Math.max(0, log.blend), backgroundColor: colors[STATE_META.right.colorKey] },
+                ]}
+              />
+            </View>
+            <Text style={[styles.blendText, { color: colors.onSurfaceSecondary }]}>
+              {formatBlendSplit(log.blend)}
+            </Text>
+          </View>
+        )}
         {scores.length > 0 && (
           <Text style={[styles.scores, { color: colors.onSurfaceTertiary }]}>{scores.join(" · ")}</Text>
         )}
@@ -113,6 +138,15 @@ const styles = StyleSheet.create({
   stateLabel: { fontFamily: fonts.semibold, fontSize: 16 },
   time: { fontFamily: fonts.regular, fontSize: 13 },
   scores: { fontFamily: fonts.regular, fontSize: 13, marginTop: spacing.xs },
+  blendWrap: { marginTop: spacing.sm, gap: 5 },
+  blendTrack: {
+    flexDirection: "row",
+    height: 6,
+    borderRadius: radius.pill,
+    overflow: "hidden",
+  },
+  blendFill: { height: "100%" },
+  blendText: { fontFamily: fonts.medium, fontSize: 12 },
   tagsWrap: {
     flexDirection: "row",
     flexWrap: "wrap",

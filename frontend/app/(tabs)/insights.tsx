@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MONO, ScreenHeader, useSkinUi } from "@/src/components/ScreenHeader";
 import { useTheme } from "@/src/context/ThemeContext";
 import { api, daysAgoStr, todayStr } from "@/src/lib/api";
+import { blendByDay, blendStats, blendToState, formatBlendSplit } from "@/src/lib/blend";
 import { BreathLog, fonts, NostrilState, radius, spacing, STATE_META } from "@/src/theme/theme";
 
 const EMPTY_IMG =
@@ -78,6 +79,56 @@ export default function InsightsScreen() {
     });
 
   const buckets = ["Morning", "Afternoon", "Evening", "Night"];
+
+  // ----- blend (advanced logging) -----
+  // Only logs made with the blend control carry a percentage; discrete
+  // Left/Right/Both taps do not, so the whole section stays hidden until there
+  // is something to show.
+  const blendLogs = (logs ?? []).filter((l) => l.blend != null);
+  const overallBlend = blendStats(blendLogs.map((l) => l.blend as number));
+  const blendDays = blendByDay(blendLogs, last7);
+  const hasBlendDays = blendDays.some((d) => d.avgRight != null);
+
+  // Readings for the blend card. Kept separate from the general Patterns list so
+  // blend analysis appears as soon as there are enough blend logs, rather than
+  // waiting on the overall thresholds.
+  const blendPatterns: string[] = [];
+  if (overallBlend && overallBlend.count >= 5) {
+    const { avgRight, lean, swing, count } = overallBlend;
+    blendPatterns.push(
+      lean === "both"
+        ? `Across ${count} blend logs your balance averages ${avgRight}% right — close to even.`
+        : `Across ${count} blend logs your balance averages ${avgRight}% right — leaning ${STATE_META[lean].label.toLowerCase()}.`,
+    );
+    blendPatterns.push(
+      swing >= 40
+        ? `The balance swings widely — ${swing} points between your most left and most right reading.`
+        : `The balance stays fairly steady — ${swing} points between your extremes.`,
+    );
+
+    // Which part of the day leans furthest each way.
+    const perBucket = buckets
+      .map((b) => ({
+        bucket: b,
+        stats: blendStats(
+          blendLogs.filter((l) => timeBucket(l.local_hour) === b).map((l) => l.blend as number),
+        ),
+      }))
+      .filter((x): x is { bucket: string; stats: NonNullable<ReturnType<typeof blendStats>> } =>
+        x.stats != null && x.stats.count >= 3,
+      );
+    if (perBucket.length >= 2) {
+      const sorted = [...perBucket].sort((a, b) => b.stats.avgRight - a.stats.avgRight);
+      const mostRight = sorted[0];
+      const mostLeft = sorted[sorted.length - 1];
+      if (mostRight.stats.avgRight - mostLeft.stats.avgRight >= 10) {
+        blendPatterns.push(
+          `${mostRight.bucket} leans most right (${mostRight.stats.avgRight}%), ${mostLeft.bucket.toLowerCase()} most left (${mostLeft.stats.avgRight}%).`,
+        );
+      }
+    }
+  }
+
   const bucketCounts: Record<string, number> = { Morning: 0, Afternoon: 0, Evening: 0, Night: 0 };
   logs?.forEach((l) => (bucketCounts[timeBucket(l.local_hour)] += 1));
   const maxBucket = Math.max(1, ...buckets.map((b) => bucketCounts[b]));
@@ -260,6 +311,81 @@ export default function InsightsScreen() {
               </View>
             </View>
 
+            {/* Advanced logging analysis. Hidden entirely when no log carries a
+                blend, so the plain Left/Right/Both user never sees an empty card. */}
+            {overallBlend && (
+              <View
+                testID="insights-blend-card"
+                style={[styles.card, ui.sq, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}
+              >
+                <Text style={[styles.cardTitle, ui.monoLabel, { color: colors.onSurface }]}>Blend balance</Text>
+
+                <View style={styles.blendSummary}>
+                  <Text style={[styles.blendBig, ui.mono, { color: colors[STATE_META[overallBlend.lean].colorKey] }]}>
+                    {overallBlend.avgRight}%
+                  </Text>
+                  <View style={styles.blendSummaryText}>
+                    <Text style={[styles.blendSummaryLabel, { color: colors.onSurface }]}>
+                      average right share
+                    </Text>
+                    <Text style={[styles.blendSummarySub, { color: colors.onSurfaceTertiary }]}>
+                      {formatBlendSplit(overallBlend.avgRight)} · {overallBlend.count} blend log
+                      {overallBlend.count === 1 ? "" : "s"}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Per-day mean, with the 50% midline drawn so a lean is visible
+                    at a glance rather than having to read the numbers. */}
+                {hasBlendDays && (
+                  <>
+                    <View style={styles.chartRow}>
+                      {blendDays.map((b) => (
+                        <View key={b.date} style={styles.chartCol}>
+                          <View style={styles.chartColBarArea}>
+                            <View style={[styles.blendMidline, { backgroundColor: colors.border }]} />
+                            {b.avgRight != null ? (
+                              <View
+                                style={[
+                                  styles.metricBar,
+                                  ui.sq,
+                                  {
+                                    height: Math.max(4, (b.avgRight / 100) * 72),
+                                    backgroundColor: colors[STATE_META[blendToState(b.avgRight)].colorKey],
+                                  },
+                                ]}
+                              />
+                            ) : (
+                              <View style={[styles.metricBar, ui.sq, { height: 2, backgroundColor: colors.border }]} />
+                            )}
+                          </View>
+                          <Text style={[styles.chartDayLabel, ui.mono, { color: colors.onSurfaceTertiary }]}>
+                            {dayInitial(b.date)}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                    <Text style={[styles.blendAxisNote, { color: colors.onSurfaceTertiary }]}>
+                      Taller = more open on the right. The line marks an even split.
+                    </Text>
+                  </>
+                )}
+
+                {blendPatterns.length > 0 ? (
+                  blendPatterns.map((p, i) => (
+                    <View key={i} testID={`insights-blend-pattern-${i}`} style={styles.blendPatternRow}>
+                      <View style={[styles.patternDot, { backgroundColor: colors.brand }]} />
+                      <Text style={[styles.patternText, { color: colors.onSurfaceSecondary }]}>{p}</Text>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={[styles.blendAxisNote, { color: colors.onSurfaceTertiary }]}>
+                    A few more blend logs and the balance patterns appear here.
+                  </Text>
+                )}
+              </View>
+            )}
+
             {renderMetricChart("Mood over time", "mood_score")}
             {renderMetricChart("Energy over time", "energy_score")}
             {renderMetricChart("Focus over time", "focus_score")}
@@ -338,6 +464,19 @@ const styles = StyleSheet.create({
   },
   emptyTitle: { fontFamily: fonts.semibold, fontSize: 17, marginBottom: spacing.xs },
   muted: { fontFamily: fonts.regular, fontSize: 14, textAlign: "center" },
+  blendSummary: { flexDirection: "row", alignItems: "center", gap: spacing.md, marginBottom: spacing.lg },
+  blendBig: { fontFamily: fonts.semibold, fontSize: 34, letterSpacing: -1 },
+  blendSummaryText: { flex: 1 },
+  blendSummaryLabel: { fontFamily: fonts.medium, fontSize: 14 },
+  blendSummarySub: { fontFamily: fonts.regular, fontSize: 12, marginTop: 2 },
+  blendMidline: { position: "absolute", left: 0, right: 0, bottom: 36, height: 1 },
+  blendAxisNote: { fontFamily: fonts.regular, fontSize: 11, marginTop: spacing.sm, lineHeight: 16 },
+  blendPatternRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
   retry: { fontFamily: fonts.medium, fontSize: 14, marginTop: spacing.sm },
   card: {
     borderRadius: radius.md,

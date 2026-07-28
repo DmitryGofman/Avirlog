@@ -8,10 +8,11 @@
 import Constants from "expo-constants";
 
 // Bump this with each shipped batch, and note what it contains.
-export const CODE_REVISION = "r5";
+export const CODE_REVISION = "r6";
 
 // What landed in this revision, for the Settings subtitle.
-export const CODE_REVISION_NOTE = "day delete, blend stats, separate Blend widget, tap confirmation";
+export const CODE_REVISION_NOTE =
+  "no button jump, Live Activity closes on tap, blend shown in History + Insights, circular lock-screen widget";
 
 /** e.g. "1.0.0 (7) · code r4" — falls back gracefully if a field is missing. */
 export function buildStamp(): string {

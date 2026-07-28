@@ -35,6 +35,11 @@ module.exports = ({ config }) => {
         "Run `npx expo install @bacons/apple-targets` to include it (see WIDGET.md).",
     );
   }
+  // Puts the Live Activity's button intents in the app target. They must run in
+  // the app process to be able to confirm the log and close the window — see
+  // plugins/withLiveActivityIntents.js for why the Expo module can't do it.
+  config.plugins = [...(config.plugins || []), "./plugins/withLiveActivityIntents"];
+
   config.ios = config.ios || {};
   config.ios.entitlements = {
     ...(config.ios.entitlements || {}),

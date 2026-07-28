@@ -304,31 +304,46 @@ export default function QuickLogScreen() {
         </Animated.View>
       )}
 
-      {guidance ? (
-        <Pressable
-          testID="log-guidance-card"
-          onPress={() => router.push("/learn")}
-          style={[
-            styles.guidanceCard,
-            living
-              ? { backgroundColor: "rgba(8,10,20,0.55)", borderColor: "rgba(255,255,255,0.16)" }
-              : { backgroundColor: colors.surfaceSecondary, borderColor: colors.border },
-          ]}
-        >
-          <View style={styles.guidanceHead}>
-            <View style={[styles.guidanceDot, { backgroundColor: colors[STATE_META[guidance.state].colorKey] }]} />
-            <Text style={[styles.guidanceState, { color: living ? "rgba(242,244,252,0.7)" : colors.onSurfaceTertiary }]}>
-              {STATE_META[guidance.state].label} · {SWARA[guidance.state].sanskrit}
+      {/* Fixed-height slot. The buttons above are flex:1, so anything that
+          changes height down here resizes every button — which is why logging
+          used to make them jump. The hint and the guidance card both live in a
+          constant-height box, so the button area never moves. */}
+      <View style={styles.footerSlot}>
+        {guidance ? (
+          <Pressable
+            testID="log-guidance-card"
+            onPress={() => router.push("/learn")}
+            style={[
+              styles.guidanceCard,
+              living
+                ? { backgroundColor: "rgba(8,10,20,0.55)", borderColor: "rgba(255,255,255,0.16)" }
+                : { backgroundColor: colors.surfaceSecondary, borderColor: colors.border },
+            ]}
+          >
+            <View style={styles.guidanceHead}>
+              <View style={[styles.guidanceDot, { backgroundColor: colors[STATE_META[guidance.state].colorKey] }]} />
+              <Text style={[styles.guidanceState, { color: living ? "rgba(242,244,252,0.7)" : colors.onSurfaceTertiary }]}>
+                {STATE_META[guidance.state].label} · {SWARA[guidance.state].sanskrit}
+              </Text>
+              <Ionicons name="chevron-forward" size={14} color={living ? "rgba(242,244,252,0.7)" : colors.onSurfaceTertiary} />
+            </View>
+            {/* Clamped to the slot: long guidance shrinks a little rather than
+                growing the card and shoving the buttons around. */}
+            <Text
+              style={[styles.guidanceText, { color: living ? "#F2F4FC" : colors.onSurface }]}
+              numberOfLines={3}
+              adjustsFontSizeToFit
+              minimumFontScale={0.82}
+            >
+              {guidance.message}
             </Text>
-            <Ionicons name="chevron-forward" size={14} color={living ? "rgba(242,244,252,0.7)" : colors.onSurfaceTertiary} />
-          </View>
-          <Text style={[styles.guidanceText, { color: living ? "#F2F4FC" : colors.onSurface }]}>{guidance.message}</Text>
-        </Pressable>
-      ) : (
-        <Text style={[styles.footerHint, { color: colors.onSurfaceTertiary }, onSceneDim]}>
-          Your state changes. Track it clearly.
-        </Text>
-      )}
+          </Pressable>
+        ) : (
+          <Text style={[styles.footerHint, { color: colors.onSurfaceTertiary }, onSceneDim]}>
+            Your state changes. Track it clearly.
+          </Text>
+        )}
+      </View>
 
       <Sheet
         visible={sheetOpen}
@@ -390,19 +405,27 @@ const styles = StyleSheet.create({
   stateLabel: { fontFamily: fonts.semibold, fontSize: 32, letterSpacing: -0.5 },
   stateLabelSmall: { fontFamily: fonts.semibold, fontSize: 21, letterSpacing: -0.5 },
   stateSub: { fontFamily: fonts.medium, fontSize: 13, marginTop: spacing.xs, textAlign: "center" },
+  // Sized for the tallest thing it holds: the guidance card at its 3-line clamp
+  // (head 21 + 3 × 21 line height + 24 padding + 2 border). Constant either way,
+  // so the flex:1 button area above keeps exactly the same height.
+  footerSlot: {
+    height: 110,
+    justifyContent: "center",
+    marginTop: spacing.md,
+    marginBottom: spacing.lg,
+  },
   footerHint: {
     fontFamily: fonts.regular,
     fontSize: 13,
     textAlign: "center",
-    paddingVertical: spacing.lg,
   },
   guidanceCard: {
+    flex: 1,
+    justifyContent: "center",
     borderRadius: radius.md,
     borderWidth: 1,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
-    marginTop: spacing.md,
-    marginBottom: spacing.lg,
   },
   guidanceHead: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginBottom: 6 },
   guidanceDot: { width: 8, height: 8, borderRadius: 4 },

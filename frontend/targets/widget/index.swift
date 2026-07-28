@@ -99,30 +99,72 @@ struct LogBreathIntent: AppIntent {
     SharedStore.appendPendingLog(state)
     SharedStore.markLogged()
     SharedStore.armNextDue()
-    // You logged on the widget or the Live Activity — clear the classic
-    // reminder and close any open logging window.
+    // You logged on the widget — clear the classic reminder too.
     UNUserNotificationCenter.current().removeAllDeliveredNotifications()
     UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
-    await confirmThenEndActivities()
     WidgetCenter.shared.reloadAllTimelines()
     return .result()
   }
 }
 
-// Show "LOGGED" on the Live Activity so the tap visibly registers, then close
-// it. Without the brief confirmation the window either vanished with no
-// feedback or — if ending failed — sat there for the rest of the countdown.
-@available(iOS 16.1, *)
-func confirmThenEndActivities() async {
-  for activity in Activity<BreathActivityAttributes>.activities {
-    let done = BreathActivityAttributes.ContentState(endsAt: Date(), logged: true)
-    if #available(iOS 16.2, *) {
-      await activity.update(ActivityContent(state: done, staleDate: nil))
-    }
+// MARK: - Live Activity button intents (extension-side copies)
+//
+// These are DELIBERATE duplicates of native/BreathLiveIntents.swift, which is
+// compiled into the app target. iOS performs a `LiveActivityIntent` in the app's
+// process, and that is the whole reason these exist as their own types: an intent
+// running in this extension cannot see the app's activities at all
+// (`Activity<…>.activities` is always empty here), so it could never confirm the
+// log or close the window.
+//
+// The extension still needs the type in order to build the Button, so these
+// copies must keep the same names, parameters and titles as the app's. They log
+// the breath but do not touch ActivityKit — if iOS ever runs this copy instead of
+// the app's, the tap is still recorded rather than lost.
+
+@available(iOS 17.0, *)
+struct LogBreathLiveIntent: LiveActivityIntent {
+  static var title: LocalizedStringResource = "Log breath"
+  static var authenticationPolicy: IntentAuthenticationPolicy = .alwaysAllowed
+  static var openAppWhenRun: Bool = false
+
+  @Parameter(title: "State")
+  var state: String
+
+  init() {}
+  init(state: String) { self.state = state }
+
+  func perform() async throws -> some IntentResult {
+    SharedStore.appendPendingLog(state)
+    SharedStore.markLogged()
+    SharedStore.armNextDue()
+    UNUserNotificationCenter.current().removeAllDeliveredNotifications()
+    UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
+    WidgetCenter.shared.reloadAllTimelines()
+    return .result()
   }
-  try? await Task.sleep(nanoseconds: 900_000_000)
-  for activity in Activity<BreathActivityAttributes>.activities {
-    await activity.end(nil, dismissalPolicy: .immediate)
+}
+
+@available(iOS 17.0, *)
+struct LogBlendLiveIntent: LiveActivityIntent {
+  static var title: LocalizedStringResource = "Log breath blend"
+  static var authenticationPolicy: IntentAuthenticationPolicy = .alwaysAllowed
+  static var openAppWhenRun: Bool = false
+
+  @Parameter(title: "Right percent")
+  var right: Int
+
+  init() {}
+  init(right: Int) { self.right = right }
+
+  func perform() async throws -> some IntentResult {
+    let state = right >= 55 ? "right" : (right <= 45 ? "left" : "both")
+    SharedStore.appendPendingBlend(state, right)
+    SharedStore.markLogged()
+    SharedStore.armNextDue()
+    UNUserNotificationCenter.current().removeAllDeliveredNotifications()
+    UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
+    WidgetCenter.shared.reloadAllTimelines()
+    return .result()
   }
 }
 
@@ -147,7 +189,6 @@ struct LogBlendIntent: AppIntent {
     SharedStore.armNextDue()
     UNUserNotificationCenter.current().removeAllDeliveredNotifications()
     UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
-    await confirmThenEndActivities()
     WidgetCenter.shared.reloadAllTimelines()
     return .result()
   }
@@ -176,7 +217,10 @@ struct BreathActivityAttributes: ActivityAttributes {
   var title: String
 }
 
-@available(iOS 16.1, *)
+// iOS 17, not 16.1: the buttons are the entire point of this window, and
+// interactive Live Activity buttons need 17. On iOS 16 the app falls back to the
+// classic chained notification instead of showing a window you cannot use.
+@available(iOS 17.0, *)
 struct BreathLiveActivity: Widget {
   private let leftColor = Color(red: 0.33, green: 0.40, blue: 0.35)
   private let rightColor = Color(red: 0.54, green: 0.30, blue: 0.24)
@@ -243,8 +287,10 @@ struct BreathLiveActivity: Widget {
     }
   }
 
+  // Note the *Live* intents: these run in the app process, which is what lets a
+  // tap confirm on the window and then dismiss it.
   func laButton(_ label: String, _ state: String, _ color: Color) -> some View {
-    Button(intent: LogBreathIntent(state: state)) {
+    Button(intent: LogBreathLiveIntent(state: state)) {
       Text(label)
         .font(.system(size: 15, weight: .heavy))
         .foregroundColor(.white)
@@ -256,7 +302,7 @@ struct BreathLiveActivity: Widget {
   }
 
   func laBlendButton(_ preset: (String, Int), _ color: Color) -> some View {
-    Button(intent: LogBlendIntent(right: preset.1)) {
+    Button(intent: LogBlendLiveIntent(right: preset.1)) {
       Text(preset.0)
         .font(.system(size: 12, weight: .heavy))
         .minimumScaleFactor(0.7)
@@ -318,7 +364,7 @@ struct AvirLogWidgetView: View {
 
   // Lock-Screen accessory widgets are rendered monochrome/vibrant by iOS, so
   // they get no dark card and no coloured fills — just outlined buttons.
-  private var isAccessory: Bool { family == .accessoryRectangular }
+  private var isAccessory: Bool { family == .accessoryRectangular || family == .accessoryCircular }
   private var isWide: Bool { family == .systemMedium || family == .systemLarge }
 
   private var buttonHeight: CGFloat {
@@ -326,13 +372,39 @@ struct AvirLogWidgetView: View {
     case .systemLarge: return 66
     case .systemMedium: return 50
     case .systemSmall: return 38
-    default: return 26 // accessoryRectangular
+    default: return 26 // accessory families
     }
   }
   private var titleSize: CGFloat { isAccessory ? 9 : (family == .systemLarge ? 13 : 10) }
   private var gap: CGFloat { isAccessory ? 3 : (advanced ? 4 : 6) }
 
   var body: some View {
+    // The circular Lock-Screen slot is far too small for three labelled buttons,
+    // so it becomes a single status dial that opens the app — it is the compact
+    // Lock-Screen option, not a shrunken version of the button row.
+    if family == .accessoryCircular {
+      circularBody
+    } else {
+      buttonsBody
+    }
+  }
+
+  private var circularBody: some View {
+    ZStack {
+      AccessoryWidgetBackground()
+      VStack(spacing: 1) {
+        Image(systemName: entry.justLogged ? "checkmark" : "wind")
+          .font(.system(size: 15, weight: .bold))
+        Text(entry.justLogged ? "LOG" : (entry.due ? "NOW" : "AVIR"))
+          .font(.system(size: 8, weight: .heavy))
+          .tracking(0.5)
+      }
+    }
+    .widgetURL(URL(string: "avirlog://log"))
+    .containerBackground(for: .widget) { Color.clear }
+  }
+
+  private var buttonsBody: some View {
     VStack(spacing: isAccessory ? 3 : 8) {
       Text(entry.justLogged ? "LOGGED ✓" : (entry.due ? "LOG NOW" : "BREATH"))
         .font(.system(size: titleSize, weight: .heavy))
@@ -436,7 +508,12 @@ struct AvirLogWidget: Widget {
     }
     .configurationDisplayName("Breath Log")
     .description("Tap Left, Both or Right. Lights up when it's time to log.")
-    .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryRectangular])
+    // Home Screen: small / medium / large — pick the size you want in the
+    // gallery (iOS 18+ can also resize in place). Lock Screen: the wide
+    // rectangular slot, plus the compact circular one.
+    .supportedFamilies([
+      .systemSmall, .systemMedium, .systemLarge, .accessoryRectangular, .accessoryCircular,
+    ])
   }
 }
 
@@ -449,7 +526,12 @@ struct AvirLogBlendWidget: Widget {
     }
     .configurationDisplayName("Breath Blend")
     .description("Tap a preset blend — how open each nostril is. Lights up when it's time to log.")
-    .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryRectangular])
+    // Home Screen: small / medium / large — pick the size you want in the
+    // gallery (iOS 18+ can also resize in place). Lock Screen: the wide
+    // rectangular slot, plus the compact circular one.
+    .supportedFamilies([
+      .systemSmall, .systemMedium, .systemLarge, .accessoryRectangular, .accessoryCircular,
+    ])
   }
 }
 
@@ -458,7 +540,7 @@ struct AvirLogWidgetBundle: WidgetBundle {
   var body: some Widget {
     AvirLogWidget()
     AvirLogBlendWidget()
-    if #available(iOS 16.1, *) {
+    if #available(iOS 17.0, *) {
       BreathLiveActivity()
     }
   }
