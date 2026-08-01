@@ -14,28 +14,52 @@
 import * as Haptics from "expo-haptics";
 import { Platform } from "react-native";
 
+import { storage } from "@/src/utils/storage";
+
 const native = Platform.OS === "ios" || Platform.OS === "android";
+
+export const HAPTICS_KEY = "avirlog_haptics";
+
+// Cached so the fire-and-forget helpers below stay synchronous — a haptic that
+// has to await storage arrives after the moment it was meant to mark. Hydrated
+// once at import and kept current by setHapticsEnabled.
+let enabled = true;
+storage.getItem<boolean>(HAPTICS_KEY, true).then((v) => {
+  enabled = v !== false;
+});
+
+/** Mirror the Settings switch. Persists, and takes effect immediately. */
+export function setHapticsEnabled(value: boolean): void {
+  enabled = value;
+  storage.setItem(HAPTICS_KEY, value);
+}
+
+export async function getHapticsEnabled(): Promise<boolean> {
+  const v = await storage.getItem<boolean>(HAPTICS_KEY, true);
+  enabled = v !== false;
+  return enabled;
+}
 
 /** Finger down on a log button — immediate, before any network/storage work. */
 export function hapticPress(): void {
-  if (!native) return;
+  if (!native || !enabled) return;
   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
 }
 
 /** The log was written. The confirming beat of the pair. */
 export function hapticLogged(): void {
-  if (!native) return;
+  if (!native || !enabled) return;
   Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
 }
 
 /** The log failed — a distinctly different buzz so an error is never mistaken. */
 export function hapticFailed(): void {
-  if (!native) return;
+  if (!native || !enabled) return;
   Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
 }
 
 /** A blend control crossed into a new step. Light enough to fire repeatedly. */
 export function hapticTick(): void {
-  if (!native) return;
+  if (!native || !enabled) return;
   Haptics.selectionAsync().catch(() => {});
 }

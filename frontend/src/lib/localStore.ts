@@ -35,6 +35,10 @@ export interface LocalSettings {
   reminder_style: ReminderStyle;
   // Whether a widget / Live Activity tap buzzes the phone.
   widget_tap_feedback: boolean;
+  // Whether reminders make a sound (and so vibrate) when they arrive.
+  reminder_sound: boolean;
+  // Whether the app itself vibrates on a log and while dragging a blend.
+  haptics_enabled: boolean;
 }
 
 const LOGS_KEY = "avirlog_local_logs";
@@ -53,6 +57,8 @@ const DEFAULT_SETTINGS: LocalSettings = {
   advanced_logging: false,
   reminder_style: "both",
   widget_tap_feedback: true,
+  reminder_sound: true,
+  haptics_enabled: true,
 };
 
 function genId(): string {

@@ -47,6 +47,10 @@ export interface ReminderConfig {
   advanced_logging?: boolean;
   // Absent on settings saved before this existed — treated as "both".
   reminder_style?: ReminderStyle;
+  // When off, reminders arrive silently: the banner still appears, but there is
+  // no alert tone and so no vibration either — on iOS a notification's haptic
+  // is tied to its sound and can't be kept without it.
+  reminder_sound?: boolean;
 }
 
 export function reminderStyle(cfg?: { reminder_style?: ReminderStyle } | null): ReminderStyle {
@@ -93,6 +97,7 @@ export async function configureNotifications(): Promise<void> {
       handleNotification: async () => ({
         shouldShowBanner: true,
         shouldShowList: true,
+        // Honoured per-notification by content.sound; this only allows it.
         shouldPlaySound: true,
         shouldSetBadge: false,
       }),
@@ -180,6 +185,7 @@ export async function scheduleNextReminder(cfg: ReminderConfig): Promise<void> {
           ? "How open is each nostril? Hold to log a blend"
           : "Which nostril is active? Hold to log · Left / Both / Right",
         categoryIdentifier: advanced ? BREATH_BLEND_CATEGORY : BREATH_CATEGORY,
+        sound: cfg.reminder_sound !== false,
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,

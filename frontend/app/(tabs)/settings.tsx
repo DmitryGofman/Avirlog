@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Platform,
@@ -30,6 +30,7 @@ import {
   scheduleNextReminder,
 } from "@/src/lib/notifications";
 import { buildStamp, CODE_REVISION_NOTE } from "@/src/lib/buildInfo";
+import { hapticLogged, setHapticsEnabled } from "@/src/lib/haptics";
 import { getRealisticRoll, setRealisticRoll } from "@/src/lib/rollPref";
 import { setWidgetAdvanced, setWidgetTapFeedback } from "@/src/lib/widgetBridge";
 import { fonts, radius, spacing } from "@/src/theme/theme";
@@ -46,6 +47,8 @@ interface Settings {
   advanced_logging: boolean;
   reminder_style: ReminderStyle;
   widget_tap_feedback: boolean;
+  reminder_sound: boolean;
+  haptics_enabled: boolean;
 }
 
 const INTERVALS = [
@@ -82,23 +85,23 @@ interface SectionProps {
   children: React.ReactNode;
 }
 
-type Palette = ReturnType<typeof useTheme>["colors"];
-type SkinUi = ReturnType<typeof useSkinUi>;
-
-// Row and Section MUST live at module scope. Declared inside the screen they
-// were a brand-new component type on every render, so React unmounted and
-// rebuilt the whole settings tree on each toggle — which tore down touch
-// targets mid-gesture and made taps land on the wrong row.
-function SettingsRow({
-  icon,
-  label,
-  right,
-  onPress,
-  testID,
-  danger,
-  colors,
-  ui,
-}: RowProps & { colors: Palette; ui: SkinUi }) {
+// Row and Section MUST be module-scope components, and must NOT be re-created
+// per render even as a memoized wrapper.
+//
+// The previous version defined them inside the screen with
+// useCallback(..., [colors, ui]) — but useSkinUi() returned a fresh object every
+// call, so the dependency changed on every render, so `Row` was a new function
+// identity, so React saw a different component TYPE at each position and
+// unmounted/remounted the entire settings tree on every single state change.
+// That is what tore down touch targets mid-gesture: a Switch you were dragging
+// was destroyed and rebuilt under your finger, so one press registered twice or
+// landed on a neighbouring row.
+//
+// They read colors and skin from context themselves, so there is nothing to
+// pass down and no wrapper to go stale.
+function Row({ icon, label, right, onPress, testID, danger }: RowProps) {
+  const { colors } = useTheme();
+  const ui = useSkinUi();
   return (
     <Pressable
       testID={testID}
@@ -117,7 +120,9 @@ function SettingsRow({
   );
 }
 
-function SettingsSection({ title, children, colors, ui }: SectionProps & { colors: Palette; ui: SkinUi }) {
+function Section({ title, children }: SectionProps) {
+  const { colors } = useTheme();
+  const ui = useSkinUi();
   return (
     <View style={styles.section}>
       <Text style={[styles.sectionTitle, ui.monoLabel, { color: colors.onSurfaceTertiary }]}>{title}</Text>
@@ -130,7 +135,6 @@ function SettingsSection({ title, children, colors, ui }: SectionProps & { color
 
 export default function SettingsScreen() {
   const { colors, mode, setMode, setSkin } = useTheme();
-  const ui = useSkinUi();
   const { user, signOut, deleteAccount } = useAuth();
   const { showToast } = useToast();
   const insets = useSafeAreaInsets();
@@ -149,7 +153,10 @@ export default function SettingsScreen() {
 
   useEffect(() => {
     api<Settings>("/settings")
-      .then((s) =>
+      .then((s) => {
+        // The haptics module keeps its own cached copy so it can fire
+        // synchronously; reconcile it with the stored settings on open.
+        setHapticsEnabled(s.haptics_enabled ?? true);
         setSettings({
           ...s,
           mood_journaling: s.mood_journaling ?? true,
@@ -157,8 +164,10 @@ export default function SettingsScreen() {
           advanced_logging: s.advanced_logging ?? false,
           reminder_style: s.reminder_style ?? "both",
           widget_tap_feedback: s.widget_tap_feedback ?? true,
-        }),
-      )
+          reminder_sound: s.reminder_sound ?? true,
+          haptics_enabled: s.haptics_enabled ?? true,
+        });
+      })
       .catch(() => showToast("Could not load settings", "error"));
     getRealisticRoll().then(setRealisticRollState);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -221,6 +230,25 @@ export default function SettingsScreen() {
     if (!settings) return;
     persist({ ...settings, widget_tap_feedback: enabled });
     setWidgetTapFeedback(enabled);
+  };
+
+  const toggleHaptics = (enabled: boolean) => {
+    if (!settings) return;
+    persist({ ...settings, haptics_enabled: enabled });
+    setHapticsEnabled(enabled);
+    // Fire one immediately so turning it on demonstrates what it feels like.
+    if (enabled) hapticLogged();
+  };
+
+  const toggleReminderSound = async (enabled: boolean) => {
+    if (!settings) return;
+    const next = { ...settings, reminder_sound: enabled };
+    persist(next);
+    // The armed reminder already carries its sound flag — re-arm so the change
+    // applies to the next one rather than the one after it.
+    if (next.reminder_enabled && Platform.OS !== "web") {
+      await scheduleNextReminder(next).catch(() => {});
+    }
   };
 
   const toggleRealisticRoll = (enabled: boolean) => {
@@ -311,16 +339,6 @@ export default function SettingsScreen() {
   };
 
   const isPresetInterval = INTERVALS.some((i) => i.value === settings?.reminder_interval_seconds);
-
-  const Row = useCallback(
-    (props: RowProps) => <SettingsRow {...props} colors={colors} ui={ui} />,
-    [colors, ui],
-  );
-
-  const Section = useCallback(
-    (props: SectionProps) => <SettingsSection {...props} colors={colors} ui={ui} />,
-    [colors, ui],
-  );
 
   return (
     <View style={[styles.root, { backgroundColor: colors.surface }]}>
@@ -461,7 +479,77 @@ export default function SettingsScreen() {
             Switch back anytime; older logs stay readable.
           </Text>
           <Row
+            icon="color-wand-outline"
+            label="Realistic banner roll"
+            testID="settings-realistic-roll-row"
+            right={
+              <Switch
+                testID="settings-realistic-roll-switch"
+                value={realisticRoll}
+                onValueChange={toggleRealisticRoll}
+                trackColor={{ false: colors.border, true: colors.brand }}
+                thumbColor="#FFFFFF"
+              />
+            }
+          />
+          <Text style={[styles.reminderHint, { color: colors.onSurfaceTertiary, paddingBottom: spacing.lg }]}>
+            Living Banners only. Draws the rolled cloth with a GPU shader — a real
+            lit cylinder instead of a flat bar. Turn it off to compare with the
+            original.
+          </Text>
+        </Section>
+
+        <Section title="Feedback">
+          <Row
             icon="pulse-outline"
+            label="Haptics"
+            testID="settings-haptics-row"
+            right={
+              settings ? (
+                <Switch
+                  testID="settings-haptics-switch"
+                  value={settings.haptics_enabled}
+                  onValueChange={toggleHaptics}
+                  trackColor={{ false: colors.border, true: colors.brand }}
+                  thumbColor="#FFFFFF"
+                />
+              ) : (
+                <ActivityIndicator size="small" color={colors.brand} />
+              )
+            }
+          />
+          <Text style={[styles.reminderHint, { color: colors.onSurfaceTertiary, paddingBottom: spacing.lg }]}>
+            Vibration inside the app: a tap when your finger lands on a log button, a
+            firmer one once the log is saved, and a light tick for each step as you drag
+            a blend — so a blend can be set without watching the screen.
+          </Text>
+
+          <Row
+            icon="volume-medium-outline"
+            label="Reminder sound"
+            testID="settings-reminder-sound-row"
+            right={
+              settings ? (
+                <Switch
+                  testID="settings-reminder-sound-switch"
+                  value={settings.reminder_sound}
+                  onValueChange={toggleReminderSound}
+                  trackColor={{ false: colors.border, true: colors.brand }}
+                  thumbColor="#FFFFFF"
+                />
+              ) : (
+                <ActivityIndicator size="small" color={colors.brand} />
+              )
+            }
+          />
+          <Text style={[styles.reminderHint, { color: colors.onSurfaceTertiary, paddingBottom: spacing.lg }]}>
+            Off means reminders arrive silently — the banner still appears on the Lock
+            Screen, but nothing sounds and nothing vibrates. iOS ties a notification&apos;s
+            vibration to its alert tone, so the two can&apos;t be separated.
+          </Text>
+
+          <Row
+            icon="phone-portrait-outline"
             label="Buzz on widget taps"
             testID="settings-tap-feedback-row"
             right={
@@ -481,28 +569,8 @@ export default function SettingsScreen() {
           <Text style={[styles.reminderHint, { color: colors.onSurfaceTertiary, paddingBottom: spacing.lg }]}>
             Widget and Live Activity buttons run outside the app, where iOS gives them no
             haptic of their own. To make a tap felt, AvirLog posts a one-line “Logged”
-            notification and takes it down a second later — the alert is what buzzes the
-            phone. Turn this off for silent taps (the tile still flips to LOGGED ✓).
-            Logging inside the app always buzzes, regardless of this.
-          </Text>
-          <Row
-            icon="color-wand-outline"
-            label="Realistic banner roll"
-            testID="settings-realistic-roll-row"
-            right={
-              <Switch
-                testID="settings-realistic-roll-switch"
-                value={realisticRoll}
-                onValueChange={toggleRealisticRoll}
-                trackColor={{ false: colors.border, true: colors.brand }}
-                thumbColor="#FFFFFF"
-              />
-            }
-          />
-          <Text style={[styles.reminderHint, { color: colors.onSurfaceTertiary, paddingBottom: spacing.lg }]}>
-            Living Banners only. Draws the rolled cloth with a GPU shader — a real
-            lit cylinder instead of a flat bar. Turn it off to compare with the
-            original.
+            notification and takes it down a second later — that alert is what buzzes the
+            phone. Off means silent taps; the tile still flips to LOGGED ✓.
           </Text>
         </Section>
 
