@@ -31,7 +31,7 @@ import {
 } from "@/src/lib/notifications";
 import { buildStamp, CODE_REVISION_NOTE } from "@/src/lib/buildInfo";
 import { getRealisticRoll, setRealisticRoll } from "@/src/lib/rollPref";
-import { setWidgetAdvanced } from "@/src/lib/widgetBridge";
+import { setWidgetAdvanced, setWidgetTapFeedback } from "@/src/lib/widgetBridge";
 import { fonts, radius, spacing } from "@/src/theme/theme";
 
 interface Settings {
@@ -45,6 +45,7 @@ interface Settings {
   skin: SkinId;
   advanced_logging: boolean;
   reminder_style: ReminderStyle;
+  widget_tap_feedback: boolean;
 }
 
 const INTERVALS = [
@@ -155,6 +156,7 @@ export default function SettingsScreen() {
           skin: s.skin ?? DEFAULT_SKIN,
           advanced_logging: s.advanced_logging ?? false,
           reminder_style: s.reminder_style ?? "both",
+          widget_tap_feedback: s.widget_tap_feedback ?? true,
         }),
       )
       .catch(() => showToast("Could not load settings", "error"));
@@ -213,6 +215,12 @@ export default function SettingsScreen() {
     persist({ ...settings, advanced_logging: enabled });
     // Flip the widget + Live Activity between preset-blend and Left/Right/Both.
     setWidgetAdvanced(enabled);
+  };
+
+  const toggleWidgetTapFeedback = (enabled: boolean) => {
+    if (!settings) return;
+    persist({ ...settings, widget_tap_feedback: enabled });
+    setWidgetTapFeedback(enabled);
   };
 
   const toggleRealisticRoll = (enabled: boolean) => {
@@ -451,6 +459,31 @@ export default function SettingsScreen() {
             each nostril is (e.g. 70% right / 30% left). The widget, Live Activity and reminder also
             switch to quick preset-blend buttons. A near-even split still records as Sushumna.
             Switch back anytime; older logs stay readable.
+          </Text>
+          <Row
+            icon="pulse-outline"
+            label="Buzz on widget taps"
+            testID="settings-tap-feedback-row"
+            right={
+              settings ? (
+                <Switch
+                  testID="settings-tap-feedback-switch"
+                  value={settings.widget_tap_feedback}
+                  onValueChange={toggleWidgetTapFeedback}
+                  trackColor={{ false: colors.border, true: colors.brand }}
+                  thumbColor="#FFFFFF"
+                />
+              ) : (
+                <ActivityIndicator size="small" color={colors.brand} />
+              )
+            }
+          />
+          <Text style={[styles.reminderHint, { color: colors.onSurfaceTertiary, paddingBottom: spacing.lg }]}>
+            Widget and Live Activity buttons run outside the app, where iOS gives them no
+            haptic of their own. To make a tap felt, AvirLog posts a one-line “Logged”
+            notification and takes it down a second later — the alert is what buzzes the
+            phone. Turn this off for silent taps (the tile still flips to LOGGED ✓).
+            Logging inside the app always buzzes, regardless of this.
           </Text>
           <Row
             icon="color-wand-outline"

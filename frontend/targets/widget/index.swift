@@ -27,6 +27,9 @@ enum SharedStore {
   // Activity offer preset-blend buttons instead of Left/Right/Both.
   static var advanced: Bool { (defaults?.double(forKey: "advanced") ?? 0) > 0.5 }
 
+  // Mirrors "Buzz on widget taps". Default ON when the key was never written.
+  static var tapFeedback: Bool { (defaults?.double(forKey: "tapFeedback") ?? 1) > 0.5 }
+
   private static func appendPending(_ entry: [String: Any]) {
     guard let d = defaults else { return }
     var arr: [[String: Any]] = []
@@ -103,10 +106,50 @@ struct LogBreathIntent: AppIntent {
     // reminder and close any open logging window.
     UNUserNotificationCenter.current().removeAllDeliveredNotifications()
     UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
-    await confirmThenEndActivities()
+    // Repaint to LOGGED ✓ first, then buzz — so the tile has already changed by
+    // the time you feel the tap land.
     WidgetCenter.shared.reloadAllTimelines()
+    await postTapConfirmation(logLabel(state: state))
+    await confirmThenEndActivities()
+    try? await Task.sleep(nanoseconds: 900_000_000)
+    clearTapConfirmation()
     return .result()
   }
+}
+
+// Physical feedback for a widget / Live Activity tap.
+//
+// There is no haptic API available here: these buttons run their App Intent in
+// the widget EXTENSION process, and UIFeedbackGenerator only fires for an app
+// that is foreground-active. The one thing an extension CAN do that reaches the
+// Taptic Engine is post a local notification — iOS plays the alert sound and
+// its haptic on delivery.
+//
+// So: post a confirmation with a sound, wait long enough for the buzz to land,
+// then remove it again by identifier. You feel the tap and see a brief banner,
+// and Notification Centre isn't left with a row per log.
+let TAP_FEEDBACK_ID = "avirlog.tap.confirm"
+
+func postTapConfirmation(_ label: String) async {
+  guard SharedStore.tapFeedback else { return }
+  let content = UNMutableNotificationContent()
+  content.title = "Logged · \(label)"
+  // The sound is what carries the haptic — a silent notification doesn't buzz.
+  content.sound = .default
+  let request = UNNotificationRequest(identifier: TAP_FEEDBACK_ID, content: content, trigger: nil)
+  try? await UNUserNotificationCenter.current().add(request)
+}
+
+func clearTapConfirmation() {
+  UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: [TAP_FEEDBACK_ID])
+}
+
+// Human-readable name for what was logged, for the confirmation above.
+func logLabel(state: String, right: Int? = nil) -> String {
+  let side = state == "left" ? "Left" : (state == "right" ? "Right" : "Both")
+  guard let r = right else { return side }
+  if r == 50 { return "Both · 50 · 50" }
+  return r < 50 ? "Left \(100 - r)%" : "Right \(r)%"
 }
 
 // Show "LOGGED" on the Live Activity so the tap visibly registers, then close
@@ -147,8 +190,11 @@ struct LogBlendIntent: AppIntent {
     SharedStore.armNextDue()
     UNUserNotificationCenter.current().removeAllDeliveredNotifications()
     UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
-    await confirmThenEndActivities()
     WidgetCenter.shared.reloadAllTimelines()
+    await postTapConfirmation(logLabel(state: state, right: right))
+    await confirmThenEndActivities()
+    try? await Task.sleep(nanoseconds: 900_000_000)
+    clearTapConfirmation()
     return .result()
   }
 }
@@ -343,8 +389,11 @@ struct AvirLogWidgetView: View {
   private var gap: CGFloat { isAccessory ? 3 : (isLarge ? 8 : 5) }
   private var corner: CGFloat { isAccessory ? 6 : (isLarge ? 16 : 11) }
   private var titleSize: CGFloat { isAccessory ? 9 : (isLarge ? 12 : 10) }
-  private var stateSize: CGFloat { isAccessory ? 13 : (isLarge ? 30 : (isMedium ? 25 : 19)) }
-  private var blendSize: CGFloat { isAccessory ? 10 : (isLarge ? 21 : (isMedium ? 16 : 13)) }
+  // The small tile's columns are only ~43pt wide, so its type is deliberately
+  // a step down — big enough to read at a glance, not so big it crowds the
+  // button edges.
+  private var stateSize: CGFloat { isAccessory ? 12 : (isLarge ? 30 : (isMedium ? 24 : 15)) }
+  private var blendSize: CGFloat { isAccessory ? 9 : (isLarge ? 21 : (isMedium ? 16 : 11)) }
   // The Lock-Screen rectangle is ~72pt tall; in advanced mode its three button
   // rows need every one of them, so the title line is dropped there only.
   private var showsTitle: Bool { !(isAccessory && advanced) }

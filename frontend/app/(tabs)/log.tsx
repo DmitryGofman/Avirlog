@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
-import * as Haptics from "expo-haptics";
+import { hapticFailed, hapticLogged, hapticPress } from "@/src/lib/haptics";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Animated, Easing, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -101,9 +101,7 @@ export default function QuickLogScreen() {
     if (creating) return;
     setCreating(state);
     fx.current?.trigger(state);
-    if (Platform.OS !== "web") {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-    }
+    hapticPress();
     try {
       const log = await api<BreathLog>("/logs", {
         method: "POST",
@@ -115,6 +113,8 @@ export default function QuickLogScreen() {
           local_hour: new Date().getHours(),
         },
       });
+      // The confirming beat — the log is on disk, not just requested.
+      hapticLogged();
       // Take down the reminder you just answered: the Live Activity window AND
       // the notification still sitting in Notification Centre.
       clearBreathPrompts().catch(() => {});
@@ -129,6 +129,7 @@ export default function QuickLogScreen() {
       }
       showToast(`Logged · ${STATE_META[state].label}`);
     } catch (e: any) {
+      hapticFailed();
       showToast(e.message ?? "Could not save log", "error");
     } finally {
       setCreating(null);

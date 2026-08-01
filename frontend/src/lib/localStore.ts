@@ -33,6 +33,8 @@ export interface LocalSettings {
   // Which alert a due reminder uses: the classic notification, the Live
   // Activity countdown, or both.
   reminder_style: ReminderStyle;
+  // Whether a widget / Live Activity tap buzzes the phone.
+  widget_tap_feedback: boolean;
 }
 
 const LOGS_KEY = "avirlog_local_logs";
@@ -50,6 +52,7 @@ const DEFAULT_SETTINGS: LocalSettings = {
   skin: DEFAULT_SKIN,
   advanced_logging: false,
   reminder_style: "both",
+  widget_tap_feedback: true,
 };
 
 function genId(): string {
