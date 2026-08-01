@@ -389,11 +389,16 @@ struct AvirLogWidgetView: View {
   private var gap: CGFloat { isAccessory ? 3 : (isLarge ? 8 : 5) }
   private var corner: CGFloat { isAccessory ? 6 : (isLarge ? 16 : 11) }
   private var titleSize: CGFloat { isAccessory ? 9 : (isLarge ? 12 : 10) }
-  // The small tile's columns are only ~43pt wide, so its type is deliberately
-  // a step down — big enough to read at a glance, not so big it crowds the
-  // button edges.
-  private var stateSize: CGFloat { isAccessory ? 12 : (isLarge ? 30 : (isMedium ? 24 : 15)) }
+  private var stateSize: CGFloat { isAccessory ? 12 : (isLarge ? 34 : (isMedium ? 24 : 17)) }
+  // Both reads one step quieter than the two sides, exactly as it does on the
+  // Log screen — it's the answer you reach for least often.
+  private var bothSize: CGFloat { isAccessory ? 11 : (isLarge ? 26 : (isMedium ? 19 : 14)) }
   private var blendSize: CGFloat { isAccessory ? 9 : (isLarge ? 21 : (isMedium ? 16 : 11)) }
+
+  // The slim Both bar under the two side buttons (square shapes only).
+  private var bothHeight: CGFloat { isLarge ? 62 : 34 }
+  // The narrow Both column between them (wide-and-short shapes only).
+  private var bothWidth: CGFloat { isAccessory ? 40 : 74 }
   // The Lock-Screen rectangle is ~72pt tall; in advanced mode its three button
   // rows need every one of them, so the title line is dropped there only.
   private var showsTitle: Bool { !(isAccessory && advanced) }
@@ -407,7 +412,7 @@ struct AvirLogWidgetView: View {
           .foregroundColor(isAccessory ? .primary : (entry.due ? .white : .white.opacity(0.55)))
       }
 
-      if advanced { blendGrid } else { stateRow }
+      if advanced { blendGrid } else { stateBlock }
 
       // The large widget has room to spare — say what the buttons do.
       if isLarge {
@@ -427,13 +432,32 @@ struct AvirLogWidgetView: View {
     .widgetBackground(dark: !isAccessory, due: entry.due)
   }
 
-  // Left · Both · Right as three full-height columns, keeping the left/right
-  // spatial meaning the app uses.
-  private var stateRow: some View {
-    HStack(spacing: gap) {
-      button(isAccessory ? "L" : "Left", "left", leftColor)
-      button(isAccessory ? "B" : "Both", "both", bothColor)
-      button(isAccessory ? "R" : "Right", "right", rightColor)
+  // Simple mode borrows the app's own arrangement — and the watch app's — so
+  // the three screens read as one product: two big side buttons with a slim
+  // Both bar beneath them.
+  //
+  // The wide-and-short shapes (medium, Lock Screen) can't take that stack
+  // without turning into three squat strips, so they keep a single row and make
+  // Both the narrow column instead. Either way Both sits between Left and
+  // Right, and either way it is visibly the lesser of the three.
+  @ViewBuilder
+  private var stateBlock: some View {
+    if isMedium || isAccessory {
+      HStack(spacing: gap) {
+        button(isAccessory ? "L" : "Left", "left", leftColor, stateSize)
+        button(isAccessory ? "B" : "Both", "both", bothColor, bothSize)
+          .frame(width: bothWidth)
+        button(isAccessory ? "R" : "Right", "right", rightColor, stateSize)
+      }
+    } else {
+      VStack(spacing: gap) {
+        HStack(spacing: gap) {
+          button("Left", "left", leftColor, stateSize)
+          button("Right", "right", rightColor, stateSize)
+        }
+        button("Both", "both", bothColor, bothSize)
+          .frame(height: bothHeight)
+      }
     }
   }
 
@@ -457,10 +481,10 @@ struct AvirLogWidgetView: View {
     }
   }
 
-  func button(_ label: String, _ state: String, _ color: Color) -> some View {
+  func button(_ label: String, _ state: String, _ color: Color, _ size: CGFloat) -> some View {
     Button(intent: LogBreathIntent(state: state)) {
       Text(label)
-        .font(.system(size: stateSize, weight: .heavy))
+        .font(.system(size: size, weight: .heavy))
         .minimumScaleFactor(0.5)
         .lineLimit(1)
         .foregroundColor(isAccessory ? .primary : .white)
