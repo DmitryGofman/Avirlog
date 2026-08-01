@@ -10,6 +10,7 @@ import jwt
 from dotenv import load_dotenv
 from fastapi import APIRouter, FastAPI, Header, HTTPException
 from motor.motor_asyncio import AsyncIOMotorClient
+from pymongo.errors import DuplicateKeyError
 from passlib.context import CryptContext
 from pydantic import BaseModel, EmailStr, Field
 from starlette.middleware.cors import CORSMiddleware
@@ -67,7 +68,15 @@ class UserPublic(BaseModel):
 
 
 class LogCreate(BaseModel):
+    # Client-supplied idempotency key. Notification quick-logs send a stable id
+    # so a retried delivery upserts the same row instead of duplicating it —
+    # the local store honours this and the API must match.
+    id: Optional[str] = Field(default=None, min_length=8, max_length=80)
     nostril_state: NostrilState
+    # Advanced logging: the RIGHT nostril's share, 0–100. Absent for simple
+    # Left/Right/Both taps. Without this field Pydantic silently dropped the
+    # value and every advanced log lost its blend.
+    blend: Optional[int] = Field(default=None, ge=0, le=100)
     mood_score: Optional[int] = Field(default=None, ge=1, le=10)
     energy_score: Optional[int] = Field(default=None, ge=1, le=10)
     focus_score: Optional[int] = Field(default=None, ge=1, le=10)
@@ -75,10 +84,15 @@ class LogCreate(BaseModel):
     tags: List[str] = []
     local_date: str  # YYYY-MM-DD in the user's timezone
     local_hour: int = Field(ge=0, le=23)
+    # Minutes EAST of UTC at the moment of logging (JS: -getTimezoneOffset()).
+    # local_date/local_hour alone can't be re-anchored to the solar day once
+    # users span timezones; this can't be backfilled, so capture it from day one.
+    tz_offset_minutes: Optional[int] = Field(default=None, ge=-840, le=840)
 
 
 class LogUpdate(BaseModel):
     nostril_state: Optional[NostrilState] = None
+    blend: Optional[int] = Field(default=None, ge=0, le=100)
     mood_score: Optional[int] = Field(default=None, ge=1, le=10)
     energy_score: Optional[int] = Field(default=None, ge=1, le=10)
     focus_score: Optional[int] = Field(default=None, ge=1, le=10)
@@ -86,11 +100,27 @@ class LogUpdate(BaseModel):
     tags: Optional[List[str]] = None
 
 
+# Partial update: every field optional, applied with exclude_unset so a PUT
+# carrying one setting no longer resets the rest to defaults. Mirrors the
+# LocalSettings shape in frontend/src/lib/localStore.ts — keep in sync.
 class SettingsIn(BaseModel):
-    reminder_enabled: bool = False
-    reminder_interval_minutes: int = Field(default=60, ge=5, le=1440)
-    theme: Literal["light", "dark"] = "light"
-    mood_journaling: bool = True
+    reminder_enabled: Optional[bool] = None
+    reminder_interval_seconds: Optional[int] = Field(default=None, ge=5, le=86400)
+    quiet_hours_enabled: Optional[bool] = None
+    quiet_start_minutes: Optional[int] = Field(default=None, ge=0, le=1439)
+    quiet_end_minutes: Optional[int] = Field(default=None, ge=0, le=1439)
+    theme: Optional[Literal["light", "dark"]] = None
+    mood_journaling: Optional[bool] = None
+    skin: Optional[Literal["classic", "banners", "instrument"]] = None
+    advanced_logging: Optional[bool] = None
+    reminder_style: Optional[Literal["banner", "live", "both"]] = None
+    reminder_sound: Optional[bool] = None
+    widget_tap_feedback: Optional[bool] = None
+    haptics_enabled: Optional[bool] = None
+    # Research opt-in: whether this user's anonymized logs may be included in
+    # aggregate breath-pattern analysis. Defaults off; the consent timestamp is
+    # stamped server-side so the client can't fabricate it.
+    research_consent: Optional[bool] = None
 
 
 # ---------- Helpers ----------
@@ -152,17 +182,39 @@ async def auth_user(authorization: Optional[str] = Header(default=None)) -> dict
     return await get_current_user(authorization)
 
 
+# Defaults mirror DEFAULT_SETTINGS in frontend/src/lib/localStore.ts.
+SETTINGS_DEFAULTS = {
+    "reminder_enabled": False,
+    "reminder_interval_seconds": 3600,
+    "quiet_hours_enabled": False,
+    "quiet_start_minutes": 22 * 60,  # 22:00
+    "quiet_end_minutes": 7 * 60,  # 07:00
+    "theme": "light",
+    "mood_journaling": True,
+    "skin": "banners",
+    "advanced_logging": False,
+    "reminder_style": "both",
+    "reminder_sound": True,
+    "widget_tap_feedback": True,
+    "haptics_enabled": True,
+    "research_consent": False,
+    "research_consent_at": None,
+}
+
+
 async def ensure_settings(user_id: str) -> dict:
     existing = await db.user_settings.find_one({"user_id": user_id}, {"_id": 0})
     if existing:
-        return existing
+        # Migrate pre-seconds documents and backfill fields added since the doc
+        # was created, so clients always see the full current shape.
+        if existing.get("reminder_interval_seconds") is None and existing.get("reminder_interval_minutes") is not None:
+            existing["reminder_interval_seconds"] = int(existing["reminder_interval_minutes"]) * 60
+        existing.pop("reminder_interval_minutes", None)
+        return {**SETTINGS_DEFAULTS, **existing}
     doc = {
         "id": str(uuid.uuid4()),
         "user_id": user_id,
-        "reminder_enabled": False,
-        "reminder_interval_minutes": 60,
-        "theme": "light",
-        "mood_journaling": True,
+        **SETTINGS_DEFAULTS,
         "created_at": iso_now(),
         "updated_at": iso_now(),
     }
@@ -275,10 +327,19 @@ async def delete_account(authorization: Optional[str] = Header(default=None)):
 @api_router.post("/logs")
 async def create_log(body: LogCreate, authorization: Optional[str] = Header(default=None)):
     user = await get_current_user(authorization)
+    # Idempotent create: a client-supplied id that already exists for this user
+    # returns the stored row unchanged, so a retried notification quick-log
+    # never duplicates. Scoped to the user — one client's key can't collide
+    # with or read another's.
+    if body.id:
+        existing = await db.breath_logs.find_one({"id": body.id, "user_id": user["id"]}, {"_id": 0})
+        if existing:
+            return existing
     doc = {
-        "id": str(uuid.uuid4()),
+        "id": body.id or str(uuid.uuid4()),
         "user_id": user["id"],
         "nostril_state": body.nostril_state,
+        "blend": body.blend,
         "mood_score": body.mood_score,
         "energy_score": body.energy_score,
         "focus_score": body.focus_score,
@@ -286,10 +347,16 @@ async def create_log(body: LogCreate, authorization: Optional[str] = Header(defa
         "tags": body.tags,
         "local_date": body.local_date,
         "local_hour": body.local_hour,
+        "tz_offset_minutes": body.tz_offset_minutes,
         "created_at": iso_now(),
         "updated_at": iso_now(),
     }
-    await db.breath_logs.insert_one({**doc})
+    try:
+        await db.breath_logs.insert_one({**doc})
+    except DuplicateKeyError:
+        # Two retries of the same quick-log raced past the pre-check; the row
+        # the other one inserted is the answer.
+        return await db.breath_logs.find_one({"id": doc["id"], "user_id": user["id"]}, {"_id": 0})
     return doc
 
 
@@ -346,6 +413,15 @@ async def update_log(log_id: str, body: LogUpdate, authorization: Optional[str] 
     return updated
 
 
+# Clear a whole day at once — mirrors the local store's DELETE /logs?date=.
+# The date is required so this can never wipe a whole account by accident.
+@api_router.delete("/logs")
+async def delete_day(date: str, authorization: Optional[str] = Header(default=None)):
+    user = await get_current_user(authorization)
+    result = await db.breath_logs.delete_many({"user_id": user["id"], "local_date": date})
+    return {"deleted": result.deleted_count}
+
+
 @api_router.delete("/logs/{log_id}")
 async def delete_log(log_id: str, authorization: Optional[str] = Header(default=None)):
     user = await get_current_user(authorization)
@@ -366,11 +442,22 @@ async def get_settings(authorization: Optional[str] = Header(default=None)):
 @api_router.put("/settings")
 async def update_settings(body: SettingsIn, authorization: Optional[str] = Header(default=None)):
     user = await get_current_user(authorization)
-    await ensure_settings(user["id"])
-    updates = body.model_dump()
+    current = await ensure_settings(user["id"])
+    # exclude_unset: only fields the client actually sent are written. The old
+    # model_dump() wrote every default too, so saving one toggle silently reset
+    # the reminder interval and everything else.
+    updates = body.model_dump(exclude_unset=True)
+    # Consent gets a server-side timestamp the moment it flips on, and a
+    # revocation timestamp when it flips off — the audit trail research use
+    # depends on, and not something the client is trusted to write.
+    if "research_consent" in updates:
+        if updates["research_consent"] and not current.get("research_consent"):
+            updates["research_consent_at"] = iso_now()
+        elif not updates["research_consent"] and current.get("research_consent"):
+            updates["research_revoked_at"] = iso_now()
     updates["updated_at"] = iso_now()
     await db.user_settings.update_one({"user_id": user["id"]}, {"$set": updates})
-    return await db.user_settings.find_one({"user_id": user["id"]}, {"_id": 0})
+    return await ensure_settings(user["id"])
 
 
 # ---------- Export ----------
@@ -420,6 +507,8 @@ async def create_indexes():
     await db.user_sessions.create_index("session_token", unique=True)
     await db.user_sessions.create_index("user_id")
     await db.breath_logs.create_index([("user_id", 1), ("local_date", 1)])
+    # The id lookups (idempotent create, patch, delete) were collection scans.
+    await db.breath_logs.create_index("id", unique=True)
     await db.user_settings.create_index("user_id", unique=True)
 
 

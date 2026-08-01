@@ -123,6 +123,67 @@ class TestLogs:
         ids = [l["id"] for l in r2.json()]
         assert log_id in ids
 
+    def test_blend_and_tz_round_trip(self, session, tester_headers):
+        # The blend and tz offset must come back exactly — both were silently
+        # dropped by the old LogCreate model.
+        payload = {
+            "nostril_state": "right",
+            "blend": 80,
+            "tz_offset_minutes": 180,
+            "tags": [],
+            "local_date": today_str(),
+            "local_hour": 9,
+        }
+        r = session.post(f"{API}/logs", headers=tester_headers, json=payload)
+        assert r.status_code == 200, r.text
+        log = r.json()
+        assert log["blend"] == 80
+        assert log["tz_offset_minutes"] == 180
+        r2 = session.get(f"{API}/logs", headers=tester_headers, params={"date": payload["local_date"]})
+        stored = next(l for l in r2.json() if l["id"] == log["id"])
+        assert stored["blend"] == 80
+        session.delete(f"{API}/logs/{log['id']}", headers=tester_headers)
+
+    def test_idempotent_create(self, session, tester_headers):
+        # Same client id posted twice -> one row, second response echoes the first.
+        key = f"notif_{uuid.uuid4().hex}"
+        payload = {
+            "id": key,
+            "nostril_state": "left",
+            "tags": [],
+            "local_date": today_str(),
+            "local_hour": 11,
+        }
+        r1 = session.post(f"{API}/logs", headers=tester_headers, json=payload)
+        assert r1.status_code == 200, r1.text
+        r2 = session.post(f"{API}/logs", headers=tester_headers, json={**payload, "nostril_state": "right"})
+        assert r2.status_code == 200
+        assert r2.json()["id"] == key
+        assert r2.json()["nostril_state"] == "left"  # first write wins
+        r3 = session.get(f"{API}/logs", headers=tester_headers, params={"date": payload["local_date"]})
+        assert sum(1 for l in r3.json() if l["id"] == key) == 1
+        session.delete(f"{API}/logs/{key}", headers=tester_headers)
+
+    def test_delete_day(self, session, tester_headers):
+        # Two logs on a synthetic far-past date, one day-delete, zero left.
+        day = "1970-01-02"
+        for _ in range(2):
+            r = session.post(
+                f"{API}/logs",
+                headers=tester_headers,
+                json={"nostril_state": "both", "tags": [], "local_date": day, "local_hour": 8},
+            )
+            assert r.status_code == 200
+        r = session.delete(f"{API}/logs", headers=tester_headers, params={"date": day})
+        assert r.status_code == 200
+        assert r.json()["deleted"] == 2
+        r2 = session.get(f"{API}/logs", headers=tester_headers, params={"date": day})
+        assert r2.json() == []
+
+    def test_delete_day_requires_date(self, session, tester_headers):
+        r = session.delete(f"{API}/logs", headers=tester_headers)
+        assert r.status_code == 422  # missing required query param
+
     def test_list_logs_requires_filter(self, session, tester_headers):
         r = session.get(f"{API}/logs", headers=tester_headers)
         assert r.status_code == 400
@@ -207,22 +268,77 @@ class TestSettings:
         r = session.get(f"{API}/settings", headers=tester_headers)
         assert r.status_code == 200
         data = r.json()
-        for k in ("reminder_enabled", "reminder_interval_minutes", "theme"):
-            assert k in data
+        # The full current shape, including fields backfilled onto old docs.
+        for k in (
+            "reminder_enabled",
+            "reminder_interval_seconds",
+            "quiet_hours_enabled",
+            "theme",
+            "skin",
+            "advanced_logging",
+            "reminder_style",
+            "reminder_sound",
+            "widget_tap_feedback",
+            "haptics_enabled",
+            "research_consent",
+        ):
+            assert k in data, k
+        # The minutes-era field never leaks out.
+        assert "reminder_interval_minutes" not in data
 
     def test_put_settings(self, session, tester_headers):
-        payload = {"reminder_enabled": True, "reminder_interval_minutes": 120, "theme": "dark"}
+        payload = {"reminder_enabled": True, "reminder_interval_seconds": 900, "theme": "dark"}
         r = session.put(f"{API}/settings", headers=tester_headers, json=payload)
         assert r.status_code == 200
         data = r.json()
         assert data["reminder_enabled"] is True
-        assert data["reminder_interval_minutes"] == 120
+        assert data["reminder_interval_seconds"] == 900
         assert data["theme"] == "dark"
         # GET verifies persistence
         r2 = session.get(f"{API}/settings", headers=tester_headers)
         assert r2.json()["theme"] == "dark"
-        # revert to light
-        session.put(f"{API}/settings", headers=tester_headers, json={"reminder_enabled": False, "reminder_interval_minutes": 60, "theme": "light"})
+        # revert
+        session.put(
+            f"{API}/settings",
+            headers=tester_headers,
+            json={"reminder_enabled": False, "reminder_interval_seconds": 3600, "theme": "light"},
+        )
+
+    def test_partial_put_does_not_reset_other_fields(self, session, tester_headers):
+        # Set an interval, then PUT an unrelated toggle: the interval must survive.
+        r = session.put(f"{API}/settings", headers=tester_headers, json={"reminder_interval_seconds": 300})
+        assert r.status_code == 200
+        r = session.put(f"{API}/settings", headers=tester_headers, json={"advanced_logging": True})
+        assert r.status_code == 200
+        data = r.json()
+        assert data["advanced_logging"] is True
+        assert data["reminder_interval_seconds"] == 300
+        # revert
+        session.put(
+            f"{API}/settings",
+            headers=tester_headers,
+            json={"advanced_logging": False, "reminder_interval_seconds": 3600},
+        )
+
+    def test_research_consent_stamped_server_side(self, session, tester_headers):
+        # Enabling consent stamps a server-side timestamp; the client's own
+        # value for the timestamp field must be ignored (it's not in the model).
+        r = session.put(
+            f"{API}/settings",
+            headers=tester_headers,
+            json={"research_consent": True, "research_consent_at": "1999-01-01T00:00:00"},
+        )
+        assert r.status_code == 200
+        data = r.json()
+        assert data["research_consent"] is True
+        assert data["research_consent_at"] is not None
+        assert not data["research_consent_at"].startswith("1999")
+        # Disabling records a revocation and keeps the flag off.
+        r = session.put(f"{API}/settings", headers=tester_headers, json={"research_consent": False})
+        assert r.status_code == 200
+        data = r.json()
+        assert data["research_consent"] is False
+        assert data.get("research_revoked_at") is not None
 
 
 # ----------------- Export & Account -----------------

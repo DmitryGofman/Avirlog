@@ -49,6 +49,7 @@ interface Settings {
   widget_tap_feedback: boolean;
   reminder_sound: boolean;
   haptics_enabled: boolean;
+  research_consent: boolean;
 }
 
 const INTERVALS = [
@@ -166,6 +167,7 @@ export default function SettingsScreen() {
           widget_tap_feedback: s.widget_tap_feedback ?? true,
           reminder_sound: s.reminder_sound ?? true,
           haptics_enabled: s.haptics_enabled ?? true,
+          research_consent: s.research_consent ?? false,
         });
       })
       .catch(() => showToast("Could not load settings", "error"));
@@ -230,6 +232,15 @@ export default function SettingsScreen() {
     if (!settings) return;
     persist({ ...settings, widget_tap_feedback: enabled });
     setWidgetTapFeedback(enabled);
+  };
+
+  const toggleResearchConsent = (enabled: boolean) => {
+    if (!settings) return;
+    // The store stamps research_consent_at / research_revoked_at itself.
+    persist({ ...settings, research_consent: enabled });
+    showToast(
+      enabled ? "Thank you — your anonymized logs may join the research" : "Opted out of research",
+    );
   };
 
   const toggleHaptics = (enabled: boolean) => {
@@ -766,6 +777,34 @@ export default function SettingsScreen() {
               </Text>
             </View>
           )}
+        </Section>
+
+        <Section title="Research">
+          <Row
+            icon="analytics-outline"
+            label="Contribute to breath research"
+            testID="settings-research-row"
+            right={
+              settings ? (
+                <Switch
+                  testID="settings-research-switch"
+                  value={settings.research_consent}
+                  onValueChange={toggleResearchConsent}
+                  trackColor={{ false: colors.border, true: colors.brand }}
+                  thumbColor="#FFFFFF"
+                />
+              ) : (
+                <ActivityIndicator size="small" color={colors.brand} />
+              )
+            }
+          />
+          <Text style={[styles.reminderHint, { color: colors.onSurfaceTertiary, paddingBottom: spacing.lg }]}>
+            Optional, and off by default. When on, your breath logs — nostril side, blend,
+            time of day, and any mood, energy or focus scores — may be included, in
+            anonymized form, in aggregate research into human nasal-cycle patterns. Your
+            name and email are never part of the dataset. You can opt out any time and it
+            applies from that moment on; deleting your account removes your data entirely.
+          </Text>
         </Section>
 
         <Section title="Data">

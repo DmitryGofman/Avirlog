@@ -111,6 +111,7 @@ export default function QuickLogScreen() {
           tags: [],
           local_date: todayStr(),
           local_hour: new Date().getHours(),
+          tz_offset_minutes: -new Date().getTimezoneOffset(),
         },
       });
       // The confirming beat — the log is on disk, not just requested.

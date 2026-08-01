@@ -39,6 +39,13 @@ export interface LocalSettings {
   reminder_sound: boolean;
   // Whether the app itself vibrates on a log and while dragging a blend.
   haptics_enabled: boolean;
+  // Research opt-in: whether anonymized logs may join aggregate breath-pattern
+  // analysis. Off by default; the timestamps are written by the store when the
+  // flag flips (mirrors the backend, which stamps them server-side), so
+  // consent recorded locally survives a later sign-in-and-sync intact.
+  research_consent: boolean;
+  research_consent_at: string | null;
+  research_revoked_at: string | null;
 }
 
 const LOGS_KEY = "avirlog_local_logs";
@@ -59,6 +66,9 @@ const DEFAULT_SETTINGS: LocalSettings = {
   widget_tap_feedback: true,
   reminder_sound: true,
   haptics_enabled: true,
+  research_consent: false,
+  research_consent_at: null,
+  research_revoked_at: null,
 };
 
 function genId(): string {
@@ -141,7 +151,15 @@ export async function localApi<T = any>(path: string, options: LocalApiOptions =
   if (rawPath === "/settings") {
     if (method === "GET") return (await readSettings()) as T;
     if (method === "PUT") {
-      const next = { ...(await readSettings()), ...(options.body ?? {}) } as LocalSettings;
+      const prev = await readSettings();
+      const next = { ...prev, ...(options.body ?? {}) } as LocalSettings;
+      // Stamp consent transitions here, not in the UI, so every caller gets
+      // the audit trail (mirrors the backend's server-side stamping).
+      if (next.research_consent && !prev.research_consent) {
+        next.research_consent_at = new Date().toISOString();
+      } else if (!next.research_consent && prev.research_consent) {
+        next.research_revoked_at = new Date().toISOString();
+      }
       await writeSettings(next);
       return next as T;
     }
@@ -216,6 +234,7 @@ export async function localApi<T = any>(path: string, options: LocalApiOptions =
           tags: body.tags ?? [],
           local_date: body.local_date,
           local_hour: body.local_hour ?? new Date().getHours(),
+          tz_offset_minutes: body.tz_offset_minutes ?? null,
           created_at: now,
           updated_at: now,
         };
