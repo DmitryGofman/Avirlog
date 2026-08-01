@@ -22,7 +22,13 @@ import { useAuth } from "@/src/context/AuthContext";
 import { useTheme } from "@/src/context/ThemeContext";
 import { api } from "@/src/lib/api";
 import { ACCOUNTS_ENABLED, DEFAULT_SKIN, SKINS, SkinId } from "@/src/lib/config";
-import { cancelReminders, ensurePermission, scheduleNextReminder } from "@/src/lib/notifications";
+import {
+  cancelReminders,
+  ensurePermission,
+  REMINDER_STYLES,
+  ReminderStyle,
+  scheduleNextReminder,
+} from "@/src/lib/notifications";
 import { buildStamp, CODE_REVISION_NOTE } from "@/src/lib/buildInfo";
 import { getRealisticRoll, setRealisticRoll } from "@/src/lib/rollPref";
 import { setWidgetAdvanced } from "@/src/lib/widgetBridge";
@@ -38,6 +44,7 @@ interface Settings {
   mood_journaling: boolean;
   skin: SkinId;
   advanced_logging: boolean;
+  reminder_style: ReminderStyle;
 }
 
 const INTERVALS = [
@@ -147,6 +154,7 @@ export default function SettingsScreen() {
           mood_journaling: s.mood_journaling ?? true,
           skin: s.skin ?? DEFAULT_SKIN,
           advanced_logging: s.advanced_logging ?? false,
+          reminder_style: s.reminder_style ?? "both",
         }),
       )
       .catch(() => showToast("Could not load settings", "error"));
@@ -211,6 +219,18 @@ export default function SettingsScreen() {
     setRealisticRollState(enabled);
     setRealisticRoll(enabled);
     showToast(enabled ? "Realistic roll on — reopen Log to see it" : "Realistic roll off");
+  };
+
+  // Changing the alert style re-arms the chain so the switch takes effect on
+  // the very next reminder rather than the one after it.
+  const setReminderStyleValue = async (style: ReminderStyle) => {
+    if (!settings) return;
+    const next = { ...settings, reminder_style: style };
+    persist(next);
+    if (next.reminder_enabled && Platform.OS !== "web") {
+      await cancelReminders();
+      await scheduleNextReminder(next).catch(() => {});
+    }
   };
 
   const setInterval = (seconds: number) => {
@@ -557,6 +577,46 @@ export default function SettingsScreen() {
                 </Pressable>
               </View>
 
+              {/* Alert style — which of the two prompts you actually get */}
+              <Text style={[styles.reminderSub, { color: colors.onSurfaceTertiary, marginTop: spacing.md }]}>
+                Alert style
+              </Text>
+              <View style={styles.intervalRow}>
+                {REMINDER_STYLES.map((s) => {
+                  const selected = settings.reminder_style === s.value;
+                  return (
+                    <Pressable
+                      key={s.value}
+                      testID={`settings-style-${s.value}`}
+                      onPress={() => setReminderStyleValue(s.value)}
+                      style={[
+                        styles.intervalPill,
+                        {
+                          backgroundColor: selected ? colors.surfaceInverse : colors.surfaceTertiary,
+                          borderColor: selected ? colors.surfaceInverse : colors.border,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.intervalText,
+                          { color: selected ? colors.onSurfaceInverse : colors.onSurfaceTertiary },
+                        ]}
+                      >
+                        {s.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              <Text style={[styles.reminderHint, { color: colors.onSurfaceTertiary }]}>
+                {settings.reminder_style === "banner"
+                  ? "Only the notification — it buzzes, and holding it reveals the log buttons. No Live Activity or Dynamic Island."
+                  : settings.reminder_style === "live"
+                    ? "Only the Live Activity — a silent countdown card on the Lock Screen and in the Dynamic Island, with the log buttons on it. Nothing buzzes, so check it yourself."
+                    : "Both — the Live Activity counts down on the Lock Screen and the notification buzzes when the time comes."}
+              </Text>
+
               {/* Sleep time — no reminders inside this window */}
               <View style={styles.quietHeader}>
                 <Text style={[styles.reminderSub, { color: colors.onSurfaceTertiary }]}>Sleep time</Text>
@@ -599,7 +659,8 @@ export default function SettingsScreen() {
 
               <Text style={[styles.reminderHint, { color: colors.onSurfaceTertiary }]}>
                 One reminder at a time — the next is armed after you respond to it (or reopen the app).
-                Hold the notification to reveal the Left / Right / Both buttons. Delivered on the
+                Hold the notification to reveal the log buttons. Logging anywhere — in the app, on the
+                widget, from the notification — clears whatever is still showing. Delivered on the
                 installed app, not the web preview.
               </Text>
             </View>

@@ -4,6 +4,9 @@
 // Routed from src/lib/api.ts whenever there is no auth token.
 
 import { DEFAULT_SKIN, SkinId } from "@/src/lib/config";
+// Type-only: notifications.ts reaches back here through api.ts, so a value
+// import would close a require cycle.
+import type { ReminderStyle } from "@/src/lib/notifications";
 import { storage } from "@/src/utils/storage";
 import { BreathLog, NostrilState } from "@/src/theme/theme";
 
@@ -27,6 +30,9 @@ export interface LocalSettings {
   // When on, the Log screen swaps the Left/Right/Both buttons for a blend
   // slider that records how open each nostril is.
   advanced_logging: boolean;
+  // Which alert a due reminder uses: the classic notification, the Live
+  // Activity countdown, or both.
+  reminder_style: ReminderStyle;
 }
 
 const LOGS_KEY = "avirlog_local_logs";
@@ -43,6 +49,7 @@ const DEFAULT_SETTINGS: LocalSettings = {
   mood_journaling: true,
   skin: DEFAULT_SKIN,
   advanced_logging: false,
+  reminder_style: "both",
 };
 
 function genId(): string {

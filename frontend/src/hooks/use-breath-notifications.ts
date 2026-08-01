@@ -12,14 +12,15 @@ import { AppState, Platform } from "react-native";
 import { useToast } from "@/src/components/Toast";
 import { api } from "@/src/lib/api";
 import { createBreathLog } from "@/src/lib/breathLog";
-import { endBreathWindow } from "@/src/lib/liveActivityBridge";
 import {
   actionToBlend,
   actionToState,
+  clearBreathPrompts,
   configureNotifications,
   ensureReminderArmed,
   presentLogConfirmation,
   ReminderConfig,
+  reminderStyle,
   scheduleNextReminder,
 } from "@/src/lib/notifications";
 import { importWidgetLogs } from "@/src/lib/widgetBridge";
@@ -57,14 +58,19 @@ export function useBreathNotifications() {
         const key = `notif_${response.notification.request.identifier}_${actionId}`;
         try {
           await createBreathLog(state, key, blend?.right);
-          endBreathWindow(); // close the Live Activity window if one is open
-          await presentLogConfirmation(state);
+          // Close the Live Activity window and clear the delivered reminder,
+          // then post the confirmation on top (order matters — the clear would
+          // otherwise take the confirmation down with it).
+          await clearBreathPrompts();
+          await presentLogConfirmation(state, reminderStyle(await getReminderConfig()));
           showToast(`Logged · ${STATE_META[state].label}`);
         } catch {
           showToast("Could not log from reminder", "error");
         }
       } else if (actionId === Notifications.DEFAULT_ACTION_IDENTIFIER) {
-        // The notification itself was tapped — land on the Log screen.
+        // The notification itself was tapped — land on the Log screen. Clearing
+        // it here means the reminder is gone by the time you log in the app.
+        await clearBreathPrompts();
         router.navigate("/(tabs)/log");
       }
 
@@ -79,7 +85,13 @@ export function useBreathNotifications() {
     // On foreground: import any logs made on the widget, then re-arm the chain
     // (covers ignored/swiped reminders and app restarts).
     const onActive = () => {
-      importWidgetLogs().catch(() => {});
+      // A widget tap already answered the reminder — clear it rather than
+      // leaving it on the Lock Screen for a log that has been made.
+      importWidgetLogs()
+        .then((n) => {
+          if (n > 0) clearBreathPrompts().catch(() => {});
+        })
+        .catch(() => {});
       getReminderConfig().then((cfg) => {
         if (cfg?.reminder_enabled) ensureReminderArmed(cfg).catch(() => {});
       });
