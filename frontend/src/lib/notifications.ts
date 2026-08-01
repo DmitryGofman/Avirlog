@@ -8,14 +8,27 @@
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 
-import { endBreathWindow, startBreathWindow } from "@/src/lib/liveActivityBridge";
+import {
+  endBreathWindow,
+  liveActivityRunning,
+  startBreathWindow,
+} from "@/src/lib/liveActivityBridge";
+import { storage } from "@/src/utils/storage";
 import { pickMessage, SWARA } from "@/src/lib/swara";
 import { clearWidgetDue, setWidgetDue } from "@/src/lib/widgetBridge";
 import { NostrilState, STATE_META } from "@/src/theme/theme";
 
-// The Live Activity logging window stays up for at most this long before it
-// goes stale and the classic notification takes over as the fallback.
-const LIVE_WINDOW_SECONDS = 600;
+// iOS lets a Live Activity stay active for up to 8 hours, which covers every
+// reminder interval the app offers. This used to be 10 minutes, so on an
+// hour-long interval the card counted down to a moment that meant nothing and
+// then vanished for the remaining fifty — the window now runs to the actual
+// reminder time.
+const LIVE_WINDOW_SECONDS = 8 * 3600;
+
+// When the armed reminder is due, in epoch ms. Kept because a Live Activity can
+// only be started with the app in the foreground: when the background attempt
+// fails, the next app open needs to know how much of the window is left.
+const DUE_AT_KEY = "avirlog_next_due_at";
 
 export const BREATH_CATEGORY = "breath-log";
 // Advanced variant: the reminder offers three preset-blend buttons instead of
@@ -197,10 +210,32 @@ export async function scheduleNextReminder(cfg: ReminderConfig): Promise<void> {
   }
   // The widget lights up on the same schedule whichever style is chosen.
   setWidgetDue(Date.now() / 1000 + delay, cfg.reminder_interval_seconds);
+  await storage.setItem(DUE_AT_KEY, Date.now() + delay * 1000);
   // Open the interactive Live Activity logging window (no-op if unsupported).
-  // It counts down and offers the log buttons; when it goes stale the
-  // scheduled notification above is the fallback.
+  // It counts down to the reminder and offers the log buttons.
+  //
+  // This SILENTLY FAILS whenever the app isn't in the foreground — ActivityKit
+  // refuses to start an activity from the background, and the most common
+  // re-arm path is a notification quick-log, which never foregrounds the app.
+  // ensureLiveWindow() below is the recovery.
   if (style !== "banner") startBreathWindow(Math.min(delay, LIVE_WINDOW_SECONDS));
+}
+
+// Re-open the Live Activity window if reminders are on, the style wants one,
+// and none is running — e.g. because scheduleNextReminder ran in the background
+// and ActivityKit refused it. Safe to call on every foreground: it starts an
+// activity only when there genuinely isn't one.
+export async function ensureLiveWindow(cfg: ReminderConfig): Promise<void> {
+  if (Platform.OS !== "ios" || !cfg.reminder_enabled) return;
+  if (reminderStyle(cfg) === "banner") return;
+  if (liveActivityRunning()) return;
+  const dueAt = await storage.getItem<number>(DUE_AT_KEY, 0);
+  if (!dueAt) return;
+  const secondsLeft = Math.round((dueAt - Date.now()) / 1000);
+  // Under half a minute left: the reminder is about to fire and re-arm the
+  // chain anyway, so a window now would be replaced immediately.
+  if (secondsLeft < 30) return;
+  startBreathWindow(Math.min(secondsLeft, LIVE_WINDOW_SECONDS));
 }
 
 // Re-arm on app open / after a swipe: only if reminders are on and nothing is
@@ -249,6 +284,7 @@ export async function clearBreathPrompts(): Promise<void> {
 export async function cancelReminders(): Promise<void> {
   if (Platform.OS === "web") return;
   await Notifications.cancelAllScheduledNotificationsAsync();
+  await storage.setItem(DUE_AT_KEY, 0);
   clearWidgetDue();
   endBreathWindow();
 }

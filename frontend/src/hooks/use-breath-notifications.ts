@@ -17,6 +17,7 @@ import {
   actionToState,
   clearBreathPrompts,
   configureNotifications,
+  ensureLiveWindow,
   ensureReminderArmed,
   presentLogConfirmation,
   ReminderConfig,
@@ -93,7 +94,13 @@ export function useBreathNotifications() {
         })
         .catch(() => {});
       getReminderConfig().then((cfg) => {
-        if (cfg?.reminder_enabled) ensureReminderArmed(cfg).catch(() => {});
+        if (!cfg?.reminder_enabled) return;
+        ensureReminderArmed(cfg).catch(() => {});
+        // ActivityKit refuses to start a Live Activity from the background, and
+        // the chain re-arms after notification quick-logs — which never
+        // foreground the app. So the window is routinely missing by the time
+        // you next open AvirLog; reopen it here.
+        ensureLiveWindow(cfg).catch(() => {});
       });
     };
     onActive();

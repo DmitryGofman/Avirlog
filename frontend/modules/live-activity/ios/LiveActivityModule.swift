@@ -30,22 +30,45 @@ public class LiveActivityModule: Module {
       return false
     }
 
-    // Open a logging window that counts down for `windowSeconds`, then goes
-    // stale (system dismisses it) — after which the classic chained reminder
-    // is the fallback. Ends any window already open first.
-    Function("startWindow") { (windowSeconds: Double) in
+    // Whether a logging window is open right now. The app checks this on
+    // foreground so it can reopen one that failed to start in the background.
+    Function("isRunning") { () -> Bool in
       if #available(iOS 16.2, *) {
-        for activity in Activity<BreathActivityAttributes>.activities {
-          Task { await activity.end(nil, dismissalPolicy: .immediate) }
-        }
-        let ends = Date().addingTimeInterval(max(30, windowSeconds))
-        let state = BreathActivityAttributes.ContentState(endsAt: ends, logged: false)
-        let content = ActivityContent(state: state, staleDate: ends)
-        _ = try? Activity.request(
+        return !Activity<BreathActivityAttributes>.activities.isEmpty
+      }
+      return false
+    }
+
+    // Open a logging window that counts down for `windowSeconds`. Ends any
+    // window already open first. Returns whether one is now running.
+    //
+    // The failure that matters: ActivityKit only allows Activity.request() while
+    // the app is in the FOREGROUND, and throws .visibility otherwise. This used
+    // to be `try?`, which discarded the error — so a window that never opened
+    // was indistinguishable from one that did. Now the reason is logged and the
+    // result is returned, and the caller retries on next foreground.
+    Function("startWindow") { (windowSeconds: Double) -> Bool in
+      guard #available(iOS 16.2, *) else { return false }
+      guard ActivityAuthorizationInfo().areActivitiesEnabled else {
+        NSLog("[LiveActivity] not started — Live Activities are off for this app in iOS Settings")
+        return false
+      }
+      for activity in Activity<BreathActivityAttributes>.activities {
+        Task { await activity.end(nil, dismissalPolicy: .immediate) }
+      }
+      let ends = Date().addingTimeInterval(max(30, windowSeconds))
+      let state = BreathActivityAttributes.ContentState(endsAt: ends, logged: false)
+      let content = ActivityContent(state: state, staleDate: ends)
+      do {
+        _ = try Activity.request(
           attributes: BreathActivityAttributes(title: "Breath check"),
           content: content,
           pushType: nil
         )
+        return true
+      } catch {
+        NSLog("[LiveActivity] start failed: \(error.localizedDescription)")
+        return false
       }
     }
 

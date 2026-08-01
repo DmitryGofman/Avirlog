@@ -7,7 +7,8 @@ import { Platform } from "react-native";
 
 interface LiveActivityModule {
   isSupported(): boolean;
-  startWindow(windowSeconds: number): void;
+  isRunning(): boolean;
+  startWindow(windowSeconds: number): boolean;
   endAll(): void;
 }
 
@@ -22,13 +23,27 @@ export function liveActivitySupported(): boolean {
   }
 }
 
-// Open a timed logging window (the countdown Live Activity + Dynamic Island).
-export function startBreathWindow(windowSeconds: number): void {
-  if (Platform.OS !== "ios" || !LA) return;
+// Whether a logging window is open right now. False whenever the module is
+// absent, so callers treat "can't tell" as "nothing running" and try to start.
+export function liveActivityRunning(): boolean {
+  if (Platform.OS !== "ios" || !LA) return false;
   try {
-    LA.startWindow(windowSeconds);
+    return LA.isRunning();
   } catch {
-    // ignore — a missing/denied Live Activity should never break logging
+    return false;
+  }
+}
+
+// Open a timed logging window (the countdown Live Activity + Dynamic Island).
+// Returns whether one is now running — false when ActivityKit refused, which it
+// does for any attempt made while the app is in the background.
+export function startBreathWindow(windowSeconds: number): boolean {
+  if (Platform.OS !== "ios" || !LA) return false;
+  try {
+    return LA.startWindow(windowSeconds);
+  } catch {
+    // a missing/denied Live Activity should never break logging
+    return false;
   }
 }
 
