@@ -128,8 +128,8 @@ Things that commonly reject or delay apps like this one:
    re-validated in the actual build (notification categories especially —
    they work differently in Expo Go).
 9. **Screenshots must match the shipped app** (Guideline 2.3.3). No mockups
-   with features that aren't in v1 (e.g. don't show a home-screen widget…
-   because there isn't one — see below).
+   with features that aren't in the build you ship (the widget now exists, but
+   only if `@bacons/apple-targets` was installed at build time — see below).
 10. **Apple can ask "what does Avirlog mean / what is Swara Yoga"** via a
     metadata rejection if the description is too sparse. One plain-English
     paragraph explaining the concept up front avoids this.
@@ -142,23 +142,22 @@ the smaller middle **Both** — tapping logs without opening the app
 (`src/lib/notifications.ts`, `src/hooks/use-breath-notifications.ts`).
 Remember: on iOS the buttons appear on long-press/pull-down of the banner.
 
-**Home-screen / Lock-screen widget — DOES NOT EXIST YET.** There is no
-WidgetKit target in this repo. Recommendation: **ship v1 without it** rather
-than adding untested native code the night before submission. For v1.1:
+**Home-screen / Lock-screen widget — NOW EXISTS.** The WidgetKit target lives
+at `frontend/targets/widget/index.swift` (systemSmall/Medium/Large +
+accessoryRectangular, iOS 17+ App Intents so Left/Right/Both log straight from
+the widget, plus a Live Activity for the Lock Screen and Dynamic Island). Data
+is shared through App Group `group.com.avirlog.app`; see `frontend/WIDGET.md`
+and `frontend/LIVEACTIVITY.md` for the build-and-verify loop.
 
-- iOS widgets require a native **WidgetKit extension** (Swift). In Expo, add
-  it with a config plugin such as `@bacons/apple-targets` (or `expo-apple-targets`),
-  then EAS builds compile it.
-- **Interactive buttons on a widget** (tap Left/Right/Both directly on the
-  widget without opening the app) require **iOS 17+ App Intents**
-  (`Button(intent:)` in the widget's SwiftUI). Below iOS 17, widget taps can
-  only deep-link into the app (e.g. `avirlog://log?state=left` — the scheme
-  is now `avirlog`).
-- Data sharing between app and widget needs an **App Group** and writing the
-  latest log state to shared storage (`UserDefaults(suiteName:)`) — AsyncStorage
-  is not visible to the widget.
-- Realistic scope: 1–2 days including TestFlight verification. Do it as v1.1
-  while v1.0 is in review.
+Two things to watch:
+
+- `@bacons/apple-targets` is deliberately **not** in `package.json` —
+  `app.config.js` registers it only if `require.resolve` succeeds. If it isn't
+  installed on the build side, the widget is **silently dropped** from the
+  build with no error.
+- The widget can only be verified on a real device via TestFlight, so if
+  screenshots show it, confirm it is actually present in the build you ship
+  (Guideline 2.3.3).
 
 ## 6. Nice-to-have before submission (not blocking)
 
