@@ -8,11 +8,11 @@
 import Constants from "expo-constants";
 
 // Bump this with each shipped batch, and note what it contains.
-export const CODE_REVISION = "r10";
+export const CODE_REVISION = "r11";
 
 // What landed in this revision, for the Settings subtitle.
 export const CODE_REVISION_NOTE =
-  "Live Activity stays up for the whole interval and recovers itself, backend catch-up";
+  "eight-screen welcome flow with the research consent question, Live Activity fixes";
 
 /** e.g. "1.0.0 (7) · code r4" — falls back gracefully if a field is missing. */
 export function buildStamp(): string {

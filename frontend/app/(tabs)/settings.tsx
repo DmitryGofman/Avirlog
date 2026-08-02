@@ -31,6 +31,7 @@ import {
 } from "@/src/lib/notifications";
 import { buildStamp, CODE_REVISION_NOTE } from "@/src/lib/buildInfo";
 import { hapticLogged, setHapticsEnabled } from "@/src/lib/haptics";
+import { resetOnboarding } from "@/src/lib/onboarding";
 import { getRealisticRoll, setRealisticRoll } from "@/src/lib/rollPref";
 import { setWidgetAdvanced, setWidgetTapFeedback } from "@/src/lib/widgetBridge";
 import { fonts, radius, spacing } from "@/src/theme/theme";
@@ -599,6 +600,16 @@ export default function SettingsScreen() {
         </Section>
 
         <Section title="Learn">
+          <Row
+            icon="sparkles-outline"
+            label="Show the welcome again"
+            testID="settings-replay-onboarding-row"
+            onPress={async () => {
+              await resetOnboarding();
+              router.replace("/onboarding");
+            }}
+            right={<Ionicons name="chevron-forward" size={16} color={colors.onSurfaceTertiary} />}
+          />
           <Row
             icon="flask-outline"
             label="Theory & evidence"
