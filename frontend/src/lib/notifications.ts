@@ -25,6 +25,16 @@ import { NostrilState, STATE_META } from "@/src/theme/theme";
 // reminder time.
 const LIVE_WINDOW_SECONDS = 8 * 3600;
 
+// In "both" style the Live Activity opens only inside this final stretch
+// before the reminder is due. Running it for the whole interval meant that the
+// moment you logged — on the card itself, on the widget, in the app — the next
+// cycle's card came straight back on the next foreground, so a tap never
+// seemed to close anything. Now logging closes the card and it stays closed;
+// the countdown reappears near the due time, and the notification remains the
+// guaranteed prompt either way. "live" style is exempt: there the card IS the
+// reminder, so it runs the full interval by design.
+const LIVE_LEAD_SECONDS = 20 * 60;
+
 // When the armed reminder is due, in epoch ms. Kept because a Live Activity can
 // only be started with the app in the foreground: when the background attempt
 // fails, the next app open needs to know how much of the window is left.
@@ -218,7 +228,15 @@ export async function scheduleNextReminder(cfg: ReminderConfig): Promise<void> {
   // refuses to start an activity from the background, and the most common
   // re-arm path is a notification quick-log, which never foregrounds the app.
   // ensureLiveWindow() below is the recovery.
-  if (style !== "banner") startBreathWindow(Math.min(delay, LIVE_WINDOW_SECONDS));
+  //
+  // "live" opens for the whole interval (the card is the only reminder);
+  // "both" opens only when the due time is already inside the lead window, so
+  // logging doesn't immediately resurrect a card for the next cycle.
+  if (style === "live") {
+    startBreathWindow(Math.min(delay, LIVE_WINDOW_SECONDS));
+  } else if (style === "both" && delay <= LIVE_LEAD_SECONDS) {
+    startBreathWindow(delay);
+  }
 }
 
 // Re-open the Live Activity window if reminders are on, the style wants one,
@@ -227,7 +245,8 @@ export async function scheduleNextReminder(cfg: ReminderConfig): Promise<void> {
 // activity only when there genuinely isn't one.
 export async function ensureLiveWindow(cfg: ReminderConfig): Promise<void> {
   if (Platform.OS !== "ios" || !cfg.reminder_enabled) return;
-  if (reminderStyle(cfg) === "banner") return;
+  const style = reminderStyle(cfg);
+  if (style === "banner") return;
   if (liveActivityRunning()) return;
   const dueAt = await storage.getItem<number>(DUE_AT_KEY, 0);
   if (!dueAt) return;
@@ -235,6 +254,9 @@ export async function ensureLiveWindow(cfg: ReminderConfig): Promise<void> {
   // Under half a minute left: the reminder is about to fire and re-arm the
   // chain anyway, so a window now would be replaced immediately.
   if (secondsLeft < 30) return;
+  // "both": the card belongs only to the final stretch before the due time.
+  // Reopening it earlier is what made a just-logged card come straight back.
+  if (style === "both" && secondsLeft > LIVE_LEAD_SECONDS) return;
   startBreathWindow(Math.min(secondsLeft, LIVE_WINDOW_SECONDS));
 }
 
