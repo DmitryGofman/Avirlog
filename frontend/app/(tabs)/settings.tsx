@@ -46,6 +46,7 @@ interface Settings {
   mood_journaling: boolean;
   skin: SkinId;
   advanced_logging: boolean;
+  advanced_style: "blend" | "pad";
   reminder_style: ReminderStyle;
   widget_tap_feedback: boolean;
   reminder_sound: boolean;
@@ -164,6 +165,7 @@ export default function SettingsScreen() {
           mood_journaling: s.mood_journaling ?? true,
           skin: s.skin ?? DEFAULT_SKIN,
           advanced_logging: s.advanced_logging ?? false,
+          advanced_style: s.advanced_style ?? "blend",
           reminder_style: s.reminder_style ?? "both",
           widget_tap_feedback: s.widget_tap_feedback ?? true,
           reminder_sound: s.reminder_sound ?? true,
@@ -222,11 +224,18 @@ export default function SettingsScreen() {
     persist({ ...settings, mood_journaling: enabled });
   };
 
-  const toggleAdvancedLogging = (enabled: boolean) => {
+  // Off / blend control / breath pad. Selecting Off keeps the last style, so
+  // turning advanced back on restores the control you had.
+  const setAdvancedMode = (mode: "off" | "blend" | "pad") => {
     if (!settings) return;
-    persist({ ...settings, advanced_logging: enabled });
+    persist({
+      ...settings,
+      advanced_logging: mode !== "off",
+      ...(mode !== "off" ? { advanced_style: mode } : {}),
+    });
     // Flip the widget + Live Activity between preset-blend and Left/Right/Both.
-    setWidgetAdvanced(enabled);
+    // Both advanced forms use the presets there — a pad needs a full screen.
+    setWidgetAdvanced(mode !== "off");
   };
 
   const toggleWidgetTapFeedback = (enabled: boolean) => {
@@ -469,26 +478,53 @@ export default function SettingsScreen() {
             icon="swap-horizontal-outline"
             label="Advanced logging"
             testID="settings-advanced-logging-row"
-            right={
-              settings ? (
-                <Switch
-                  testID="settings-advanced-logging-switch"
-                  value={settings.advanced_logging}
-                  onValueChange={toggleAdvancedLogging}
-                  trackColor={{ false: colors.border, true: colors.brand }}
-                  thumbColor="#FFFFFF"
-                />
-              ) : (
-                <ActivityIndicator size="small" color={colors.brand} />
-              )
-            }
+            right={!settings ? <ActivityIndicator size="small" color={colors.brand} /> : undefined}
           />
+          {settings && (
+            <View style={styles.intervalRow}>
+              {(
+                [
+                  { value: "off", label: "Off" },
+                  { value: "blend", label: "Blend control" },
+                  { value: "pad", label: "Breath pad" },
+                ] as const
+              ).map((m) => {
+                const current = !settings.advanced_logging
+                  ? "off"
+                  : (settings.advanced_style ?? "blend");
+                const selected = current === m.value;
+                return (
+                  <Pressable
+                    key={m.value}
+                    testID={`settings-advanced-${m.value}`}
+                    onPress={() => setAdvancedMode(m.value)}
+                    style={[
+                      styles.intervalPill,
+                      {
+                        backgroundColor: selected ? colors.surfaceInverse : colors.surfaceTertiary,
+                        borderColor: selected ? colors.surfaceInverse : colors.border,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.intervalText,
+                        { color: selected ? colors.onSurfaceInverse : colors.onSurfaceTertiary },
+                      ]}
+                    >
+                      {m.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          )}
           <Text style={[styles.reminderHint, { color: colors.onSurfaceTertiary, paddingBottom: spacing.lg }]}>
-            Swaps the Left / Right / Both buttons for a blend control — on the Living Banners skin
-            the two flags unroll down the pole, otherwise a slider — so you can log how open
-            each nostril is (e.g. 70% right / 30% left). The widget, Live Activity and reminder also
-            switch to quick preset-blend buttons. A near-even split still records as Sushumna.
-            Switch back anytime; older logs stay readable.
+            {!settings || !settings.advanced_logging
+              ? "Off keeps the one-tap Left / Right / Both buttons. The two advanced forms record how open each nostril is instead of just which side leads."
+              : settings.advanced_style === "pad"
+                ? "The breath pad: one thumb on a two-axis field. Left–right sets the balance between nostrils, up–down how open your nose is overall — so a congested morning can be logged as, say, 30% left / 40% right. The widget, Live Activity and reminder use quick preset-blend buttons."
+                : "The blend control — on the Living Banners skin the two flags unroll down the pole, otherwise a slider — records the balance between the nostrils (e.g. 70% right / 30% left). The widget, Live Activity and reminder also switch to quick preset-blend buttons. A near-even split still records as Sushumna."}
           </Text>
           <Row
             icon="color-wand-outline"
@@ -736,8 +772,8 @@ export default function SettingsScreen() {
                 {settings.reminder_style === "banner"
                   ? "Only the notification — it buzzes, and holding it reveals the log buttons. No Live Activity or Dynamic Island."
                   : settings.reminder_style === "live"
-                    ? "Only the Live Activity — a silent countdown card on the Lock Screen and in the Dynamic Island, with the log buttons on it. Nothing buzzes, so check it yourself."
-                    : "Both — the Live Activity counts down on the Lock Screen and the notification buzzes when the time comes."}
+                    ? "Only the Live Activity — a silent countdown card on the Lock Screen and in the Dynamic Island, with the log buttons on it. It stays up between reminders as the standing prompt (nothing buzzes, so check it yourself), and returns after a log the next time you open the app."
+                    : "Both — the notification buzzes when the time comes, and the Live Activity countdown appears for the last 20 minutes before it. Logging closes the card until the next reminder nears."}
               </Text>
 
               {/* Sleep time — no reminders inside this window */}

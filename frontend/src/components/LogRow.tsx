@@ -26,6 +26,12 @@ export function LogRow({ log, onEdit, onDelete }: LogRowProps) {
   const ui = useSkinUi();
   const meta = STATE_META[log.nostril_state];
   const scores: string[] = [];
+  // Breath-pad logs carry per-side openness; blend logs carry the balance.
+  if (log.left_open != null && log.right_open != null) {
+    scores.push(`L ${log.left_open}% · R ${log.right_open}%`);
+  } else if (log.blend != null) {
+    scores.push(`Blend ${100 - log.blend} / ${log.blend}`);
+  }
   if (log.mood_score != null) scores.push(`Mood ${log.mood_score}`);
   if (log.energy_score != null) scores.push(`Energy ${log.energy_score}`);
   if (log.focus_score != null) scores.push(`Focus ${log.focus_score}`);

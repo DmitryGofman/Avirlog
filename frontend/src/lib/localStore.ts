@@ -30,6 +30,10 @@ export interface LocalSettings {
   // When on, the Log screen swaps the Left/Right/Both buttons for a blend
   // slider that records how open each nostril is.
   advanced_logging: boolean;
+  // Which advanced control the Log screen shows: the one-axis blend control
+  // ("blend") or the two-axis breath pad ("pad"). Kept while advanced_logging
+  // is off so toggling advanced off and on restores the last choice.
+  advanced_style: "blend" | "pad";
   // Which alert a due reminder uses: the classic notification, the Live
   // Activity countdown, or both.
   reminder_style: ReminderStyle;
@@ -62,6 +66,7 @@ const DEFAULT_SETTINGS: LocalSettings = {
   mood_journaling: true,
   skin: DEFAULT_SKIN,
   advanced_logging: false,
+  advanced_style: "blend",
   reminder_style: "both",
   widget_tap_feedback: true,
   reminder_sound: true,
@@ -227,6 +232,8 @@ export async function localApi<T = any>(path: string, options: LocalApiOptions =
           user_id: "local",
           nostril_state: body.nostril_state as NostrilState,
           blend: body.blend ?? null,
+          left_open: body.left_open ?? null,
+          right_open: body.right_open ?? null,
           mood_score: body.mood_score ?? null,
           energy_score: body.energy_score ?? null,
           focus_score: body.focus_score ?? null,

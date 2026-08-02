@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { BannerBlend } from "@/src/components/BannerBlend";
 import { BannerButtons } from "@/src/components/BannerButtons";
+import { BreathPad } from "@/src/components/BreathPad";
 import { SliderBlend } from "@/src/components/SliderBlend";
 import { IceFireEffect, IceFireEffectHandle } from "@/src/components/IceFireEffect";
 import { InstrumentBlend } from "@/src/components/InstrumentBlend";
@@ -44,6 +45,7 @@ export default function QuickLogScreen() {
   const [saving, setSaving] = useState(false);
   const [moodJournaling, setMoodJournaling] = useState(true);
   const [advanced, setAdvanced] = useState(false);
+  const [advancedStyle, setAdvancedStyle] = useState<"blend" | "pad">("blend");
   const [logVersion, setLogVersion] = useState(0);
   const [guidance, setGuidance] = useState<{ state: NostrilState; message: string } | null>(null);
 
@@ -86,18 +88,28 @@ export default function QuickLogScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      api<{ mood_journaling?: boolean; advanced_logging?: boolean }>("/settings")
+      api<{ mood_journaling?: boolean; advanced_logging?: boolean; advanced_style?: "blend" | "pad" }>(
+        "/settings",
+      )
         .then((s) => {
           setMoodJournaling(s.mood_journaling ?? true);
           setAdvanced(s.advanced_logging ?? false);
+          setAdvancedStyle(s.advanced_style ?? "blend");
           // Keep the widget + Live Activity in sync with Advanced logging.
+          // Both advanced forms map to the widget's preset-blend buttons — a
+          // two-axis pad has no home-screen equivalent.
           setWidgetAdvanced(s.advanced_logging ?? false);
         })
         .catch(() => {});
     }, []),
   );
 
-  const logState = async (state: NostrilState, blend?: number) => {
+  const logState = async (
+    state: NostrilState,
+    blend?: number,
+    // Breath-pad logs carry how open each nostril is, on top of the balance.
+    sides?: { left_open: number; right_open: number },
+  ) => {
     if (creating) return;
     setCreating(state);
     fx.current?.trigger(state);
@@ -108,6 +120,7 @@ export default function QuickLogScreen() {
         body: {
           nostril_state: state,
           ...(blend != null ? { blend } : {}),
+          ...(sides ?? {}),
           tags: [],
           local_date: todayStr(),
           local_hour: new Date().getHours(),
@@ -196,7 +209,14 @@ export default function QuickLogScreen() {
         testID="quick-log-screen"
         style={[styles.instrumentRoot, { paddingTop: insets.top + spacing.md }]}
       >
-        {advanced ? (
+        {advanced && advancedStyle === "pad" ? (
+          <View style={styles.instrumentPadWrap}>
+            <BreathPad
+              disabled={!!creating}
+              onLog={(p) => logState(blendToState(p.blend), p.blend, { left_open: p.left_open, right_open: p.right_open })}
+            />
+          </View>
+        ) : advanced ? (
           <InstrumentBlend
             disabled={!!creating}
             onLog={(r) => logState(blendToState(r), r)}
@@ -280,7 +300,13 @@ export default function QuickLogScreen() {
 
       {living ? (
         <Animated.View style={[styles.buttons, { opacity: enter, transform: [{ translateY: enterTranslate }] }]}>
-          {advanced ? (
+          {advanced && advancedStyle === "pad" ? (
+            <BreathPad
+              disabled={!!creating}
+              onScene
+              onLog={(p) => logState(blendToState(p.blend), p.blend, { left_open: p.left_open, right_open: p.right_open })}
+            />
+          ) : advanced ? (
             <BannerBlend disabled={!!creating} onLog={(r) => logState(blendToState(r), r)} />
           ) : (
             <BannerButtons disabled={!!creating} onLog={logState} />
@@ -290,7 +316,12 @@ export default function QuickLogScreen() {
         /* Left + Right are the frequent states, side by side and tall.
            Both (Sushumna) accrues less, so it sits below as a short bar. */
         <Animated.View style={[styles.buttons, { opacity: enter, transform: [{ translateY: enterTranslate }] }]}>
-          {advanced ? (
+          {advanced && advancedStyle === "pad" ? (
+            <BreathPad
+              disabled={!!creating}
+              onLog={(p) => logState(blendToState(p.blend), p.blend, { left_open: p.left_open, right_open: p.right_open })}
+            />
+          ) : advanced ? (
             <SliderBlend
               disabled={!!creating}
               onLog={(r) => logState(blendToState(r), r)}
@@ -360,6 +391,8 @@ export default function QuickLogScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, paddingHorizontal: spacing.xl },
   instrumentRoot: { flex: 1, backgroundColor: "#FAFAF8" },
+  // The instrument screen manages its own chrome; the pad just needs margins.
+  instrumentPadWrap: { flex: 1, paddingHorizontal: spacing.xl },
   header: { marginBottom: spacing.xl },
   topLine: {
     flexDirection: "row",

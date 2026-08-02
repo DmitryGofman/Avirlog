@@ -77,6 +77,12 @@ class LogCreate(BaseModel):
     # Left/Right/Both taps. Without this field Pydantic silently dropped the
     # value and every advanced log lost its blend.
     blend: Optional[int] = Field(default=None, ge=0, le=100)
+    # Breath-pad logging: how open each nostril is, 0–100 per side and
+    # independent of each other — a congested nose can be 30 / 40. `blend`
+    # still carries the balance between them, so every blend consumer works
+    # unchanged on pad logs.
+    left_open: Optional[int] = Field(default=None, ge=0, le=100)
+    right_open: Optional[int] = Field(default=None, ge=0, le=100)
     mood_score: Optional[int] = Field(default=None, ge=1, le=10)
     energy_score: Optional[int] = Field(default=None, ge=1, le=10)
     focus_score: Optional[int] = Field(default=None, ge=1, le=10)
@@ -93,6 +99,8 @@ class LogCreate(BaseModel):
 class LogUpdate(BaseModel):
     nostril_state: Optional[NostrilState] = None
     blend: Optional[int] = Field(default=None, ge=0, le=100)
+    left_open: Optional[int] = Field(default=None, ge=0, le=100)
+    right_open: Optional[int] = Field(default=None, ge=0, le=100)
     mood_score: Optional[int] = Field(default=None, ge=1, le=10)
     energy_score: Optional[int] = Field(default=None, ge=1, le=10)
     focus_score: Optional[int] = Field(default=None, ge=1, le=10)
@@ -113,6 +121,11 @@ class SettingsIn(BaseModel):
     mood_journaling: Optional[bool] = None
     skin: Optional[Literal["classic", "banners", "instrument"]] = None
     advanced_logging: Optional[bool] = None
+    # Which advanced control the Log screen shows: the one-axis blend control
+    # ("blend") or the two-axis breath pad ("pad"). Ignored while
+    # advanced_logging is off, so switching advanced off and on again keeps
+    # the last choice.
+    advanced_style: Optional[Literal["blend", "pad"]] = None
     reminder_style: Optional[Literal["banner", "live", "both"]] = None
     reminder_sound: Optional[bool] = None
     widget_tap_feedback: Optional[bool] = None
@@ -193,6 +206,7 @@ SETTINGS_DEFAULTS = {
     "mood_journaling": True,
     "skin": "banners",
     "advanced_logging": False,
+    "advanced_style": "blend",
     "reminder_style": "both",
     "reminder_sound": True,
     "widget_tap_feedback": True,
@@ -340,6 +354,8 @@ async def create_log(body: LogCreate, authorization: Optional[str] = Header(defa
         "user_id": user["id"],
         "nostril_state": body.nostril_state,
         "blend": body.blend,
+        "left_open": body.left_open,
+        "right_open": body.right_open,
         "mood_score": body.mood_score,
         "energy_score": body.energy_score,
         "focus_score": body.focus_score,

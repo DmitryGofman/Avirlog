@@ -157,6 +157,11 @@ export interface BreathLog {
   // Advanced logging: the RIGHT nostril's share, 0–100 (left = 100 − blend).
   // Absent/null for logs made with the simple Left / Right / Both buttons.
   blend?: number | null;
+  // Breath-pad logging: how open each nostril is, 0–100 per side, independent
+  // of each other — a congested nose can be 30 / 40, which `blend` alone
+  // cannot express. Absent/null for logs from every other control.
+  left_open?: number | null;
+  right_open?: number | null;
   mood_score: number | null;
   energy_score: number | null;
   focus_score: number | null;
