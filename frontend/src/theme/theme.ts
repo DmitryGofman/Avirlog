@@ -164,6 +164,9 @@ export interface BreathLog {
   tags: string[];
   local_date: string;
   local_hour: number;
+  // Minutes east of UTC when the log was made. Lets analysis re-anchor a log
+  // to the solar day even after travel; absent on rows from older builds.
+  tz_offset_minutes?: number | null;
   created_at: string;
   updated_at: string;
 }

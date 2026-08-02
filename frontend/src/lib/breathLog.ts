@@ -24,6 +24,9 @@ export async function createBreathLog(
       tags: [],
       local_date: todayStr(),
       local_hour: new Date().getHours(),
+      // Minutes east of UTC (JS reports west, hence the sign flip). local_date
+      // alone can't be re-anchored to the solar day later, so capture it now.
+      tz_offset_minutes: -new Date().getTimezoneOffset(),
     },
   });
 }

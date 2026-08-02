@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
-import * as Haptics from "expo-haptics";
+import { hapticFailed, hapticLogged, hapticPress } from "@/src/lib/haptics";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Animated, Easing, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -18,7 +18,7 @@ import { useToast } from "@/src/components/Toast";
 import { useTheme } from "@/src/context/ThemeContext";
 import { api, todayStr } from "@/src/lib/api";
 import { blendToState } from "@/src/lib/blend";
-import { endBreathWindow } from "@/src/lib/liveActivityBridge";
+import { clearBreathPrompts } from "@/src/lib/notifications";
 import { setWidgetAdvanced } from "@/src/lib/widgetBridge";
 import { pickMessage, SWARA } from "@/src/lib/swara";
 import { BreathLog, fonts, NostrilState, radius, spacing, STATE_META } from "@/src/theme/theme";
@@ -101,9 +101,7 @@ export default function QuickLogScreen() {
     if (creating) return;
     setCreating(state);
     fx.current?.trigger(state);
-    if (Platform.OS !== "web") {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-    }
+    hapticPress();
     try {
       const log = await api<BreathLog>("/logs", {
         method: "POST",
@@ -113,9 +111,14 @@ export default function QuickLogScreen() {
           tags: [],
           local_date: todayStr(),
           local_hour: new Date().getHours(),
+          tz_offset_minutes: -new Date().getTimezoneOffset(),
         },
       });
-      endBreathWindow(); // close the Live Activity logging window, if open
+      // The confirming beat — the log is on disk, not just requested.
+      hapticLogged();
+      // Take down the reminder you just answered: the Live Activity window AND
+      // the notification still sitting in Notification Centre.
+      clearBreathPrompts().catch(() => {});
       setGuidance({ state, message: pickMessage(state) });
       setLogVersion((v) => v + 1);
       if (moodJournaling) {
@@ -127,6 +130,7 @@ export default function QuickLogScreen() {
       }
       showToast(`Logged · ${STATE_META[state].label}`);
     } catch (e: any) {
+      hapticFailed();
       showToast(e.message ?? "Could not save log", "error");
     } finally {
       setCreating(null);

@@ -44,6 +44,16 @@ export function setWidgetAdvanced(advanced: boolean): void {
   M.reloadWidget();
 }
 
+// Widget and Live Activity buttons can't fire a haptic directly — their App
+// Intent runs in the extension process, where UIFeedbackGenerator is inert. The
+// intent posts a brief local notification instead, whose alert sound carries
+// the buzz. This mirrors the setting that turns that on and off.
+export function setWidgetTapFeedback(enabled: boolean): void {
+  if (!M) return;
+  M.setNumber("tapFeedback", enabled ? 1 : 0);
+  M.reloadWidget();
+}
+
 // Import logs made on the widget into the on-device store. Returns how many.
 export async function importWidgetLogs(): Promise<number> {
   if (!M) return 0;

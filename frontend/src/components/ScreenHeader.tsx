@@ -3,7 +3,7 @@
 // Other skins keep the original friendly Geist header. useSkinUi() hands
 // screens the small style overrides (square corners, mono accents) so the
 // whole app can follow the active skin without duplicating layouts.
-import React, { ReactNode } from "react";
+import React, { ReactNode, useMemo } from "react";
 import { Platform, StyleSheet, Text, View } from "react-native";
 
 import { useTheme } from "@/src/context/ThemeContext";
@@ -11,19 +11,24 @@ import { fonts, spacing } from "@/src/theme/theme";
 
 export const MONO = Platform.select({ ios: "Menlo", default: "monospace" });
 
+// Memoized on the skin, so the returned object keeps its identity between
+// renders. It used to be a fresh literal every call, which silently invalidated
+// every useMemo/useCallback downstream that listed it as a dependency.
 export function useSkinUi() {
   const { skin } = useTheme();
-  const instrument = skin === "instrument";
-  return {
-    instrument,
-    // square corners for cards, bars and pills
-    sq: instrument ? { borderRadius: 0 } : null,
-    // mono accents for numbers and small labels
-    mono: instrument ? { fontFamily: MONO } : null,
-    monoLabel: instrument
-      ? { fontFamily: MONO, letterSpacing: 1.2, textTransform: "uppercase" as const }
-      : null,
-  };
+  return useMemo(() => {
+    const instrument = skin === "instrument";
+    return {
+      instrument,
+      // square corners for cards, bars and pills
+      sq: instrument ? { borderRadius: 0 } : null,
+      // mono accents for numbers and small labels
+      mono: instrument ? { fontFamily: MONO } : null,
+      monoLabel: instrument
+        ? { fontFamily: MONO, letterSpacing: 1.2, textTransform: "uppercase" as const }
+        : null,
+    };
+  }, [skin]);
 }
 
 interface ScreenHeaderProps {

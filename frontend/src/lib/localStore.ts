@@ -4,6 +4,9 @@
 // Routed from src/lib/api.ts whenever there is no auth token.
 
 import { DEFAULT_SKIN, SkinId } from "@/src/lib/config";
+// Type-only: notifications.ts reaches back here through api.ts, so a value
+// import would close a require cycle.
+import type { ReminderStyle } from "@/src/lib/notifications";
 import { storage } from "@/src/utils/storage";
 import { BreathLog, NostrilState } from "@/src/theme/theme";
 
@@ -27,6 +30,22 @@ export interface LocalSettings {
   // When on, the Log screen swaps the Left/Right/Both buttons for a blend
   // slider that records how open each nostril is.
   advanced_logging: boolean;
+  // Which alert a due reminder uses: the classic notification, the Live
+  // Activity countdown, or both.
+  reminder_style: ReminderStyle;
+  // Whether a widget / Live Activity tap buzzes the phone.
+  widget_tap_feedback: boolean;
+  // Whether reminders make a sound (and so vibrate) when they arrive.
+  reminder_sound: boolean;
+  // Whether the app itself vibrates on a log and while dragging a blend.
+  haptics_enabled: boolean;
+  // Research opt-in: whether anonymized logs may join aggregate breath-pattern
+  // analysis. Off by default; the timestamps are written by the store when the
+  // flag flips (mirrors the backend, which stamps them server-side), so
+  // consent recorded locally survives a later sign-in-and-sync intact.
+  research_consent: boolean;
+  research_consent_at: string | null;
+  research_revoked_at: string | null;
 }
 
 const LOGS_KEY = "avirlog_local_logs";
@@ -43,6 +62,13 @@ const DEFAULT_SETTINGS: LocalSettings = {
   mood_journaling: true,
   skin: DEFAULT_SKIN,
   advanced_logging: false,
+  reminder_style: "both",
+  widget_tap_feedback: true,
+  reminder_sound: true,
+  haptics_enabled: true,
+  research_consent: false,
+  research_consent_at: null,
+  research_revoked_at: null,
 };
 
 function genId(): string {
@@ -125,7 +151,15 @@ export async function localApi<T = any>(path: string, options: LocalApiOptions =
   if (rawPath === "/settings") {
     if (method === "GET") return (await readSettings()) as T;
     if (method === "PUT") {
-      const next = { ...(await readSettings()), ...(options.body ?? {}) } as LocalSettings;
+      const prev = await readSettings();
+      const next = { ...prev, ...(options.body ?? {}) } as LocalSettings;
+      // Stamp consent transitions here, not in the UI, so every caller gets
+      // the audit trail (mirrors the backend's server-side stamping).
+      if (next.research_consent && !prev.research_consent) {
+        next.research_consent_at = new Date().toISOString();
+      } else if (!next.research_consent && prev.research_consent) {
+        next.research_revoked_at = new Date().toISOString();
+      }
       await writeSettings(next);
       return next as T;
     }
@@ -200,6 +234,7 @@ export async function localApi<T = any>(path: string, options: LocalApiOptions =
           tags: body.tags ?? [],
           local_date: body.local_date,
           local_hour: body.local_hour ?? new Date().getHours(),
+          tz_offset_minutes: body.tz_offset_minutes ?? null,
           created_at: now,
           updated_at: now,
         };

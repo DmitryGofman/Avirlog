@@ -1,4 +1,12 @@
-import React, { createContext, ReactNode, useContext, useEffect, useState } from "react";
+import React, {
+  createContext,
+  ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 import { DEFAULT_SKIN, SkinId } from "@/src/lib/config";
 import { LOCAL_SETTINGS_KEY } from "@/src/lib/localStore";
@@ -42,21 +50,27 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       .catch(() => {});
   }, []);
 
-  const setMode = (m: Mode) => {
+  const setMode = useCallback((m: Mode) => {
     setModeState(m);
     storage.setItem(THEME_KEY, m);
-  };
+  }, []);
 
-  const toggle = () => setMode(mode === "light" ? "dark" : "light");
+  const toggle = useCallback(
+    () => setMode(mode === "light" ? "dark" : "light"),
+    [mode, setMode],
+  );
 
   // Instrument is a fixed paper-and-ink look, independent of light/dark mode.
   const colors = skin === "instrument" ? instrumentPalette : palettes[mode];
 
-  return (
-    <ThemeContext.Provider value={{ mode, colors, setMode, toggle, skin, setSkin }}>
-      {children}
-    </ThemeContext.Provider>
+  // A fresh object literal here re-rendered every consumer in the app on each
+  // provider render, whether or not the theme actually changed.
+  const value = useMemo(
+    () => ({ mode, colors, setMode, toggle, skin, setSkin }),
+    [mode, colors, setMode, toggle, skin],
   );
+
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 
 export function useTheme(): ThemeContextType {

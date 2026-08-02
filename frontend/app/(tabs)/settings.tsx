@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Platform,
@@ -22,10 +22,18 @@ import { useAuth } from "@/src/context/AuthContext";
 import { useTheme } from "@/src/context/ThemeContext";
 import { api } from "@/src/lib/api";
 import { ACCOUNTS_ENABLED, DEFAULT_SKIN, SKINS, SkinId } from "@/src/lib/config";
-import { cancelReminders, ensurePermission, scheduleNextReminder } from "@/src/lib/notifications";
+import {
+  cancelReminders,
+  ensurePermission,
+  REMINDER_STYLES,
+  ReminderStyle,
+  scheduleNextReminder,
+} from "@/src/lib/notifications";
 import { buildStamp, CODE_REVISION_NOTE } from "@/src/lib/buildInfo";
+import { hapticLogged, setHapticsEnabled } from "@/src/lib/haptics";
+import { resetOnboarding } from "@/src/lib/onboarding";
 import { getRealisticRoll, setRealisticRoll } from "@/src/lib/rollPref";
-import { setWidgetAdvanced } from "@/src/lib/widgetBridge";
+import { setWidgetAdvanced, setWidgetTapFeedback } from "@/src/lib/widgetBridge";
 import { fonts, radius, spacing } from "@/src/theme/theme";
 
 interface Settings {
@@ -38,6 +46,11 @@ interface Settings {
   mood_journaling: boolean;
   skin: SkinId;
   advanced_logging: boolean;
+  reminder_style: ReminderStyle;
+  widget_tap_feedback: boolean;
+  reminder_sound: boolean;
+  haptics_enabled: boolean;
+  research_consent: boolean;
 }
 
 const INTERVALS = [
@@ -74,23 +87,23 @@ interface SectionProps {
   children: React.ReactNode;
 }
 
-type Palette = ReturnType<typeof useTheme>["colors"];
-type SkinUi = ReturnType<typeof useSkinUi>;
-
-// Row and Section MUST live at module scope. Declared inside the screen they
-// were a brand-new component type on every render, so React unmounted and
-// rebuilt the whole settings tree on each toggle — which tore down touch
-// targets mid-gesture and made taps land on the wrong row.
-function SettingsRow({
-  icon,
-  label,
-  right,
-  onPress,
-  testID,
-  danger,
-  colors,
-  ui,
-}: RowProps & { colors: Palette; ui: SkinUi }) {
+// Row and Section MUST be module-scope components, and must NOT be re-created
+// per render even as a memoized wrapper.
+//
+// The previous version defined them inside the screen with
+// useCallback(..., [colors, ui]) — but useSkinUi() returned a fresh object every
+// call, so the dependency changed on every render, so `Row` was a new function
+// identity, so React saw a different component TYPE at each position and
+// unmounted/remounted the entire settings tree on every single state change.
+// That is what tore down touch targets mid-gesture: a Switch you were dragging
+// was destroyed and rebuilt under your finger, so one press registered twice or
+// landed on a neighbouring row.
+//
+// They read colors and skin from context themselves, so there is nothing to
+// pass down and no wrapper to go stale.
+function Row({ icon, label, right, onPress, testID, danger }: RowProps) {
+  const { colors } = useTheme();
+  const ui = useSkinUi();
   return (
     <Pressable
       testID={testID}
@@ -109,7 +122,9 @@ function SettingsRow({
   );
 }
 
-function SettingsSection({ title, children, colors, ui }: SectionProps & { colors: Palette; ui: SkinUi }) {
+function Section({ title, children }: SectionProps) {
+  const { colors } = useTheme();
+  const ui = useSkinUi();
   return (
     <View style={styles.section}>
       <Text style={[styles.sectionTitle, ui.monoLabel, { color: colors.onSurfaceTertiary }]}>{title}</Text>
@@ -122,7 +137,6 @@ function SettingsSection({ title, children, colors, ui }: SectionProps & { color
 
 export default function SettingsScreen() {
   const { colors, mode, setMode, setSkin } = useTheme();
-  const ui = useSkinUi();
   const { user, signOut, deleteAccount } = useAuth();
   const { showToast } = useToast();
   const insets = useSafeAreaInsets();
@@ -141,14 +155,22 @@ export default function SettingsScreen() {
 
   useEffect(() => {
     api<Settings>("/settings")
-      .then((s) =>
+      .then((s) => {
+        // The haptics module keeps its own cached copy so it can fire
+        // synchronously; reconcile it with the stored settings on open.
+        setHapticsEnabled(s.haptics_enabled ?? true);
         setSettings({
           ...s,
           mood_journaling: s.mood_journaling ?? true,
           skin: s.skin ?? DEFAULT_SKIN,
           advanced_logging: s.advanced_logging ?? false,
-        }),
-      )
+          reminder_style: s.reminder_style ?? "both",
+          widget_tap_feedback: s.widget_tap_feedback ?? true,
+          reminder_sound: s.reminder_sound ?? true,
+          haptics_enabled: s.haptics_enabled ?? true,
+          research_consent: s.research_consent ?? false,
+        });
+      })
       .catch(() => showToast("Could not load settings", "error"));
     getRealisticRoll().then(setRealisticRollState);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -207,10 +229,56 @@ export default function SettingsScreen() {
     setWidgetAdvanced(enabled);
   };
 
+  const toggleWidgetTapFeedback = (enabled: boolean) => {
+    if (!settings) return;
+    persist({ ...settings, widget_tap_feedback: enabled });
+    setWidgetTapFeedback(enabled);
+  };
+
+  const toggleResearchConsent = (enabled: boolean) => {
+    if (!settings) return;
+    // The store stamps research_consent_at / research_revoked_at itself.
+    persist({ ...settings, research_consent: enabled });
+    showToast(
+      enabled ? "Thank you — your anonymized logs may join the research" : "Opted out of research",
+    );
+  };
+
+  const toggleHaptics = (enabled: boolean) => {
+    if (!settings) return;
+    persist({ ...settings, haptics_enabled: enabled });
+    setHapticsEnabled(enabled);
+    // Fire one immediately so turning it on demonstrates what it feels like.
+    if (enabled) hapticLogged();
+  };
+
+  const toggleReminderSound = async (enabled: boolean) => {
+    if (!settings) return;
+    const next = { ...settings, reminder_sound: enabled };
+    persist(next);
+    // The armed reminder already carries its sound flag — re-arm so the change
+    // applies to the next one rather than the one after it.
+    if (next.reminder_enabled && Platform.OS !== "web") {
+      await scheduleNextReminder(next).catch(() => {});
+    }
+  };
+
   const toggleRealisticRoll = (enabled: boolean) => {
     setRealisticRollState(enabled);
     setRealisticRoll(enabled);
     showToast(enabled ? "Realistic roll on — reopen Log to see it" : "Realistic roll off");
+  };
+
+  // Changing the alert style re-arms the chain so the switch takes effect on
+  // the very next reminder rather than the one after it.
+  const setReminderStyleValue = async (style: ReminderStyle) => {
+    if (!settings) return;
+    const next = { ...settings, reminder_style: style };
+    persist(next);
+    if (next.reminder_enabled && Platform.OS !== "web") {
+      await cancelReminders();
+      await scheduleNextReminder(next).catch(() => {});
+    }
   };
 
   const setInterval = (seconds: number) => {
@@ -283,16 +351,6 @@ export default function SettingsScreen() {
   };
 
   const isPresetInterval = INTERVALS.some((i) => i.value === settings?.reminder_interval_seconds);
-
-  const Row = useCallback(
-    (props: RowProps) => <SettingsRow {...props} colors={colors} ui={ui} />,
-    [colors, ui],
-  );
-
-  const Section = useCallback(
-    (props: SectionProps) => <SettingsSection {...props} colors={colors} ui={ui} />,
-    [colors, ui],
-  );
 
   return (
     <View style={[styles.root, { backgroundColor: colors.surface }]}>
@@ -453,6 +511,81 @@ export default function SettingsScreen() {
           </Text>
         </Section>
 
+        <Section title="Feedback">
+          <Row
+            icon="pulse-outline"
+            label="Haptics"
+            testID="settings-haptics-row"
+            right={
+              settings ? (
+                <Switch
+                  testID="settings-haptics-switch"
+                  value={settings.haptics_enabled}
+                  onValueChange={toggleHaptics}
+                  trackColor={{ false: colors.border, true: colors.brand }}
+                  thumbColor="#FFFFFF"
+                />
+              ) : (
+                <ActivityIndicator size="small" color={colors.brand} />
+              )
+            }
+          />
+          <Text style={[styles.reminderHint, { color: colors.onSurfaceTertiary, paddingBottom: spacing.lg }]}>
+            Vibration inside the app: a tap when your finger lands on a log button, a
+            firmer one once the log is saved, and a light tick for each step as you drag
+            a blend — so a blend can be set without watching the screen.
+          </Text>
+
+          <Row
+            icon="volume-medium-outline"
+            label="Reminder sound"
+            testID="settings-reminder-sound-row"
+            right={
+              settings ? (
+                <Switch
+                  testID="settings-reminder-sound-switch"
+                  value={settings.reminder_sound}
+                  onValueChange={toggleReminderSound}
+                  trackColor={{ false: colors.border, true: colors.brand }}
+                  thumbColor="#FFFFFF"
+                />
+              ) : (
+                <ActivityIndicator size="small" color={colors.brand} />
+              )
+            }
+          />
+          <Text style={[styles.reminderHint, { color: colors.onSurfaceTertiary, paddingBottom: spacing.lg }]}>
+            Off means reminders arrive silently — the banner still appears on the Lock
+            Screen, but nothing sounds and nothing vibrates. iOS ties a notification&apos;s
+            vibration to its alert tone, so the two can&apos;t be separated.
+          </Text>
+
+          <Row
+            icon="phone-portrait-outline"
+            label="Buzz on widget taps"
+            testID="settings-tap-feedback-row"
+            right={
+              settings ? (
+                <Switch
+                  testID="settings-tap-feedback-switch"
+                  value={settings.widget_tap_feedback}
+                  onValueChange={toggleWidgetTapFeedback}
+                  trackColor={{ false: colors.border, true: colors.brand }}
+                  thumbColor="#FFFFFF"
+                />
+              ) : (
+                <ActivityIndicator size="small" color={colors.brand} />
+              )
+            }
+          />
+          <Text style={[styles.reminderHint, { color: colors.onSurfaceTertiary, paddingBottom: spacing.lg }]}>
+            Widget and Live Activity buttons run outside the app, where iOS gives them no
+            haptic of their own. To make a tap felt, AvirLog posts a one-line “Logged”
+            notification and takes it down a second later — that alert is what buzzes the
+            phone. Off means silent taps; the tile still flips to LOGGED ✓.
+          </Text>
+        </Section>
+
         <Section title="About">
           <Row
             icon="information-circle-outline"
@@ -467,6 +600,16 @@ export default function SettingsScreen() {
         </Section>
 
         <Section title="Learn">
+          <Row
+            icon="sparkles-outline"
+            label="Show the welcome again"
+            testID="settings-replay-onboarding-row"
+            onPress={async () => {
+              await resetOnboarding();
+              router.replace("/onboarding");
+            }}
+            right={<Ionicons name="chevron-forward" size={16} color={colors.onSurfaceTertiary} />}
+          />
           <Row
             icon="flask-outline"
             label="Theory & evidence"
@@ -557,6 +700,46 @@ export default function SettingsScreen() {
                 </Pressable>
               </View>
 
+              {/* Alert style — which of the two prompts you actually get */}
+              <Text style={[styles.reminderSub, { color: colors.onSurfaceTertiary, marginTop: spacing.md }]}>
+                Alert style
+              </Text>
+              <View style={styles.intervalRow}>
+                {REMINDER_STYLES.map((s) => {
+                  const selected = settings.reminder_style === s.value;
+                  return (
+                    <Pressable
+                      key={s.value}
+                      testID={`settings-style-${s.value}`}
+                      onPress={() => setReminderStyleValue(s.value)}
+                      style={[
+                        styles.intervalPill,
+                        {
+                          backgroundColor: selected ? colors.surfaceInverse : colors.surfaceTertiary,
+                          borderColor: selected ? colors.surfaceInverse : colors.border,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.intervalText,
+                          { color: selected ? colors.onSurfaceInverse : colors.onSurfaceTertiary },
+                        ]}
+                      >
+                        {s.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              <Text style={[styles.reminderHint, { color: colors.onSurfaceTertiary }]}>
+                {settings.reminder_style === "banner"
+                  ? "Only the notification — it buzzes, and holding it reveals the log buttons. No Live Activity or Dynamic Island."
+                  : settings.reminder_style === "live"
+                    ? "Only the Live Activity — a silent countdown card on the Lock Screen and in the Dynamic Island, with the log buttons on it. Nothing buzzes, so check it yourself."
+                    : "Both — the Live Activity counts down on the Lock Screen and the notification buzzes when the time comes."}
+              </Text>
+
               {/* Sleep time — no reminders inside this window */}
               <View style={styles.quietHeader}>
                 <Text style={[styles.reminderSub, { color: colors.onSurfaceTertiary }]}>Sleep time</Text>
@@ -599,11 +782,40 @@ export default function SettingsScreen() {
 
               <Text style={[styles.reminderHint, { color: colors.onSurfaceTertiary }]}>
                 One reminder at a time — the next is armed after you respond to it (or reopen the app).
-                Hold the notification to reveal the Left / Right / Both buttons. Delivered on the
+                Hold the notification to reveal the log buttons. Logging anywhere — in the app, on the
+                widget, from the notification — clears whatever is still showing. Delivered on the
                 installed app, not the web preview.
               </Text>
             </View>
           )}
+        </Section>
+
+        <Section title="Research">
+          <Row
+            icon="analytics-outline"
+            label="Contribute to breath research"
+            testID="settings-research-row"
+            right={
+              settings ? (
+                <Switch
+                  testID="settings-research-switch"
+                  value={settings.research_consent}
+                  onValueChange={toggleResearchConsent}
+                  trackColor={{ false: colors.border, true: colors.brand }}
+                  thumbColor="#FFFFFF"
+                />
+              ) : (
+                <ActivityIndicator size="small" color={colors.brand} />
+              )
+            }
+          />
+          <Text style={[styles.reminderHint, { color: colors.onSurfaceTertiary, paddingBottom: spacing.lg }]}>
+            Optional, and off by default. When on, your breath logs — nostril side, blend,
+            time of day, and any mood, energy or focus scores — may be included, in
+            anonymized form, in aggregate research into human nasal-cycle patterns. Your
+            name and email are never part of the dataset. You can opt out any time and it
+            applies from that moment on; deleting your account removes your data entirely.
+          </Text>
         </Section>
 
         <Section title="Data">

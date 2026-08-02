@@ -1,4 +1,12 @@
-import React, { createContext, ReactNode, useCallback, useContext, useRef, useState } from "react";
+import React, {
+  createContext,
+  ReactNode,
+  useCallback,
+  useContext,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Animated, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -36,8 +44,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     [opacity],
   );
 
+  // The provider re-renders on every toast (it owns the message state), so an
+  // inline object here re-rendered every screen in the app each time one showed.
+  const value = useMemo(() => ({ showToast }), [showToast]);
+
   return (
-    <ToastContext.Provider value={{ showToast }}>
+    <ToastContext.Provider value={value}>
       <View style={styles.flex}>
         {children}
         {message !== null && (

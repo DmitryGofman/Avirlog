@@ -27,6 +27,9 @@ enum SharedStore {
   // Activity offer preset-blend buttons instead of Left/Right/Both.
   static var advanced: Bool { (defaults?.double(forKey: "advanced") ?? 0) > 0.5 }
 
+  // Mirrors "Buzz on widget taps". Default ON when the key was never written.
+  static var tapFeedback: Bool { (defaults?.double(forKey: "tapFeedback") ?? 1) > 0.5 }
+
   private static func appendPending(_ entry: [String: Any]) {
     guard let d = defaults else { return }
     var arr: [[String: Any]] = []
@@ -103,10 +106,50 @@ struct LogBreathIntent: AppIntent {
     // reminder and close any open logging window.
     UNUserNotificationCenter.current().removeAllDeliveredNotifications()
     UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
-    await confirmThenEndActivities()
+    // Repaint to LOGGED ✓ first, then buzz — so the tile has already changed by
+    // the time you feel the tap land.
     WidgetCenter.shared.reloadAllTimelines()
+    await postTapConfirmation(logLabel(state: state))
+    await confirmThenEndActivities()
+    try? await Task.sleep(nanoseconds: 900_000_000)
+    clearTapConfirmation()
     return .result()
   }
+}
+
+// Physical feedback for a widget / Live Activity tap.
+//
+// There is no haptic API available here: these buttons run their App Intent in
+// the widget EXTENSION process, and UIFeedbackGenerator only fires for an app
+// that is foreground-active. The one thing an extension CAN do that reaches the
+// Taptic Engine is post a local notification — iOS plays the alert sound and
+// its haptic on delivery.
+//
+// So: post a confirmation with a sound, wait long enough for the buzz to land,
+// then remove it again by identifier. You feel the tap and see a brief banner,
+// and Notification Centre isn't left with a row per log.
+let TAP_FEEDBACK_ID = "avirlog.tap.confirm"
+
+func postTapConfirmation(_ label: String) async {
+  guard SharedStore.tapFeedback else { return }
+  let content = UNMutableNotificationContent()
+  content.title = "Logged · \(label)"
+  // The sound is what carries the haptic — a silent notification doesn't buzz.
+  content.sound = .default
+  let request = UNNotificationRequest(identifier: TAP_FEEDBACK_ID, content: content, trigger: nil)
+  try? await UNUserNotificationCenter.current().add(request)
+}
+
+func clearTapConfirmation() {
+  UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: [TAP_FEEDBACK_ID])
+}
+
+// Human-readable name for what was logged, for the confirmation above.
+func logLabel(state: String, right: Int? = nil) -> String {
+  let side = state == "left" ? "Left" : (state == "right" ? "Right" : "Both")
+  guard let r = right else { return side }
+  if r == 50 { return "Both · 50 · 50" }
+  return r < 50 ? "Left \(100 - r)%" : "Right \(r)%"
 }
 
 // Show "LOGGED" on the Live Activity so the tap visibly registers, then close
@@ -147,19 +190,34 @@ struct LogBlendIntent: AppIntent {
     SharedStore.armNextDue()
     UNUserNotificationCenter.current().removeAllDeliveredNotifications()
     UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
-    await confirmThenEndActivities()
     WidgetCenter.shared.reloadAllTimelines()
+    await postTapConfirmation(logLabel(state: state, right: right))
+    await confirmThenEndActivities()
+    try? await Task.sleep(nanoseconds: 900_000_000)
+    clearTapConfirmation()
     return .result()
   }
 }
 
-// The five preset blends shown in advanced mode: (label, right-nostril %).
-// 80L/65L lean Ida, 50 is even (Sushumna), 65R/80R lean Pingala.
-let BLEND_PRESETS: [(String, Int)] = [("80L", 20), ("65L", 35), ("50", 50), ("65R", 65), ("80R", 80)]
+// The seven preset blends shown in advanced mode, symmetric around even:
+// 100/80/60 Ida · 50 even (Sushumna) · 60/80/100 Pingala. The Int is the
+// RIGHT-nostril share, so 100L is 0 and 100R is 100.
+let BLEND_PRESETS: [(label: String, right: Int)] = [
+  ("100L", 0),
+  ("80L", 20),
+  ("60L", 40),
+  ("50 · 50", 50),
+  ("60R", 60),
+  ("80R", 80),
+  ("100R", 100),
+]
 
-// Colour a preset by which side it leans: first two Ida, middle even, last two Pingala.
+// Index of the even preset — everything before it leans Ida, after it Pingala.
+let BLEND_MID = 3
+
+// Colour a preset by which side it leans.
 func blendPresetColor(_ i: Int, _ left: Color, _ both: Color, _ right: Color) -> Color {
-  return i < 2 ? left : (i == 2 ? both : right)
+  return i < BLEND_MID ? left : (i == BLEND_MID ? both : right)
 }
 
 // MARK: - Live Activity
@@ -255,14 +313,16 @@ struct BreathLiveActivity: Widget {
     .buttonStyle(.plain)
   }
 
-  func laBlendButton(_ preset: (String, Int), _ color: Color) -> some View {
-    Button(intent: LogBlendIntent(right: preset.1)) {
-      Text(preset.0)
-        .font(.system(size: 12, weight: .heavy))
-        .minimumScaleFactor(0.7)
+  // Seven presets fit one row here — the banner and the expanded island are
+  // both wide and short, so a grid would waste the shape.
+  func laBlendButton(_ preset: (label: String, right: Int), _ color: Color) -> some View {
+    Button(intent: LogBlendIntent(right: preset.right)) {
+      Text(preset.right == 50 ? "50" : preset.label)
+        .font(.system(size: 11, weight: .heavy))
+        .minimumScaleFactor(0.55)
         .lineLimit(1)
         .foregroundColor(.white)
-        .frame(maxWidth: .infinity, minHeight: 34)
+        .frame(maxWidth: .infinity, minHeight: 36)
         .background(color)
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
@@ -302,10 +362,13 @@ struct Provider: TimelineProvider {
 
 // MARK: - View
 
-// One view for every supported size. Everything that changes with the widget
-// family (button height, type size, full words vs initials, whether the dark
-// card is drawn at all) is derived from `family`, so you can add the small,
-// medium or large widget and it fills the space properly instead of staying tiny.
+// One view for every supported size.
+//
+// Layout rule: the buttons are the widget. Everything else (the title line, the
+// large-size caption) takes its natural height and the button block stretches
+// into ALL the space that is left, so the coloured targets — not the dark card —
+// fill the tile at every size. Type size, corner radius and spacing scale with
+// the family; nothing is a fixed pixel height.
 struct AvirLogWidgetView: View {
   var entry: BreathEntry
   // Fixed per widget kind — the widget you added never changes mode by itself.
@@ -319,77 +382,129 @@ struct AvirLogWidgetView: View {
   // Lock-Screen accessory widgets are rendered monochrome/vibrant by iOS, so
   // they get no dark card and no coloured fills — just outlined buttons.
   private var isAccessory: Bool { family == .accessoryRectangular }
-  private var isWide: Bool { family == .systemMedium || family == .systemLarge }
+  private var isLarge: Bool { family == .systemLarge }
+  private var isMedium: Bool { family == .systemMedium }
 
-  private var buttonHeight: CGFloat {
-    switch family {
-    case .systemLarge: return 66
-    case .systemMedium: return 50
-    case .systemSmall: return 38
-    default: return 26 // accessoryRectangular
-    }
-  }
-  private var titleSize: CGFloat { isAccessory ? 9 : (family == .systemLarge ? 13 : 10) }
-  private var gap: CGFloat { isAccessory ? 3 : (advanced ? 4 : 6) }
+  private var pad: CGFloat { isAccessory ? 0 : (isLarge ? 14 : 10) }
+  private var gap: CGFloat { isAccessory ? 3 : (isLarge ? 8 : 5) }
+  private var corner: CGFloat { isAccessory ? 6 : (isLarge ? 16 : 11) }
+  private var titleSize: CGFloat { isAccessory ? 9 : (isLarge ? 12 : 10) }
+  private var stateSize: CGFloat { isAccessory ? 12 : (isLarge ? 34 : (isMedium ? 24 : 17)) }
+  // Both reads one step quieter than the two sides, exactly as it does on the
+  // Log screen — it's the answer you reach for least often.
+  private var bothSize: CGFloat { isAccessory ? 11 : (isLarge ? 26 : (isMedium ? 19 : 14)) }
+  private var blendSize: CGFloat { isAccessory ? 9 : (isLarge ? 21 : (isMedium ? 16 : 11)) }
+
+  // The slim Both bar under the two side buttons (square shapes only).
+  private var bothHeight: CGFloat { isLarge ? 62 : 34 }
+  // The narrow Both column between them (wide-and-short shapes only).
+  private var bothWidth: CGFloat { isAccessory ? 40 : 74 }
+  // The Lock-Screen rectangle is ~72pt tall; in advanced mode its three button
+  // rows need every one of them, so the title line is dropped there only.
+  private var showsTitle: Bool { !(isAccessory && advanced) }
 
   var body: some View {
-    VStack(spacing: isAccessory ? 3 : 8) {
-      Text(entry.justLogged ? "LOGGED ✓" : (entry.due ? "LOG NOW" : "BREATH"))
-        .font(.system(size: titleSize, weight: .heavy))
-        .tracking(2)
-        .foregroundColor(isAccessory ? .primary : (entry.due ? .white : .secondary))
-
-      HStack(spacing: gap) {
-        if advanced {
-          ForEach(0..<BLEND_PRESETS.count, id: \.self) { i in
-            blendButton(BLEND_PRESETS[i], blendPresetColor(i, leftColor, bothColor, rightColor))
-          }
-        } else {
-          button(isWide ? "Left" : "L", "left", leftColor)
-          button(isWide ? "Both" : "B", "both", bothColor)
-          button(isWide ? "Right" : "R", "right", rightColor)
-        }
+    VStack(spacing: isAccessory ? 3 : 6) {
+      if showsTitle {
+        Text(entry.justLogged ? "LOGGED ✓" : (entry.due ? "LOG NOW" : "BREATH"))
+          .font(.system(size: titleSize, weight: .heavy))
+          .tracking(2)
+          .foregroundColor(isAccessory ? .primary : (entry.due ? .white : .white.opacity(0.55)))
       }
 
+      if advanced { blendGrid } else { stateBlock }
+
       // The large widget has room to spare — say what the buttons do.
-      if family == .systemLarge {
+      if isLarge {
         Text(advanced
              ? "Tap a blend — how open each nostril is"
              : "Tap the nostril that is open now")
           .font(.system(size: 11))
-          .foregroundColor(.white.opacity(0.5))
+          .foregroundColor(.white.opacity(0.45))
           .multilineTextAlignment(.center)
       }
     }
     .opacity(entry.justLogged ? 0.55 : 1)
-    .padding(isAccessory ? 0 : 12)
+    .padding(pad)
+    // Expand AFTER padding, so the content grows into the whole tile instead of
+    // sitting as a small island in the middle of the dark card.
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
     .widgetBackground(dark: !isAccessory, due: entry.due)
   }
 
-  func button(_ label: String, _ state: String, _ color: Color) -> some View {
+  // Simple mode borrows the app's own arrangement — and the watch app's — so
+  // the three screens read as one product: two big side buttons with a slim
+  // Both bar beneath them.
+  //
+  // The wide-and-short shapes (medium, Lock Screen) can't take that stack
+  // without turning into three squat strips, so they keep a single row and make
+  // Both the narrow column instead. Either way Both sits between Left and
+  // Right, and either way it is visibly the lesser of the three.
+  @ViewBuilder
+  private var stateBlock: some View {
+    if isMedium || isAccessory {
+      HStack(spacing: gap) {
+        button(isAccessory ? "L" : "Left", "left", leftColor, stateSize)
+        button(isAccessory ? "B" : "Both", "both", bothColor, bothSize)
+          .frame(width: bothWidth)
+        button(isAccessory ? "R" : "Right", "right", rightColor, stateSize)
+      }
+    } else {
+      VStack(spacing: gap) {
+        HStack(spacing: gap) {
+          button("Left", "left", leftColor, stateSize)
+          button("Right", "right", rightColor, stateSize)
+        }
+        button("Both", "both", bothColor, bothSize)
+          .frame(height: bothHeight)
+      }
+    }
+  }
+
+  // The seven presets as three equal rows — Ida, even, Pingala — so every
+  // target stays finger-sized instead of being one of seven slivers. The rows
+  // are colour-coded by side and the labels carry the side letter, so there is
+  // no guessing which end is which.
+  private var blendGrid: some View {
+    VStack(spacing: gap) {
+      HStack(spacing: gap) {
+        ForEach(Array(0..<BLEND_MID), id: \.self) { i in
+          blendButton(BLEND_PRESETS[i], leftColor)
+        }
+      }
+      blendButton(BLEND_PRESETS[BLEND_MID], bothColor)
+      HStack(spacing: gap) {
+        ForEach(Array((BLEND_MID + 1)..<BLEND_PRESETS.count), id: \.self) { i in
+          blendButton(BLEND_PRESETS[i], rightColor)
+        }
+      }
+    }
+  }
+
+  func button(_ label: String, _ state: String, _ color: Color, _ size: CGFloat) -> some View {
     Button(intent: LogBreathIntent(state: state)) {
       Text(label)
-        .font(.system(size: isAccessory ? 12 : (isWide ? 20 : 17), weight: .heavy))
-        .minimumScaleFactor(0.6)
+        .font(.system(size: size, weight: .heavy))
+        .minimumScaleFactor(0.5)
         .lineLimit(1)
         .foregroundColor(isAccessory ? .primary : .white)
-        .frame(maxWidth: .infinity, minHeight: buttonHeight)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(buttonFill(color))
-        .clipShape(RoundedRectangle(cornerRadius: isAccessory ? 6 : 10))
+        .clipShape(RoundedRectangle(cornerRadius: corner))
     }
     .buttonStyle(.plain)
   }
 
-  func blendButton(_ preset: (String, Int), _ color: Color) -> some View {
-    Button(intent: LogBlendIntent(right: preset.1)) {
-      Text(preset.0)
-        .font(.system(size: isAccessory ? 9 : (isWide ? 15 : 11), weight: .heavy))
+  func blendButton(_ preset: (label: String, right: Int), _ color: Color) -> some View {
+    Button(intent: LogBlendIntent(right: preset.right)) {
+      Text(preset.label)
+        .font(.system(size: blendSize, weight: .heavy))
         .minimumScaleFactor(0.5)
         .lineLimit(1)
         .foregroundColor(isAccessory ? .primary : .white)
-        .frame(maxWidth: .infinity, minHeight: buttonHeight)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(buttonFill(color))
-        .clipShape(RoundedRectangle(cornerRadius: isAccessory ? 5 : 8))
+        .clipShape(RoundedRectangle(cornerRadius: corner))
     }
     .buttonStyle(.plain)
   }
@@ -413,8 +528,10 @@ private extension View {
     if dark {
       self
         .containerBackground(for: .widget) { Color.black.opacity(due ? 0.92 : 0.82) }
+        // ContainerRelativeShape follows the tile's own corner radius, so the
+        // LOG-NOW border traces the widget edge instead of a guessed rectangle.
         .overlay(
-          RoundedRectangle(cornerRadius: 18)
+          ContainerRelativeShape()
             .stroke(due ? Color.white : Color.white.opacity(0.12), lineWidth: due ? 3 : 1)
         )
     } else {
