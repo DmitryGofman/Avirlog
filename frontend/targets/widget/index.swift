@@ -8,6 +8,10 @@ import ActivityKit
 // app.config.js, expo-target.config.js, and modules/app-group-storage.
 let APP_GROUP = "group.com.avirlog.app"
 
+// How many upcoming reminders are booked at once. Keep in sync with
+// REMINDER_BATCH in src/lib/notifications.ts.
+let REMINDER_BATCH = 48
+
 // MARK: - Shared store
 
 enum SharedStore {
@@ -69,8 +73,75 @@ enum SharedStore {
     return Date().timeIntervalSince(t) < seconds
   }
 
-  static func armNextDue() {
-    defaults?.set(Date().timeIntervalSince1970 + intervalSeconds, forKey: "nextDueAt")
+  // Reminder settings mirrored from the app (setWidgetReminderConfig in
+  // src/lib/widgetBridge.ts).
+  static var remindersEnabled: Bool { (defaults?.double(forKey: "remindersEnabled") ?? 0) > 0.5 }
+  static var bookNotifications: Bool { (defaults?.double(forKey: "bookNotifications") ?? 1) > 0.5 }
+  static var reminderSound: Bool { (defaults?.double(forKey: "reminderSound") ?? 1) > 0.5 }
+  static var quietEnabled: Bool { (defaults?.double(forKey: "quietEnabled") ?? 0) > 0.5 }
+  static var quietStart: Int { Int(defaults?.double(forKey: "quietStart") ?? 0) }
+  static var quietEnd: Int { Int(defaults?.double(forKey: "quietEnd") ?? 0) }
+
+  // A log was made on the widget or the Live Activity: restart the reminder
+  // cadence from now, exactly as the app does after a log.
+  //
+  // This used to remove every pending reminder and book nothing in its place,
+  // so each widget / Live Activity log silently switched reminders off until
+  // the app was next opened.
+  static func rebookReminders() async {
+    let center = UNUserNotificationCenter.current()
+    center.removeAllPendingNotificationRequests()
+    guard remindersEnabled else { return }
+    let slots = reminderSlots(from: Date(), count: bookNotifications ? REMINDER_BATCH : 1)
+    if let first = slots.first {
+      defaults?.set(first.timeIntervalSince1970, forKey: "nextDueAt")
+    }
+    guard bookNotifications else { return }
+    let content = UNMutableNotificationContent()
+    content.title = "Breath check"
+    content.body = advanced
+      ? "How open is each nostril? Hold to log a blend"
+      : "Which nostril is active? Hold to log · Left / Both / Right"
+    content.categoryIdentifier = advanced ? "breath-blend" : "breath-log"
+    if reminderSound { content.sound = .default }
+    for at in slots {
+      let trigger = UNTimeIntervalNotificationTrigger(
+        timeInterval: max(1, at.timeIntervalSinceNow), repeats: false)
+      let id = "breath-\(Int(at.timeIntervalSince1970.rounded()))"
+      try? await center.add(UNNotificationRequest(identifier: id, content: content, trigger: trigger))
+    }
+  }
+
+  // Keep in sync with reminderSlots() in src/lib/notifications.ts.
+  static func reminderSlots(from start: Date, count: Int) -> [Date] {
+    let step = max(5, intervalSeconds)
+    var out: [Date] = []
+    var t = start
+    for _ in 0..<count {
+      var next = t.addingTimeInterval(step)
+      if quietEnabled && inQuiet(next) { next = quietEndAfter(next) }
+      t = next
+      out.append(next)
+    }
+    return out
+  }
+
+  private static func minutesOfDay(_ d: Date) -> Int {
+    let c = Calendar.current.dateComponents([.hour, .minute], from: d)
+    return (c.hour ?? 0) * 60 + (c.minute ?? 0)
+  }
+
+  private static func inQuiet(_ d: Date) -> Bool {
+    let m = minutesOfDay(d), s = quietStart, e = quietEnd
+    if s == e { return false }
+    return s < e ? (m >= s && m < e) : (m >= s || m < e)
+  }
+
+  private static func quietEndAfter(_ d: Date) -> Date {
+    var end = Calendar.current.date(
+      bySettingHour: quietEnd / 60, minute: quietEnd % 60, second: 0, of: d) ?? d
+    if end <= d { end = Calendar.current.date(byAdding: .day, value: 1, to: end) ?? end }
+    return end
   }
 
   static func isDueNow() -> Bool {
@@ -101,11 +172,10 @@ struct LogBreathIntent: AppIntent {
   func perform() async throws -> some IntentResult {
     SharedStore.appendPendingLog(state)
     SharedStore.markLogged()
-    SharedStore.armNextDue()
-    // You logged on the widget or the Live Activity — clear the classic
-    // reminder and close any open logging window.
+    // You logged on the widget or the Live Activity — clear the reminder that
+    // asked, restart the cadence from now, and close any open logging window.
     UNUserNotificationCenter.current().removeAllDeliveredNotifications()
-    UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
+    await SharedStore.rebookReminders()
     // Repaint to LOGGED ✓ first, then buzz — so the tile has already changed by
     // the time you feel the tap land.
     WidgetCenter.shared.reloadAllTimelines()
@@ -187,9 +257,8 @@ struct LogBlendIntent: AppIntent {
     let state = right >= 55 ? "right" : (right <= 45 ? "left" : "both")
     SharedStore.appendPendingBlend(state, right)
     SharedStore.markLogged()
-    SharedStore.armNextDue()
     UNUserNotificationCenter.current().removeAllDeliveredNotifications()
-    UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
+    await SharedStore.rebookReminders()
     WidgetCenter.shared.reloadAllTimelines()
     await postTapConfirmation(logLabel(state: state, right: right))
     await confirmThenEndActivities()
@@ -249,10 +318,18 @@ struct BreathLiveActivity: Widget {
             .font(.system(size: 11, weight: .heavy)).tracking(1.5)
           Spacer()
           if !context.state.logged {
-            Text(timerInterval: Date()...context.state.endsAt, countsDown: true)
-              .font(.system(size: 13, weight: .semibold).monospacedDigit())
-              .multilineTextAlignment(.trailing)
-              .frame(maxWidth: 54)
+            // Past the end the timer would sit on 0:00 indefinitely; say
+            // what it means instead. iOS flips isStale at the staleDate the
+            // app sets (= endsAt).
+            if context.isStale || context.state.endsAt <= Date() {
+              Text("DUE NOW")
+                .font(.system(size: 11, weight: .heavy)).tracking(1.5)
+            } else {
+              Text(timerInterval: Date()...context.state.endsAt, countsDown: true)
+                .font(.system(size: 13, weight: .semibold).monospacedDigit())
+                .multilineTextAlignment(.trailing)
+                .frame(maxWidth: 54)
+            }
           }
         }
         .foregroundColor(.white.opacity(0.85))
@@ -292,9 +369,13 @@ struct BreathLiveActivity: Widget {
       } compactLeading: {
         Image(systemName: "wind")
       } compactTrailing: {
-        Text(timerInterval: Date()...context.state.endsAt, countsDown: true)
-          .font(.system(size: 12, weight: .semibold).monospacedDigit())
-          .frame(maxWidth: 44)
+        if context.isStale || context.state.endsAt <= Date() {
+          Image(systemName: "bell.fill")
+        } else {
+          Text(timerInterval: Date()...context.state.endsAt, countsDown: true)
+            .font(.system(size: 12, weight: .semibold).monospacedDigit())
+            .frame(maxWidth: 44)
+        }
       } minimal: {
         Image(systemName: "wind")
       }

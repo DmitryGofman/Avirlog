@@ -200,8 +200,8 @@ export default function Onboarding() {
         {/* 4 — reminders (writes settings) */}
         <Page eyebrow="Setup · 1 of 3" title="How often should we nudge you?" width={width}>
           <Body>
-            One reminder at a time. The next is armed once you answer the current one — or next time
-            you open the app — so missed alerts never pile up.
+            A gentle nudge on a steady rhythm. Skipping one is fine — the next still comes, and every
+            log restarts the countdown from that moment.
           </Body>
           <View style={styles.pills}>
             {INTERVALS.map((i) => {
