@@ -32,9 +32,22 @@ public class LiveActivityModule: Module {
 
     // Whether a logging window is open right now. The app checks this on
     // foreground so it can reopen one that failed to start in the background.
+    //
+    // A window whose countdown has run out does NOT count: it lingers on the
+    // Lock Screen (iOS keeps an un-ended activity for hours), and counting it
+    // as running stopped the app from ever opening a fresh one. It is ended
+    // here so the caller starts a new window in its place.
     Function("isRunning") { () -> Bool in
       if #available(iOS 16.2, *) {
-        return !Activity<BreathActivityAttributes>.activities.isEmpty
+        var live = false
+        for activity in Activity<BreathActivityAttributes>.activities {
+          if activity.content.state.endsAt > Date() && !activity.content.state.logged {
+            live = true
+          } else {
+            Task { await activity.end(nil, dismissalPolicy: .immediate) }
+          }
+        }
+        return live
       }
       return false
     }

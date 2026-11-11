@@ -27,6 +27,9 @@ import {
 import { importWidgetLogs } from "@/src/lib/widgetBridge";
 import { STATE_META } from "@/src/theme/theme";
 
+// Notification responses already acted on in this process (see handle()).
+const handledResponses = new Set<string>();
+
 async function getReminderConfig(): Promise<ReminderConfig | null> {
   try {
     return await api<ReminderConfig>("/settings");
@@ -46,6 +49,14 @@ export function useBreathNotifications() {
     const handle = async (response: Notifications.NotificationResponse | null) => {
       if (!response) return;
       const actionId = response.actionIdentifier;
+      // A tap that cold-starts the app arrives twice — through the listener
+      // and through getLastNotificationResponseAsync() — and the stored last
+      // response is never cleared by expo itself. Handle each response once,
+      // or the user gets two "Logged" banners and the countdown restarts twice.
+      const responseKey = `${response.notification.request.identifier}_${actionId}`;
+      if (handledResponses.has(responseKey)) return;
+      handledResponses.add(responseKey);
+      Notifications.clearLastNotificationResponse();
       // Advanced preset-blend buttons carry a right-nostril %; the plain
       // buttons just carry a side.
       const blend = actionToBlend(actionId);
@@ -93,14 +104,16 @@ export function useBreathNotifications() {
           if (n > 0) clearBreathPrompts().catch(() => {});
         })
         .catch(() => {});
-      getReminderConfig().then((cfg) => {
+      getReminderConfig().then(async (cfg) => {
         if (!cfg?.reminder_enabled) return;
-        ensureReminderArmed(cfg).catch(() => {});
+        // In order: the batch must be booked before the Live Activity window
+        // looks up when the next reminder is due.
+        await ensureReminderArmed(cfg).catch(() => {});
         // ActivityKit refuses to start a Live Activity from the background, and
-        // the chain re-arms after notification quick-logs — which never
+        // reminders re-book after notification quick-logs — which never
         // foreground the app. So the window is routinely missing by the time
         // you next open AvirLog; reopen it here.
-        ensureLiveWindow(cfg).catch(() => {});
+        await ensureLiveWindow(cfg).catch(() => {});
       });
     };
     onActive();

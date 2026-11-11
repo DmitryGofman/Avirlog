@@ -1,10 +1,11 @@
 // Local reminder notifications with Left / Right / Both action buttons.
 //
-// Model: a *chained* single reminder. Instead of a fixed repeating alarm, one
-// reminder is scheduled at a time; the next is armed only after you interact
-// with the current one (tap it or a quick-log button) — or when you next open
-// the app. Reminders never fire inside the sleep window. Native only; every
-// call is a no-op on web.
+// Model: a rolling batch. The next REMINDER_BATCH reminders are booked up
+// front, so a reminder you ignore never stops the ones after it. Every log —
+// from the app, a notification button, the widget or the Live Activity —
+// re-books the batch from that moment, and opening the app tops it up.
+// Reminders never fire inside the sleep window. Native only; every call is a
+// no-op on web.
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 
@@ -15,7 +16,8 @@ import {
 } from "@/src/lib/liveActivityBridge";
 import { storage } from "@/src/utils/storage";
 import { pickMessage, SWARA } from "@/src/lib/swara";
-import { clearWidgetDue, setWidgetDue } from "@/src/lib/widgetBridge";
+import { clearWidgetDue, setWidgetDue, setWidgetReminderConfig } from "@/src/lib/widgetBridge";
+import { reminderSlots } from "@/src/lib/reminderSlots";
 import { NostrilState, STATE_META } from "@/src/theme/theme";
 
 // iOS lets a Live Activity stay active for up to 8 hours, which covers every
@@ -151,66 +153,89 @@ export async function ensurePermission(): Promise<boolean> {
   return next.granted || next.status === "granted";
 }
 
-// ---- sleep window ----
-// nowMinutes is minutes since local midnight. The window may wrap past
-// midnight (e.g. 22:00 → 07:00).
-function inQuiet(minutes: number, start: number, end: number): boolean {
-  if (start === end) return false;
-  return start < end ? minutes >= start && minutes < end : minutes >= start || minutes < end;
+// How many upcoming reminders are booked at once. iOS keeps at most 64 pending
+// local notifications per app; 48 leaves room for the immediate "Logged"
+// confirmations and the widget's tap buzz. At an hour's interval that is two
+// days of reminders; at the 30-second test interval, 24 minutes.
+//
+// Booking a batch is what makes reminders reliable. The old model armed ONE
+// reminder and relied on you answering it to arm the next — so the first
+// reminder you ignored ended the chain until you happened to open the app.
+// Now ignoring reminders changes nothing: the rest are already booked. Any log
+// (app, notification, widget, Live Activity) re-books the batch from that
+// moment, so the cadence restarts from your latest check.
+// Keep in sync with REMINDER_BATCH in targets/widget/_shared/SharedLogging.swift.
+export const REMINDER_BATCH = 48;
+// Top the batch up on app open once fewer than this many remain.
+const REFILL_BELOW = REMINDER_BATCH / 2;
+
+function reminderContent(cfg: ReminderConfig): Notifications.NotificationContentInput {
+  const advanced = !!cfg.advanced_logging;
+  return {
+    title: "Breath check",
+    body: advanced
+      ? "How open is each nostril? Hold to log a blend"
+      : "Which nostril is active? Hold to log · Left / Both / Right",
+    categoryIdentifier: advanced ? BREATH_BLEND_CATEGORY : BREATH_CATEGORY,
+    sound: cfg.reminder_sound !== false,
+  };
 }
 
-// Given a Date that lands inside the sleep window, return the Date the window
-// next ends (so the reminder resumes right when you wake).
-function quietEndAfter(t: Date, endMinutes: number): Date {
-  const e = new Date(t);
-  e.setHours(Math.floor(endMinutes / 60), endMinutes % 60, 0, 0);
-  if (e.getTime() <= t.getTime()) e.setDate(e.getDate() + 1);
-  return e;
-}
+// Slots are booked in small concurrent chunks, soonest first, so that if iOS
+// suspends the app part-way through (a log made from a notification button runs
+// this while the app is awake only briefly) the soonest reminders are already in
+// place. Measured on the simulator: 48 reminders take about a second either way.
+const BOOK_CHUNK = 8;
 
-// Seconds from now until the next reminder should fire, honoring sleep hours.
-function nextDelaySeconds(cfg: ReminderConfig): number {
-  let target = new Date(Date.now() + Math.max(5, cfg.reminder_interval_seconds) * 1000);
-  if (cfg.quiet_hours_enabled) {
-    const mins = target.getHours() * 60 + target.getMinutes();
-    if (inQuiet(mins, cfg.quiet_start_minutes, cfg.quiet_end_minutes)) {
-      target = quietEndAfter(target, cfg.quiet_end_minutes);
-    }
+async function bookSlots(cfg: ReminderConfig, slots: number[]): Promise<void> {
+  const content = reminderContent(cfg);
+  for (let i = 0; i < slots.length; i += BOOK_CHUNK) {
+    await Promise.all(
+      slots.slice(i, i + BOOK_CHUNK).map((at) =>
+        Notifications.scheduleNotificationAsync({
+          // Stable per-slot id, so booking the same slot twice replaces it.
+          identifier: `breath-${Math.round(at / 1000)}`,
+          content,
+          trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.DATE,
+            date: new Date(at),
+            channelId: Platform.OS === "android" ? CHANNEL_ID : undefined,
+          },
+        }),
+      ),
+    );
   }
-  return Math.max(5, Math.round((target.getTime() - Date.now()) / 1000));
 }
 
-// Cancel any pending reminder and arm exactly one for the next tick. The
-// widget is lit at the same moment (shared "due" time).
+function isReminder(r: Notifications.NotificationRequest): boolean {
+  return r.identifier.startsWith("breath-");
+}
+
+// Fire time of a scheduled reminder, read back from its slot id.
+function slotOf(r: Notifications.NotificationRequest): number {
+  return Number(r.identifier.slice("breath-".length)) * 1000;
+}
+
+// Cancel whatever is booked and book a fresh batch starting one interval from
+// now. Called after every log and every settings change. The widget is lit at
+// the first slot (shared "due" time).
 export async function scheduleNextReminder(cfg: ReminderConfig): Promise<void> {
   if (Platform.OS === "web" || !cfg.reminder_enabled) return;
   await configureNotifications();
   await cancelReminders();
-  const delay = nextDelaySeconds(cfg);
-  const advanced = !!cfg.advanced_logging;
+  // Let the widget extension re-book the same way after a widget / Live
+  // Activity log, when this JS isn't running.
+  setWidgetReminderConfig(cfg);
   const style = reminderStyle(cfg);
 
-  if (style !== "live") {
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: "Breath check",
-        body: advanced
-          ? "How open is each nostril? Hold to log a blend"
-          : "Which nostril is active? Hold to log · Left / Both / Right",
-        categoryIdentifier: advanced ? BREATH_BLEND_CATEGORY : BREATH_CATEGORY,
-        sound: cfg.reminder_sound !== false,
-      },
-      trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-        seconds: delay,
-        repeats: false,
-        channelId: Platform.OS === "android" ? CHANNEL_ID : undefined,
-      },
-    });
-  }
+  // Live-Activity-only mode books no notifications — only the next due time.
+  const slots = reminderSlots(cfg, Date.now(), style === "live" ? 1 : REMINDER_BATCH);
+  if (style !== "live") await bookSlots(cfg, slots);
+  const dueAt = slots[0];
+  const delay = Math.max(5, Math.round((dueAt - Date.now()) / 1000));
   // The widget lights up on the same schedule whichever style is chosen.
-  setWidgetDue(Date.now() / 1000 + delay, cfg.reminder_interval_seconds);
-  await storage.setItem(DUE_AT_KEY, Date.now() + delay * 1000);
+  setWidgetDue(dueAt / 1000, cfg.reminder_interval_seconds);
+  await storage.setItem(DUE_AT_KEY, dueAt);
   // Open the interactive Live Activity logging window (no-op if unsupported).
   // It counts down to the reminder and offers the log buttons.
   //
@@ -229,8 +254,20 @@ export async function ensureLiveWindow(cfg: ReminderConfig): Promise<void> {
   if (Platform.OS !== "ios" || !cfg.reminder_enabled) return;
   if (reminderStyle(cfg) === "banner") return;
   if (liveActivityRunning()) return;
-  const dueAt = await storage.getItem<number>(DUE_AT_KEY, 0);
+  let dueAt = await storage.getItem<number>(DUE_AT_KEY, 0);
   if (!dueAt) return;
+  if (dueAt <= Date.now() && reminderStyle(cfg) !== "live") {
+    // That reminder came and went unanswered; the batch carries on, so count
+    // down to the next booked one.
+    const upcoming = (await Notifications.getAllScheduledNotificationsAsync())
+      .filter(isReminder)
+      .map(slotOf)
+      .filter((t) => t > Date.now());
+    if (upcoming.length === 0) return;
+    dueAt = Math.min(...upcoming);
+    await storage.setItem(DUE_AT_KEY, dueAt);
+    setWidgetDue(dueAt / 1000, cfg.reminder_interval_seconds);
+  }
   const secondsLeft = Math.round((dueAt - Date.now()) / 1000);
   // Under half a minute left: the reminder is about to fire and re-arm the
   // chain anyway, so a window now would be replaced immediately.
@@ -238,12 +275,32 @@ export async function ensureLiveWindow(cfg: ReminderConfig): Promise<void> {
   startBreathWindow(Math.min(secondsLeft, LIVE_WINDOW_SECONDS));
 }
 
-// Re-arm on app open / after a swipe: only if reminders are on and nothing is
-// currently pending (so opening the app doesn't reset a live timer).
+// On app open: make sure reminders are still booked, WITHOUT restarting the
+// cadence (opening the app is not a log). Books a fresh batch only when
+// nothing is left; tops the batch up from its last slot when it is running low.
 export async function ensureReminderArmed(cfg: ReminderConfig): Promise<void> {
   if (Platform.OS === "web" || !cfg.reminder_enabled) return;
-  const pending = await Notifications.getAllScheduledNotificationsAsync();
-  if (pending.length === 0) await scheduleNextReminder(cfg);
+  setWidgetReminderConfig(cfg);
+
+  if (reminderStyle(cfg) === "live") {
+    // No notifications to count in this mode, so the stored due time is the
+    // only record. Re-arm only once it has passed — re-arming every time the
+    // app opened used to restart the countdown on each open.
+    const dueAt = await storage.getItem<number>(DUE_AT_KEY, 0);
+    if (!dueAt || dueAt <= Date.now()) await scheduleNextReminder(cfg);
+    return;
+  }
+
+  const pending = (await Notifications.getAllScheduledNotificationsAsync()).filter(isReminder);
+  if (pending.length === 0) {
+    await scheduleNextReminder(cfg);
+    return;
+  }
+  if (pending.length < REFILL_BELOW) {
+    await configureNotifications();
+    const last = Math.max(...pending.map(slotOf));
+    await bookSlots(cfg, reminderSlots(cfg, last, REMINDER_BATCH - pending.length));
+  }
 }
 
 // A short confirmation that appears in the notification bar right after a
@@ -287,4 +344,12 @@ export async function cancelReminders(): Promise<void> {
   await storage.setItem(DUE_AT_KEY, 0);
   clearWidgetDue();
   endBreathWindow();
+}
+
+// Reminders switched off: also tell the widget extension, so a widget tap
+// doesn't book a fresh batch behind the user's back.
+export async function disableReminders(): Promise<void> {
+  if (Platform.OS === "web") return;
+  setWidgetReminderConfig(null);
+  await cancelReminders();
 }

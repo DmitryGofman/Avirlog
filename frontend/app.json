@@ -45,6 +45,11 @@
     "experiments": {
       "typedRoutes": true,
       "baseUrl": "/Avirlog"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "803528b5-dfed-4b1f-9464-e9b971dee36b"
+      }
     }
   }
 }

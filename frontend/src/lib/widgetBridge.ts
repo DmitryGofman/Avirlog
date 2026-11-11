@@ -5,6 +5,9 @@
 import { requireOptionalNativeModule } from "expo";
 
 import { createBreathLog } from "@/src/lib/breathLog";
+// Type-only: notifications.ts imports this module, so a value import would
+// close a require cycle.
+import type { ReminderConfig } from "@/src/lib/notifications";
 import { NostrilState } from "@/src/theme/theme";
 
 interface AppGroupNative {
@@ -27,6 +30,29 @@ export function setWidgetDue(nextDueEpochSeconds: number, intervalSeconds: numbe
   M.setNumber("intervalSeconds", intervalSeconds);
   M.setNumber("nextDueAt", nextDueEpochSeconds);
   M.reloadWidget();
+}
+
+// Mirror the reminder settings into the App Group, so a widget / Live Activity
+// tap can re-book the reminder batch itself (the extension can't reach the
+// app's own storage, and the app isn't running when the tap lands). Pass null
+// when reminders are switched off. Read by SharedStore in
+// targets/widget/index.swift.
+export function setWidgetReminderConfig(cfg: ReminderConfig | null): void {
+  if (!M) return;
+  if (!cfg || !cfg.reminder_enabled) {
+    M.setNumber("remindersEnabled", 0);
+    return;
+  }
+  const style = cfg.reminder_style ?? "both";
+  M.setNumber("remindersEnabled", 1);
+  M.setNumber("intervalSeconds", cfg.reminder_interval_seconds);
+  M.setNumber("quietEnabled", cfg.quiet_hours_enabled ? 1 : 0);
+  M.setNumber("quietStart", cfg.quiet_start_minutes);
+  M.setNumber("quietEnd", cfg.quiet_end_minutes);
+  M.setNumber("reminderSound", cfg.reminder_sound === false ? 0 : 1);
+  // Live-Activity-only mode books no notifications.
+  M.setNumber("bookNotifications", style === "live" ? 0 : 1);
+  M.setNumber("advanced", cfg.advanced_logging ? 1 : 0);
 }
 
 // Reminders turned off — calm the widget.

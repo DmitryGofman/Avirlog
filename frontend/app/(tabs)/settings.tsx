@@ -24,6 +24,7 @@ import { api } from "@/src/lib/api";
 import { ACCOUNTS_ENABLED, DEFAULT_SKIN, SKINS, SkinId } from "@/src/lib/config";
 import {
   cancelReminders,
+  disableReminders,
   ensurePermission,
   REMINDER_STYLES,
   ReminderStyle,
@@ -212,7 +213,7 @@ export default function SettingsScreen() {
       await scheduleNextReminder(next);
       showToast(`Reminders every ${fmtInterval(next.reminder_interval_seconds)}`);
     } else {
-      await cancelReminders();
+      await disableReminders();
     }
     persist(next);
   };
@@ -781,8 +782,8 @@ export default function SettingsScreen() {
               )}
 
               <Text style={[styles.reminderHint, { color: colors.onSurfaceTertiary }]}>
-                One reminder at a time — the next is armed after you respond to it (or reopen the app).
-                Hold the notification to reveal the log buttons. Logging anywhere — in the app, on the
+                Reminders keep coming on schedule even if you skip some. Logging anywhere restarts the
+                countdown from that moment. Hold the notification to reveal the log buttons. Logging anywhere — in the app, on the
                 widget, from the notification — clears whatever is still showing. Delivered on the
                 installed app, not the web preview.
               </Text>

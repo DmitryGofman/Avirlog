@@ -17,7 +17,21 @@ never in Expo Go).
   - `BreathActivityAttributes` — the shared Activity type.
   - `BreathLiveActivity` — the Lock Screen UI (countdown + L/R/B) and the
     Dynamic Island (expanded buttons, compact countdown, minimal wind glyph).
-  - `LogBreathIntent` now also **ends** any open Live Activity after logging.
+  - The Live Activity's buttons run `LogBreathLiveIntent` / `LogBlendLiveIntent`
+    (defined in `targets/widget/_shared/SharedLogging.swift`). They are
+    `LiveActivityIntent`s, so iOS runs them in the **app's** process — the only
+    place ActivityKit lets you see, update and end the activity. The
+    home-screen widget keeps the plain `LogBreathIntent` / `LogBlendIntent`,
+    which run in the widget extension. (A plain intent in the extension sees
+    **zero** live activities, so it can never show LOGGED or close the card; the
+    card used to linger until the app next opened.)
+  - `_shared/` is linked into BOTH the app and the widget target by
+    `@bacons/apple-targets`; re-run `expo prebuild --clean` after adding or
+    renaming a file there. The app's deployment target is lower than the
+    widget's, so mind `@available`.
+  - Known gap: a tap on a **home-screen / Lock-Screen widget** (not the Live
+    Activity) while a Live Activity is showing logs fine but leaves the card
+    until the app opens; the extension cannot reach it.
   - Added to `AvirLogWidgetBundle` (guarded by `if #available(iOS 16.1, *)`).
 - `modules/live-activity/ios/LiveActivityModule.swift` — app-side control:
   `isSupported()`, `startWindow(seconds)`, `endAll()`.
