@@ -17,6 +17,7 @@ import {
 import { storage } from "@/src/utils/storage";
 import { pickMessage, SWARA } from "@/src/lib/swara";
 import { clearWidgetDue, setWidgetDue, setWidgetReminderConfig } from "@/src/lib/widgetBridge";
+import { reminderSlots } from "@/src/lib/reminderSlots";
 import { NostrilState, STATE_META } from "@/src/theme/theme";
 
 // iOS lets a Live Activity stay active for up to 8 hours, which covers every
@@ -152,23 +153,6 @@ export async function ensurePermission(): Promise<boolean> {
   return next.granted || next.status === "granted";
 }
 
-// ---- sleep window ----
-// nowMinutes is minutes since local midnight. The window may wrap past
-// midnight (e.g. 22:00 → 07:00).
-function inQuiet(minutes: number, start: number, end: number): boolean {
-  if (start === end) return false;
-  return start < end ? minutes >= start && minutes < end : minutes >= start || minutes < end;
-}
-
-// Given a Date that lands inside the sleep window, return the Date the window
-// next ends (so the reminder resumes right when you wake).
-function quietEndAfter(t: Date, endMinutes: number): Date {
-  const e = new Date(t);
-  e.setHours(Math.floor(endMinutes / 60), endMinutes % 60, 0, 0);
-  if (e.getTime() <= t.getTime()) e.setDate(e.getDate() + 1);
-  return e;
-}
-
 // How many upcoming reminders are booked at once. iOS keeps at most 64 pending
 // local notifications per app; 48 leaves room for the immediate "Logged"
 // confirmations and the widget's tap buzz. At an hour's interval that is two
@@ -180,32 +164,10 @@ function quietEndAfter(t: Date, endMinutes: number): Date {
 // Now ignoring reminders changes nothing: the rest are already booked. Any log
 // (app, notification, widget, Live Activity) re-books the batch from that
 // moment, so the cadence restarts from your latest check.
-// Keep in sync with REMINDER_BATCH in targets/widget/index.swift.
+// Keep in sync with REMINDER_BATCH in targets/widget/_shared/SharedLogging.swift.
 export const REMINDER_BATCH = 48;
 // Top the batch up on app open once fewer than this many remain.
 const REFILL_BELOW = REMINDER_BATCH / 2;
-
-// The next `count` reminder times after `fromMs`, in epoch ms. Each slot is one
-// interval after the previous; a slot that lands in the sleep window moves to
-// the moment the window ends, and the cadence continues from there.
-// Keep in sync with reminderSlots() in targets/widget/index.swift.
-export function reminderSlots(cfg: ReminderConfig, fromMs: number, count: number): number[] {
-  const step = Math.max(5, cfg.reminder_interval_seconds) * 1000;
-  const out: number[] = [];
-  let t = fromMs;
-  for (let i = 0; i < count; i++) {
-    let next = new Date(t + step);
-    if (cfg.quiet_hours_enabled) {
-      const mins = next.getHours() * 60 + next.getMinutes();
-      if (inQuiet(mins, cfg.quiet_start_minutes, cfg.quiet_end_minutes)) {
-        next = quietEndAfter(next, cfg.quiet_end_minutes);
-      }
-    }
-    t = next.getTime();
-    out.push(t);
-  }
-  return out;
-}
 
 function reminderContent(cfg: ReminderConfig): Notifications.NotificationContentInput {
   const advanced = !!cfg.advanced_logging;
@@ -219,19 +181,29 @@ function reminderContent(cfg: ReminderConfig): Notifications.NotificationContent
   };
 }
 
+// Slots are booked in small concurrent chunks, soonest first, so that if iOS
+// suspends the app part-way through (a log made from a notification button runs
+// this while the app is awake only briefly) the soonest reminders are already in
+// place. Measured on the simulator: 48 reminders take about a second either way.
+const BOOK_CHUNK = 8;
+
 async function bookSlots(cfg: ReminderConfig, slots: number[]): Promise<void> {
   const content = reminderContent(cfg);
-  for (const at of slots) {
-    await Notifications.scheduleNotificationAsync({
-      // Stable per-slot id, so booking the same slot twice replaces it.
-      identifier: `breath-${Math.round(at / 1000)}`,
-      content,
-      trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.DATE,
-        date: new Date(at),
-        channelId: Platform.OS === "android" ? CHANNEL_ID : undefined,
-      },
-    });
+  for (let i = 0; i < slots.length; i += BOOK_CHUNK) {
+    await Promise.all(
+      slots.slice(i, i + BOOK_CHUNK).map((at) =>
+        Notifications.scheduleNotificationAsync({
+          // Stable per-slot id, so booking the same slot twice replaces it.
+          identifier: `breath-${Math.round(at / 1000)}`,
+          content,
+          trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.DATE,
+            date: new Date(at),
+            channelId: Platform.OS === "android" ? CHANNEL_ID : undefined,
+          },
+        }),
+      ),
+    );
   }
 }
 

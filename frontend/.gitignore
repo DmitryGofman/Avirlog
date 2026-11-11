@@ -38,3 +38,9 @@ yarn-error.*
 *.tsbuildinfo
 
 app-example
+
+# Generated native projects (expo prebuild). Committing ios/ makes EAS skip prebuild
+# and ignore app.config.js, which would drop the widget and Live Activity setup.
+/ios/
+/android/
+targets/widget/Info.plist
